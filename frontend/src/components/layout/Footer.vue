@@ -10,7 +10,7 @@ const eventoStore = useEventoStore()
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         
         <!-- Dónde estamos -->
-        <div>
+        <div v-if="eventoStore.activeEvento?.secciones_visibles?.contacto !== false">
            <strong class="block text-gray-800 mb-2">Dónde estamos:</strong>
            <p class="text-gray-600">
              {{ eventoStore.activeEvento?.direccion || eventoStore.activeEvento?.ubicacion || 'Cota Cota, Calle 27, Edif. Facultad de Ciencias Puras y Naturales - La Paz, Bolivia' }}
@@ -18,7 +18,7 @@ const eventoStore = useEventoStore()
         </div>
 
         <!-- Contáctanos -->
-        <div>
+        <div v-if="eventoStore.activeEvento?.secciones_visibles?.contacto !== false">
            <strong class="block text-gray-800 mb-2">Contáctanos:</strong>
            <p class="text-gray-600">
              Telefono: {{ eventoStore.activeEvento?.telefono || '+591 76706873' }}

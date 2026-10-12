@@ -22,6 +22,7 @@ export class EventosService {
   async verificarPropiedad(eventoId: number, usuario: any) {
     if (!usuario) return;
     if (usuario.roles?.includes('Super Usuario')) return;
+    if (await this.coordinadorLibre(usuario)) return;
 
     const coord = await this.dataSource.query(
       `SELECT 1 FROM coordinacion_eventos WHERE id_evento = $1 AND id_usuario = $2`,
@@ -31,6 +32,18 @@ export class EventosService {
     if (coord.length === 0) {
       throw new ForbiddenException('No tienes permisos sobre este evento. Debes ser Super Usuario o el Coordinador asignado.');
     }
+  }
+
+  /** Un coordinador libre gestiona todos los eventos. Logística sigue por asignación. */
+  private async coordinadorLibre(usuario: any): Promise<boolean> {
+    if (!usuario?.id) return false;
+    const roles = Array.isArray(usuario.roles) ? usuario.roles.map((r: string) => String(r).toLowerCase()) : [];
+    if (!roles.some((r: string) => r.includes('coordinador'))) return false;
+    const alcance = await this.dataSource.query(
+      `SELECT alcance_eventos FROM usuarios WHERE id = $1`,
+      [usuario.id],
+    );
+    return alcance[0]?.alcance_eventos === 'libre';
   }
 
   create(data: Partial<Evento>) {
@@ -53,10 +66,12 @@ export class EventosService {
       ],
       order: { prioridad: 'ASC', fecha_creacion: 'DESC' }
     });
+    const coordinadoresPorEvento = await this.coordinadoresPublicos(eventos.map((evento) => evento.id));
     return eventos.map(evento => ({
       ...evento,
       logo: this.formatImageUrl(evento.logo, 'logo'),
       imagen_fondo: this.formatImageUrl(evento.imagen_fondo, 'fondos'),
+      coordinadores: coordinadoresPorEvento.get(evento.id) || [],
       actividades: (evento.actividades || [])
         .map(act => {
           const firstMod = act.modalidades?.[0];
@@ -207,8 +222,9 @@ export class EventosService {
       .leftJoinAndSelect('usuarioRel.persona', 'persona')
       .leftJoinAndSelect('coordinacion.gradoAdministrativo', 'gradoAdministrativo');
 
-    // 1. Aislamiento por Coordinación (SOLO si no es Super Usuario)
-    if (usuario && !esSuper) {
+    // Libre ve todos los eventos. Restringido solo los que tiene asignados.
+    const verTodos = esSuper || await this.coordinadorLibre(usuario);
+    if (usuario && !verTodos) {
       query.innerJoin('evento.coordinaciones', 'coordinacionFiltro', 'coordinacionFiltro.id_usuario = :userId', { userId: usuario.id });
     }
 
@@ -249,8 +265,15 @@ export class EventosService {
     imagenFondo?: Express.Multer.File,
     usuario?: any,
   ) {
+    const rolesUser = Array.isArray(usuario?.roles) ? usuario.roles.map((r: string) => String(r).toLowerCase()) : [];
+    const esSuper = rolesUser.includes('super usuario') || rolesUser.includes('admin') || rolesUser.includes('superusuario');
+    if (usuario && !esSuper && !(await this.coordinadorLibre(usuario))) {
+      throw new ForbiddenException('Un coordinador restringido no puede crear eventos. Puede crear cursos dentro de los eventos que tiene asignados.');
+    }
+
     const { coordinadores_ids, logistica_ids, coordinadores_grados, ...restoDto } = dto as any;
     const data: Partial<Evento> = { ...restoDto } as any;
+    this.normalizarSecciones(data);
     if (dto.prioridad) data.prioridad = parseInt(dto.prioridad, 10);
     if (imagenPortada) data.logo = imagenPortada.filename;
     if (imagenFondo) data.imagen_fondo = imagenFondo.filename;
@@ -298,6 +321,7 @@ export class EventosService {
 
     const { coordinadores_ids, logistica_ids, coordinadores_grados, ...restoDto } = dto as any;
     const data: Partial<Evento> = { ...restoDto } as any;
+    this.normalizarSecciones(data);
     if (dto.prioridad) data.prioridad = parseInt(dto.prioridad as any, 10);
 
     if (imagenPortada) {
@@ -333,6 +357,50 @@ export class EventosService {
    * Sincroniza el personal (coordinadores y logística) de un evento.
    * Recibe strings JSON de IDs (por ser multipart).
    */
+  private async coordinadoresPublicos(ids: number[]) {
+    const mapa = new Map<number, { id: number; nombres: string; primer_apellido: string; email: string }[]>();
+    if (!ids.length) return mapa;
+    const filas = await this.dataSource.query(
+      `SELECT ce.id_evento, u.id, u.email, p.nombres, p.primer_apellido,
+              string_agg(r.nombre_rol, ',') AS roles
+       FROM coordinacion_eventos ce
+       JOIN usuarios u ON u.id = ce.id_usuario
+       LEFT JOIN personas p ON p.id_usuario = u.id
+       JOIN usuarios_roles ur ON ur.id_usuario = u.id
+       JOIN roles r ON r.id = ur.id_rol
+       WHERE ce.id_evento = ANY($1::int[])
+       GROUP BY ce.id_evento, u.id, u.email, p.nombres, p.primer_apellido`,
+      [ids],
+    );
+    for (const fila of filas) {
+      const roles = String(fila.roles || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+      if (!roles.includes('coordin')) continue;
+      const eventoId = Number(fila.id_evento);
+      const lista = mapa.get(eventoId) || [];
+      lista.push({
+        id: Number(fila.id),
+        nombres: fila.nombres || '',
+        primer_apellido: fila.primer_apellido || '',
+        email: fila.email,
+      });
+      mapa.set(eventoId, lista);
+    }
+    return mapa;
+  }
+
+  private normalizarSecciones(data: Partial<Evento>) {
+    const valor = (data as any).secciones_visibles;
+    if (typeof valor !== 'string' || !valor.trim()) return;
+    try {
+      (data as any).secciones_visibles = JSON.parse(valor);
+    } catch {
+      delete (data as any).secciones_visibles;
+    }
+  }
+
   private async sincronizarPersonalInterno(eventoId: number, coordsJson?: string, logisticaJson?: string, coordinadoresGradosJson?: string) {
     const coordinacionRepo = this.dataSource.getRepository('CoordinacionEvento');
 

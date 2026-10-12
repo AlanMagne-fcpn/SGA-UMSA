@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  ForbiddenException,
   Logger,
   OnModuleInit,
 } from '@nestjs/common';
@@ -88,6 +89,25 @@ export class InscripcionesExcelService implements OnModuleInit {
 
   private getAreaValue(fila: any): string {
     return this.getFieldStrict(fila, ['area_tematica', 'area']);
+  }
+
+  /** El restringido solo importa en eventos donde está asignado. El libre usa cualquiera. */
+  private async asegurarEventoDelCoordinador(idEvento: number | undefined, usuario: any) {
+    if (!idEvento || !usuario?.id) return;
+    const roles = Array.isArray(usuario.roles) ? usuario.roles.map((r: string) => String(r).toLowerCase()) : [];
+    if (roles.includes('super usuario') || roles.includes('superusuario')) return;
+    const alcance = await this.dataSource.query(
+      `SELECT alcance_eventos FROM usuarios WHERE id = $1`,
+      [usuario.id],
+    );
+    if (alcance[0]?.alcance_eventos === 'libre') return;
+    const asignado = await this.dataSource.query(
+      `SELECT 1 FROM coordinacion_eventos WHERE id_evento = $1 AND id_usuario = $2`,
+      [idEvento, usuario.id],
+    );
+    if (!asignado.length) {
+      throw new ForbiddenException('Solo puedes importar en los eventos que tienes asignados.');
+    }
   }
 
   private getGradoAcademicoValue(fila: any): string {
@@ -284,8 +304,10 @@ export class InscripcionesExcelService implements OnModuleInit {
     idsActividades: number[] = [],
     modo: 'verificar' | 'guardar' = 'guardar',
     crearUsuarios = false,
-    templateId?: number
+    templateId?: number,
+    usuario?: any,
   ): Promise<ResultadoImportacion> {
+    await this.asegurarEventoDelCoordinador(idEvento, usuario);
     const filas = this.parsearExcel(fileBuffer);
     if (filas.length === 0) throw new BadRequestException('El archivo Excel está vacío.');
 
@@ -505,8 +527,10 @@ export class InscripcionesExcelService implements OnModuleInit {
     notificar = false,
     idEvento?: number,
     modo: 'verificar' | 'guardar' = 'guardar',
-    crearUsuarios = false
+    crearUsuarios = false,
+    usuario?: any,
   ): Promise<ResultadoImportacion> {
+    await this.asegurarEventoDelCoordinador(idEvento, usuario);
     const filas = this.parsearExcel(fileBuffer);
     if (filas.length === 0) throw new BadRequestException('El archivo Excel está vacío.');
 

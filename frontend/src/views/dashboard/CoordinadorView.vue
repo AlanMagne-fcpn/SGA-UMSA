@@ -33,14 +33,18 @@ const modal = ref(false);
 const tipoActivo = ref<TipoReporte>('general');
 const generando  = ref(false);
 
+const idsPropios = computed(() => new Set(rawEventos.value.map((e: any) => e.id)));
+
 const eventosFiltrados = computed(() => {
-    if (!eventoStore.selectedEventoId) return rawEventos.value;
-    return rawEventos.value.filter((e: any) => e.id === eventoStore.selectedEventoId);
+    const propios = rawEventos.value;
+    if (!eventoStore.selectedEventoId || !idsPropios.value.has(eventoStore.selectedEventoId)) return propios;
+    return propios.filter((e: any) => e.id === eventoStore.selectedEventoId);
 });
 
 const actividadesFiltradas = computed(() => {
-    if (!eventoStore.selectedEventoId) return rawActividades.value;
-    return rawActividades.value.filter((a: any) => a.id_evento === eventoStore.selectedEventoId || a.evento?.id === eventoStore.selectedEventoId);
+    const propias = rawActividades.value.filter((a: any) => idsPropios.value.has(a.id_evento) || idsPropios.value.has(a.evento?.id));
+    if (!eventoStore.selectedEventoId || !idsPropios.value.has(eventoStore.selectedEventoId)) return propias;
+    return propias.filter((a: any) => a.id_evento === eventoStore.selectedEventoId || a.evento?.id === eventoStore.selectedEventoId);
 });
 
 const statsComputed = computed(() => {

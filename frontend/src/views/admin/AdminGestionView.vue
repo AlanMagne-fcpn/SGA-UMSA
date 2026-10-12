@@ -219,6 +219,11 @@ const verCertificado = async (cert: any) => {
   Swal.fire('Sin certificado', 'No se pudo generar el PDF de este certificado.', 'error');
 };
 
+const abrirVerificacion = (uuid: string) => {
+  const href = router.resolve({ name: 'verificar-certificado', params: { uuid } }).href;
+  window.open(href, '_blank', 'noopener');
+};
+
 const limpiarFiltros = () => {
   filtroTexto.value = '';
   filtroEstado.value = '';
@@ -288,6 +293,7 @@ const coordinadoresActuales = ref<any[]>([]);
 const candidatosCoordinadores = ref<any[]>([]);
 const cargandoCoordinadores = ref(false);
 const queryCandidato = ref('');
+const filtroAlcance = ref<'todos' | 'libre' | 'restringido'>('todos');
 
 const fetchCoordinadores = async (eventoId: number) => {
   try {
@@ -308,20 +314,41 @@ const getRoleName = (u: any) => {
   return roles[0] || 'Usuario';
 };
 
+const esResponsable = (u: any) => {
+  const roles = u?.usuariosRoles?.map((ur: any) => (ur.rol?.nombre_rol || '').toLowerCase()) || [];
+  return roles.some((r: string) => r.includes('coordinador') || r.includes('logist'));
+};
+
+const nombreCompleto = (u: any) =>
+  [u?.persona?.nombres, u?.persona?.primer_apellido, u?.persona?.segundo_apellido].filter(Boolean).join(' ');
+
 const fetchCandidatos = async () => {
   try {
     const res = await usuariosService.getAll({ soloActivos: 'true' });
     const allUsers = (res.data as any)?.data ?? res.data;
-    candidatosCoordinadores.value = allUsers.filter((u: any) => {
-      // Filtrar solo Coordinadores (2) y Logística (3)
-      const roles = u.usuariosRoles?.map((ur: any) => Number(ur.rol?.id)) || [];
-      const hasValidRole = roles.includes(2) || roles.includes(3);
-      
+    candidatosCoordinadores.value = (Array.isArray(allUsers) ? allUsers : []).filter((u: any) => {
       const isAlreadyAssigned = coordinadoresActuales.value.some(c => Number(c.usuario?.id) === Number(u.id));
-      return hasValidRole && !isAlreadyAssigned;
+      return esResponsable(u) && !isAlreadyAssigned;
     });
   } catch (err) {
     console.error('Error fetching candidatos', err);
+  }
+};
+
+const definirAlcance = async (usuario: any, alcance: 'libre' | 'restringido') => {
+  try {
+    await usuariosService.update(usuario.id, { alcance_eventos: alcance } as any, false);
+    usuario.alcance_eventos = alcance;
+    Swal.fire({
+      toast: true,
+      icon: 'success',
+      title: alcance === 'libre' ? 'Coordinador libre en todos los eventos' : 'Coordinador restringido a sus eventos',
+      timer: 2000,
+      showConfirmButton: false,
+      position: 'top-end',
+    });
+  } catch {
+    Swal.fire('Error', 'No se pudo cambiar el alcance.', 'error');
   }
 };
 
@@ -362,11 +389,13 @@ const quitarCoordinador = async (coordinacion: any) => {
 };
 
 const candidatosFiltrados = computed(() => {
-  if (!queryCandidato.value) return candidatosCoordinadores.value;
-  return candidatosCoordinadores.value.filter(u => 
-    u.email.toLowerCase().includes(queryCandidato.value.toLowerCase()) ||
-    u.persona?.nombres.toLowerCase().includes(queryCandidato.value.toLowerCase())
-  );
+  const q = queryCandidato.value.trim().toLowerCase();
+  return candidatosCoordinadores.value.filter(u => {
+    const alcance = u.alcance_eventos === 'libre' ? 'libre' : 'restringido';
+    if (filtroAlcance.value !== 'todos' && alcance !== filtroAlcance.value) return false;
+    if (!q) return true;
+    return nombreCompleto(u).toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q);
+  });
 });
 
 // ─── Actividades ───────────────────────────────────────────
@@ -852,7 +881,7 @@ const exportarPDFSegmentado = async (categoria: string) => {
             <div class="absolute inset-x-0 bottom-0 p-6 md:p-8 text-white">
               <div class="flex flex-wrap items-center gap-2 mb-3">
                 <span v-if="estadoEventoConfig[ev.estado]" class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-white/15 border border-white/20">
-                  {{ estadoEventoConfig[ev.estado].label }}
+                  {{ estadoEventoConfig[ev.estado]?.label }}
                 </span>
                 <span class="text-[10px] font-bold uppercase tracking-widest text-sky-100">Gestión {{ ev.gestion || '—' }}</span>
                 <span v-if="ev.version" class="text-[10px] font-bold uppercase tracking-widest text-sky-200">{{ ev.version }}</span>
@@ -916,7 +945,7 @@ const exportarPDFSegmentado = async (categoria: string) => {
                 <div class="flex items-center gap-2 shrink-0">
                   <span class="text-[9px] font-black uppercase text-[#0070BB]">{{ cert.estado === 1 ? 'Válido' : 'Revocado' }}</span>
                   <button @click="verCertificado(cert)" class="px-3 py-1.5 rounded-lg bg-[#003B71] text-white text-[10px] font-black uppercase">Ver</button>
-                  <button v-if="cert.uuid_archivo" @click="window.open(router.resolve({ name: 'verificar-certificado', params: { uuid: cert.uuid_archivo } }).href, '_blank', 'noopener')" class="px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-[10px] font-black uppercase">Verificar</button>
+                  <button v-if="cert.uuid_archivo" @click="abrirVerificacion(cert.uuid_archivo)" class="px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-[10px] font-black uppercase">Verificar</button>
                 </div>
               </li>
             </ul>
@@ -989,7 +1018,7 @@ const exportarPDFSegmentado = async (categoria: string) => {
                       <p class="text-sm font-black text-slate-800 dark:text-white">{{ nombrePersona(cert.usuario) }}</p>
                       <p class="text-[10px] text-slate-500">{{ cert.codigo_certificado }} · {{ cert.estado === 1 ? 'Válido' : 'Revocado' }}</p>
                       <button @click="verCertificado(cert)" class="mt-2 px-3 py-1.5 rounded-lg bg-[#003B71] text-white text-[10px] font-black uppercase">Ver certificado</button>
-                      <button v-if="cert.uuid_archivo" @click="window.open(router.resolve({ name: 'verificar-certificado', params: { uuid: cert.uuid_archivo } }).href, '_blank', 'noopener')" class="mt-2 ml-2 px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-[10px] font-black uppercase">Verificar</button>
+                      <button v-if="cert.uuid_archivo" @click="abrirVerificacion(cert.uuid_archivo)" class="mt-2 ml-2 px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-[10px] font-black uppercase">Verificar</button>
                     </li>
                   </ul>
                 </div>
@@ -1394,19 +1423,29 @@ const exportarPDFSegmentado = async (categoria: string) => {
                 <span class="material-symbols-outlined text-sm">person_search</span> Asignar Nuevo
               </h3>
               <input v-model="queryCandidato" type="text" placeholder="BUSCAR POR NOMBRE O EMAIL..." class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-[10px] font-bold uppercase outline-none focus:border-slate-800/50 transition-all" />
+              <div class="flex gap-1">
+                <button v-for="op in [{ id: 'todos', label: 'Todos' }, { id: 'libre', label: 'Libres' }, { id: 'restringido', label: 'Restringidos' }]" :key="op.id" type="button" @click="filtroAlcance = op.id as any" class="px-2 py-1 rounded-lg text-[8px] font-black uppercase" :class="filtroAlcance === op.id ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500'">{{ op.label }}</button>
+              </div>
               <div class="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
-                <div v-for="u in candidatosFiltrados" :key="u.id" @click="asignarCoordinador(u)" class="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl cursor-pointer transition-colors border border-transparent hover:border-slate-100">
-                  <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-gray-800 flex items-center justify-center text-[10px] font-black text-slate-400 group-hover:bg-white">
-                    <span class="material-symbols-outlined text-sm">person</span>
-                  </div>
-                  <div>
-                    <div class="flex items-center gap-2">
-                      <p class="text-[10px] font-black text-slate-700 dark:text-gray-200 uppercase">{{ u.persona?.nombres }} {{ u.persona?.primer_apellido }}</p>
-                      <span class="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-[7px] font-black text-blue-600 uppercase border border-blue-100 dark:border-blue-800/30">
-                        {{ getRoleName(u) }}
-                      </span>
+                <p v-if="candidatosFiltrados.length === 0" class="py-6 text-center text-[10px] font-bold uppercase text-slate-300">No hay coordinadores con ese filtro</p>
+                <div v-for="u in candidatosFiltrados" :key="u.id" class="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-colors border border-transparent hover:border-slate-100">
+                  <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" @click="asignarCoordinador(u)">
+                    <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-gray-800 flex items-center justify-center text-[10px] font-black text-slate-400">
+                      <span class="material-symbols-outlined text-sm">person</span>
                     </div>
-                    <p class="text-[8px] text-slate-400">{{ u.email }}</p>
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-2">
+                        <p class="text-[10px] font-black text-slate-700 dark:text-gray-200 uppercase truncate">{{ nombreCompleto(u) }}</p>
+                        <span class="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-[7px] font-black text-blue-600 uppercase border border-blue-100 dark:border-blue-800/30">
+                          {{ getRoleName(u) }}
+                        </span>
+                      </div>
+                      <p class="text-[8px] text-slate-400 truncate">{{ u.email }}</p>
+                    </div>
+                  </button>
+                  <div class="flex shrink-0 flex-col gap-1">
+                    <button type="button" class="rounded px-1.5 py-0.5 text-[7px] font-black uppercase" :class="u.alcance_eventos === 'libre' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'" @click="definirAlcance(u, 'libre')">Libre</button>
+                    <button type="button" class="rounded px-1.5 py-0.5 text-[7px] font-black uppercase" :class="u.alcance_eventos !== 'libre' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-400'" @click="definirAlcance(u, 'restringido')">Restringido</button>
                   </div>
                 </div>
               </div>

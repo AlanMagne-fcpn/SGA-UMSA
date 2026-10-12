@@ -20,6 +20,14 @@ export class ActividadesAcademicasService {
   async verificarPropiedad(eventoId: number, usuario: any) {
     if (!usuario) return;
     if (usuario.roles?.includes('Super Usuario')) return;
+    const roles = Array.isArray(usuario.roles) ? usuario.roles.map((r: string) => String(r).toLowerCase()) : [];
+    if (roles.some((r: string) => r.includes('coordinador'))) {
+      const alcance = await this.dataSource.query(
+        `SELECT alcance_eventos FROM usuarios WHERE id = $1`,
+        [usuario.id],
+      );
+      if (alcance[0]?.alcance_eventos === 'libre') return;
+    }
 
     const coord = await this.dataSource.query(
       `SELECT 1 FROM coordinacion_eventos WHERE id_evento = $1 AND id_usuario = $2`,

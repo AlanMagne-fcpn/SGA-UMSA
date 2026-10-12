@@ -36,8 +36,8 @@ export class InscripcionesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtener conteo de notificaciones para el coordinador' })
-  async getNotifications() {
-    return this.service.getCoordinadorNotifications();
+  async getNotifications(@Request() req: any) {
+    return this.service.getCoordinadorNotifications(req.user);
   }
 
   // ══════════════════════════════════════════════════════════

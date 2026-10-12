@@ -552,7 +552,7 @@ const editarGestion = (gestion: any) => {
         <h2 class="text-3xl font-black text-primary-dark dark:text-white uppercase italic">Catálogo Histórico de Eventos</h2>
         <p class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mt-1">Listado detallado de todas las aperturas y gestiones pasadas.</p>
       </div>
-      <button v-if="!isCreating" @click="isCreating = true; isEditing = false; editId = null" class="bg-primary-dark dark:bg-blue-600 hover:bg-blue-900 dark:hover:bg-blue-700 text-white font-black px-6 py-3.5 rounded-xl text-[11px] uppercase tracking-widest shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2">
+      <button v-if="!isCreating && authStore.puedeCrearEventos" @click="isCreating = true; isEditing = false; editId = null" class="bg-primary-dark dark:bg-blue-600 hover:bg-blue-900 dark:hover:bg-blue-700 text-white font-black px-6 py-3.5 rounded-xl text-[11px] uppercase tracking-widest shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2">
         <span class="material-symbols-outlined text-[18px]">add_business</span> Crear Nuevo Evento
       </button>
       <button v-else @click="isCreating = false; isEditing = false; editId = null" class="bg-slate-200 dark:bg-gray-800 hover:bg-slate-300 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 font-black px-6 py-3.5 rounded-xl text-[11px] uppercase tracking-widest shadow-sm hover:-translate-y-0.5 transition-all flex items-center gap-2">

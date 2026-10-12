@@ -582,6 +582,41 @@ export class UsuariosService {
     return { data: finalData, total, page: Number(page), limit: Number(limit) };
   }
 
+  /** Coordinadores y logística activos, sin el join pesado del listado general. */
+  async listarPersonalEvento() {
+    const filas = await this.dataSource.query(`
+      SELECT u.id, u.email, p.nombres, p.primer_apellido, p.firma_dig,
+             string_agg(r.nombre_rol, ',') AS roles
+      FROM usuarios u
+      JOIN usuarios_roles ur ON ur.id_usuario = u.id
+      JOIN roles r ON r.id = ur.id_rol
+      LEFT JOIN personas p ON p.id_usuario = u.id
+      WHERE u.estado = 1
+        AND (
+          translate(lower(r.nombre_rol), 'áéíóúü', 'aeiouu') LIKE '%coordin%'
+          OR translate(lower(r.nombre_rol), 'áéíóúü', 'aeiouu') LIKE '%logist%'
+        )
+      GROUP BY u.id, u.email, p.nombres, p.primer_apellido, p.firma_dig
+      ORDER BY p.primer_apellido NULLS LAST, p.nombres
+    `);
+    const normalizar = (valor: string) =>
+      valor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const coordinadores: any[] = [];
+    const logistica: any[] = [];
+    for (const fila of filas) {
+      const roles = String(fila.roles || '').split(',').map((rol: string) => normalizar(rol));
+      const persona = {
+        nombres: fila.nombres,
+        primer_apellido: fila.primer_apellido,
+        firma_dig: fila.firma_dig,
+      };
+      const base = { id: Number(fila.id), email: fila.email, persona };
+      if (roles.some((rol: string) => rol.includes('coordin'))) coordinadores.push(base);
+      else if (roles.some((rol: string) => rol.includes('logist'))) logistica.push(base);
+    }
+    return { coordinadores, logistica };
+  }
+
   // ══════════════════════════════════════════════════════════
   //  CREACIÓN DIRECTA DE PONENTE (por el Coordinador)
   // ══════════════════════════════════════════════════════════
