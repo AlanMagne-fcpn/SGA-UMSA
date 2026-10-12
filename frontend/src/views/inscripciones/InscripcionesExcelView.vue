@@ -107,8 +107,11 @@ const openPreviewTemplate = async () => {
 
 const fetchEventos = async () => {
   try {
-    const res = await api.get('/admin/eventos/lista');
+    const res = await api.get('/admin/eventos/lista?limit=1000');
     eventos.value = res.data?.data || res.data || [];
+    if (!selectedEventoId.value && eventos.value.length === 1) {
+      selectedEventoId.value = String(eventos.value[0].id);
+    }
     
     // Si viene por query param
     const evId = route.query.eventoId as string;

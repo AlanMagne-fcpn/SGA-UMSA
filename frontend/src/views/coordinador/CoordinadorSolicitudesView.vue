@@ -69,17 +69,110 @@ const parseFullName = (persona?: Persona) => {
   return `${persona.primer_apellido} ${persona.segundo_apellido || ''} ${persona.nombres}`.trim();
 };
 
+const eventosDisponibles = ref<any[]>([]);
+const actividadesEvento = ref<any[]>([]);
+const nuevoUsuario = ref({
+  email: '',
+  password: '',
+  nombres: '',
+  primer_apellido: '',
+  documento_identidad: '',
+  id_evento: '',
+  id_actividad: '',
+});
+
 const fetchCuentasPendientes = async () => {
     try {
         loading.value = true;
-        const response = await api.get('/usuarios/solicitudes/pendientes');
-        cuentasPendientes.value = response.data || [];
+        const response = await api.get('/admin/inscripciones/pendientes');
+        cuentasPendientes.value = Array.isArray(response.data) ? response.data : [];
     } catch (error) {
-        console.error('Error fetching cuentas pendientes', error);
-        Swal.fire('Error', 'No se pudieron recuperar las solicitudes de registro de cuentas', 'error');
+        console.error('Error fetching inscripciones pendientes', error);
+        Swal.fire('Error', 'No se pudieron recuperar las inscripciones pendientes', 'error');
     } finally {
         loading.value = false;
     }
+};
+
+const cargarEventos = async () => {
+  const res = await api.get('/admin/eventos/lista?limit=1000');
+  eventosDisponibles.value = res.data?.data || res.data || [];
+};
+
+const cargarActividades = async () => {
+  actividadesEvento.value = [];
+  nuevoUsuario.value.id_actividad = '';
+  if (!nuevoUsuario.value.id_evento) return;
+  const res = await api.get(`/admin/eventos/${nuevoUsuario.value.id_evento}/actividades-academicas`);
+  actividadesEvento.value = Array.isArray(res.data) ? res.data : [];
+};
+
+const aceptarInscripcion = async (id: number) => {
+  try {
+    await api.put(`/admin/inscripciones/${id}`, { estado: 1 });
+    Swal.fire({ icon: 'success', title: 'Inscripción aceptada', timer: 1500, showConfirmButton: false });
+    await fetchCuentasPendientes();
+  } catch (error: any) {
+    Swal.fire('Error', error?.response?.data?.message || 'No se pudo aceptar. Revisa el cupo de la actividad.', 'error');
+  }
+};
+
+const rechazarInscripcion = async (id: number) => {
+  const { value: motivo, isConfirmed } = await Swal.fire({
+    title: 'Rechazar inscripción',
+    input: 'text',
+    inputPlaceholder: 'Motivo',
+    showCancelButton: true,
+    confirmButtonText: 'Rechazar',
+  });
+  if (!isConfirmed) return;
+  try {
+    await api.put(`/admin/inscripciones/${id}`, { estado: 2, observacion: motivo || '' });
+    await fetchCuentasPendientes();
+  } catch {
+    Swal.fire('Error', 'No se pudo rechazar la inscripción', 'error');
+  }
+};
+
+const agregarUsuario = async () => {
+  if (!nuevoUsuario.value.email || !nuevoUsuario.value.password || !nuevoUsuario.value.id_actividad) {
+    Swal.fire('Faltan datos', 'Correo, contraseña y actividad son obligatorios.', 'warning');
+    return;
+  }
+  try {
+    let idUsuario: number | undefined;
+    try {
+      const creado = await api.post('/usuarios/ponente', {
+        email: nuevoUsuario.value.email,
+        password: nuevoUsuario.value.password,
+        nombres: nuevoUsuario.value.nombres,
+        primer_apellido: nuevoUsuario.value.primer_apellido,
+        documento_identidad: nuevoUsuario.value.documento_identidad,
+        id_rol: 4,
+      });
+      idUsuario = creado.data?.id || creado.data?.usuario?.id;
+    } catch (error: any) {
+      const msg = String(error?.response?.data?.message || '');
+      if (!msg.toLowerCase().includes('registrado')) throw error;
+      const busqueda = await api.get('/usuarios', { params: { q: nuevoUsuario.value.email, limit: 5 } });
+      const lista = busqueda.data?.data || busqueda.data || [];
+      const hallado = lista.find((u: any) => String(u.email).toLowerCase() === nuevoUsuario.value.email.toLowerCase());
+      idUsuario = hallado?.id;
+      if (!idUsuario) throw error;
+    }
+    await api.post('/admin/inscripciones', {
+      id_usuario: idUsuario,
+      id_actividad_academica: Number(nuevoUsuario.value.id_actividad),
+      estado: 1,
+    });
+    Swal.fire({ icon: 'success', title: 'Usuario inscrito', timer: 1600, showConfirmButton: false });
+    nuevoUsuario.value.email = '';
+    nuevoUsuario.value.nombres = '';
+    nuevoUsuario.value.primer_apellido = '';
+    nuevoUsuario.value.documento_identidad = '';
+  } catch (error: any) {
+    Swal.fire('Error', error?.response?.data?.message || 'No se pudo crear la inscripción.', 'error');
+  }
 };
 
 const fetchPersonalLogistica = async () => {
@@ -112,7 +205,7 @@ const refreshData = () => {
     else fetchPersonalLogistica();
 };
 
-onMounted(() => { refreshData(); fetchPlantillas(); });
+onMounted(() => { refreshData(); fetchPlantillas(); cargarEventos(); });
 
 
 
@@ -302,10 +395,10 @@ const tieneReverso = (firmaDig?: string) => {
           </div>
           <div>
             <h2 class="text-4xl md:text-5xl font-black text-sky-950 dark:text-white italic uppercase tracking-tighter leading-none">
-              Aprobación de <span class="text-sky-600">Registros</span>
+              Aprobación de <span class="text-sky-600">Inscripciones</span>
             </h2>
             <p class="text-slate-400 dark:text-slate-500 text-[10px] md:text-xs font-black uppercase tracking-[0.3em] mt-3 flex items-center justify-center md:justify-start gap-2">
-               <span class="w-5 h-px bg-sky-400"></span> Validación de Cuentas Pendientes
+               <span class="w-5 h-px bg-sky-400"></span> Solicitudes enviadas por los estudiantes
             </p>
           </div>
         </div>
@@ -334,15 +427,35 @@ const tieneReverso = (firmaDig?: string) => {
         </button>
     </div>
 
+    <div v-if="activeTab === 'cuentas'" class="bg-white dark:bg-gray-900 rounded-[2rem] border border-slate-100 dark:border-gray-800 p-6 shadow-sm">
+      <h3 class="text-[12px] font-black uppercase tracking-widest text-slate-700 dark:text-white mb-4">Agregar usuario e inscribirlo</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <input v-model="nuevoUsuario.email" type="email" placeholder="Correo" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+        <input v-model="nuevoUsuario.password" type="text" placeholder="Contraseña" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+        <input v-model="nuevoUsuario.nombres" type="text" placeholder="Nombres" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+        <input v-model="nuevoUsuario.primer_apellido" type="text" placeholder="Apellido" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+        <input v-model="nuevoUsuario.documento_identidad" type="text" placeholder="Documento" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+        <select v-model="nuevoUsuario.id_evento" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" @change="cargarActividades">
+          <option value="">Evento</option>
+          <option v-for="ev in eventosDisponibles" :key="ev.id" :value="String(ev.id)">{{ ev.nombre }}</option>
+        </select>
+        <select v-model="nuevoUsuario.id_actividad" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+          <option value="">Actividad</option>
+          <option v-for="act in actividadesEvento" :key="act.id" :value="String(act.id)">{{ act.nombre }}{{ act.cupo ? ` · cupo ${act.cupo}` : '' }}</option>
+        </select>
+        <button type="button" class="rounded-xl bg-sky-600 px-4 py-2 text-[11px] font-black uppercase text-white" @click="agregarUsuario">Crear e inscribir</button>
+      </div>
+    </div>
+
     <!-- PESTAÑA: CUENTAS -->
     <div v-if="activeTab === 'cuentas'" class="bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-800 overflow-hidden relative z-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div class="p-6 bg-slate-50 dark:bg-gray-800 border-b border-slate-200 dark:border-gray-700 flex justify-between items-center">
             <div>
                 <h3 class="text-[12px] font-black text-primary-dark dark:text-white uppercase tracking-widest">
-                    Postulantes a la Plataforma
+                    Inscripciones por aceptar
                 </h3>
                 <p class="text-[10px] text-slate-500 mt-1 font-bold">
-                    {{ cuentasPendientes.length }} Cuentas nuevas por revisar
+                    {{ cuentasPendientes.length }} solicitudes con datos del estudiante
                 </p>
             </div>
             <div class="flex items-center gap-3">
@@ -368,10 +481,10 @@ const tieneReverso = (firmaDig?: string) => {
         <table class="w-full text-left">
             <thead class="bg-slate-50 dark:bg-gray-800/50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-200 dark:border-gray-800">
                 <tr>
-                    <th class="px-6 py-4">Fecha Solicitud</th>
-                    <th class="px-6 py-4">Correo (Usuario)</th>
-                    <th class="px-6 py-4">Datos de Identidad</th>
-                    <th class="px-6 py-4 text-center">Documento de Aval</th>
+                    <th class="px-6 py-4">Fecha</th>
+                    <th class="px-6 py-4">Estudiante</th>
+                    <th class="px-6 py-4">Actividad</th>
+                    <th class="px-6 py-4">Documento</th>
                     <th class="px-6 py-4 text-center">Acciones</th>
                 </tr>
             </thead>
@@ -383,7 +496,7 @@ const tieneReverso = (firmaDig?: string) => {
                 </tr>
                 <tr v-if="!loading && cuentasPendientes.length === 0" class="bg-white dark:bg-gray-900">
                     <td colspan="5" class="py-12 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">
-                        No hay solicitudes de registro pendientes
+                        No hay inscripciones pendientes
                     </td>
                 </tr>
                 <tr v-for="item in cuentasPendientes" :key="item.id" class="hover:bg-slate-50 dark:hover:bg-gray-800/80 transition-colors">
@@ -391,34 +504,21 @@ const tieneReverso = (firmaDig?: string) => {
                         <span class="text-xs font-bold text-slate-500 dark:text-gray-400">{{ new Date(item.fecha_creacion).toLocaleDateString() }}</span>
                     </td>
                     <td class="px-6 py-4">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-sky-600 dark:text-sky-400 text-[16px]">mail</span>
-                            </div>
-                            <p class="text-xs font-black text-slate-700 dark:text-slate-200">{{ item.email }}</p>
-                        </div>
+                        <p class="text-xs font-black text-slate-700 dark:text-slate-200 uppercase">{{ parseFullName(item.usuario?.persona) }}</p>
+                        <p class="text-[10px] text-slate-400">{{ item.usuario?.email }}</p>
                     </td>
                     <td class="px-6 py-4">
-                        <p class="font-black text-primary-dark dark:text-white text-xs uppercase">{{ parseFullName(item.persona) }}</p>
-                        <p class="text-[10px] text-slate-400 font-medium mt-0.5">ID: {{ item.persona?.documento_identidad }}</p>
+                        <p class="font-black text-primary-dark dark:text-white text-xs uppercase">{{ item.actividadAcademica?.nombre }}</p>
+                        <p class="text-[10px] text-slate-400 font-medium mt-0.5">{{ item.actividadAcademica?.evento?.nombre }}</p>
                     </td>
-                    <td class="px-6 py-4 text-center">
-                        <div v-if="item.persona?.firma_dig" class="flex flex-col gap-1 items-center">
-                            <button @click="verDocumento(item.id)" class="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors">
-                                <span class="material-symbols-outlined text-[14px]">visibility</span> 
-                                {{ tieneReverso(item.persona.firma_dig) ? 'Anverso' : 'Ver Doc' }}
-                            </button>
-                            <button v-if="tieneReverso(item.persona.firma_dig)" @click="verDocumento(item.id, 'reverso')" class="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors">
-                                <span class="material-symbols-outlined text-[14px]">visibility</span> Reverso
-                            </button>
-                        </div>
-                        <span v-else class="text-[10px] font-bold text-slate-400 italic">No proporcionado</span>
+                    <td class="px-6 py-4">
+                        <span class="text-[10px] font-bold text-slate-500">{{ item.usuario?.persona?.documento_identidad || 'Sin documento' }}</span>
                     </td>
                     <td class="px-6 py-4 flex justify-center gap-2">
-                        <button @click="aprobarCuenta(item.id)" class="p-2 border border-emerald-200 dark:border-emerald-900/50 text-emerald-500 rounded-lg hover:bg-emerald-500 hover:text-white transition-all group" title="Aprobar Registro">
+                        <button @click="aceptarInscripcion(item.id)" class="p-2 border border-emerald-200 dark:border-emerald-900/50 text-emerald-500 rounded-lg hover:bg-emerald-500 hover:text-white transition-all" title="Aceptar inscripción">
                             <span class="material-symbols-outlined text-[18px]">how_to_reg</span>
                         </button>
-                        <button @click="rechazarCuenta(item.id)" class="p-2 border border-red-200 dark:border-red-900/50 text-red-500 rounded-lg hover:bg-red-50 hover:text-white transition-all group" title="Rechazar Registro">
+                        <button @click="rechazarInscripcion(item.id)" class="p-2 border border-red-200 dark:border-red-900/50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all" title="Rechazar inscripción">
                             <span class="material-symbols-outlined text-[18px]">person_off</span>
                         </button>
                     </td>

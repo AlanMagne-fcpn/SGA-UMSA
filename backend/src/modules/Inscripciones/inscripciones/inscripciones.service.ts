@@ -215,6 +215,48 @@ export class InscripcionesService {
     }
   }
 
+  private async verificarCupo(actividadId: number) {
+    const filas = await this.inscripcionRepository.manager.query(
+      `SELECT cupo FROM actividades_academicas WHERE id = $1`,
+      [actividadId],
+    );
+    const cupo = filas[0]?.cupo;
+    if (cupo == null) return;
+    const ocupados = await this.inscripcionRepository.count({
+      where: { actividadAcademica: { id: actividadId }, estado: 1 },
+    });
+    if (ocupados >= Number(cupo)) {
+      throw new ConflictException(`La actividad ya completó su cupo de ${cupo} estudiantes.`);
+    }
+  }
+
+  async findPendientes(usuario?: any) {
+    const roles = Array.isArray(usuario?.roles) ? usuario.roles.map((r: string) => String(r).toLowerCase()) : [];
+    const esSuper = roles.includes('super usuario') || roles.includes('superusuario');
+    let where: any = { estado: 0 };
+    if (usuario?.id && !esSuper) {
+      const alcance = await this.inscripcionRepository.manager.query(
+        `SELECT alcance_eventos FROM usuarios WHERE id = $1`,
+        [usuario.id],
+      );
+      if (alcance[0]?.alcance_eventos !== 'libre') {
+        const filas = await this.inscripcionRepository.manager.query(
+          `SELECT id_evento FROM coordinacion_eventos WHERE id_usuario = $1`,
+          [usuario.id],
+        );
+        const ids = filas.map((fila: { id_evento: number }) => fila.id_evento);
+        if (!ids.length) return [];
+        where = { estado: 0, actividadAcademica: { evento: { id: In(ids) } } };
+      }
+    }
+    return this.inscripcionRepository.find({
+      where,
+      relations: ['usuario', 'usuario.persona', 'actividadAcademica', 'actividadAcademica.evento'],
+      order: { fecha_creacion: 'DESC' },
+      take: 300,
+    });
+  }
+
   async inscribir(dto: CreateInscripcionDto) {
     const { id_usuario, id_actividad_academica, ...rest } = dto;
 
@@ -230,6 +272,10 @@ export class InscripcionesService {
       throw new ConflictException(
         `El usuario ya cuenta con una inscripción o pre-inscripción en esta actividad.`,
       );
+    }
+
+    if (dto.estado === undefined || Number(dto.estado) === 1) {
+      await this.verificarCupo(id_actividad_academica);
     }
 
     const inscripcion = this.inscripcionRepository.create({
@@ -253,6 +299,10 @@ export class InscripcionesService {
 
     if (!inscripcion)
       throw new NotFoundException(`Inscripción ${id} no encontrada`);
+
+    if (estado === 1 && inscripcion.estado !== 1) {
+      await this.verificarCupo(inscripcion.actividadAcademica.id);
+    }
 
     await this.inscripcionRepository.update(id, { estado, observacion });
 
@@ -438,7 +488,7 @@ export class InscripcionesService {
     return this.inscripcionRepository.delete(id);
   }
 
-  async getCoordinadorNotifications() {
+  async getCoordinadorNotifications(usuario?: any) {
     try {
       const [pendingInscriptions, pendingAccounts] = await Promise.all([
         this.inscripcionRepository.find({
@@ -448,8 +498,30 @@ export class InscripcionesService {
         this.usuarioRepository.find({ where: { estado: 2 } }),
       ]);
 
+      const roles = Array.isArray(usuario?.roles) ? usuario.roles.map((r: string) => String(r).toLowerCase()) : [];
+      const esSuper = roles.includes('super usuario') || roles.includes('superusuario');
+      let eventosPropios: number[] | null = null;
+      if (usuario?.id && !esSuper) {
+        const alcance = await this.inscripcionRepository.manager.query(
+          `SELECT alcance_eventos FROM usuarios WHERE id = $1`,
+          [usuario.id],
+        );
+        if (alcance[0]?.alcance_eventos !== 'libre') {
+          const filas = await this.inscripcionRepository.manager.query(
+            `SELECT id_evento FROM coordinacion_eventos WHERE id_usuario = $1`,
+            [usuario.id],
+          );
+          eventosPropios = filas.map((fila: { id_evento: number }) => fila.id_evento);
+        }
+      }
+
+      const inscripcionesVisibles = eventosPropios
+        ? pendingInscriptions.filter((ins) => eventosPropios!.includes(ins.actividadAcademica?.evento?.id))
+        : pendingInscriptions;
+      const cuentasVisibles = eventosPropios ? 0 : pendingAccounts.length;
+
       const activityMap = new Map<number, { id: number; nombre: string; eventoNombre: string; count: number }>();
-      pendingInscriptions.forEach(ins => {
+      inscripcionesVisibles.forEach(ins => {
         const act = ins.actividadAcademica;
         if (!act) return;
         if (!activityMap.has(act.id)) {
@@ -464,8 +536,8 @@ export class InscripcionesService {
       });
 
       return {
-        total: pendingInscriptions.length + pendingAccounts.length,
-        accounts: pendingAccounts.length,
+        total: inscripcionesVisibles.length + cuentasVisibles,
+        accounts: cuentasVisibles,
         activities: Array.from(activityMap.values()),
       };
     } catch (error) {

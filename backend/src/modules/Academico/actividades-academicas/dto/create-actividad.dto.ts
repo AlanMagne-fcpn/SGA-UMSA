@@ -69,6 +69,18 @@ export class CreateActividadDto {
   @IsInt()
   horas?: number;
 
+  @ApiPropertyOptional({ example: 30, description: 'Cupo máximo. Vacío = sin límite.' })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'undefined' || value === 'null' || value === '' || value == null || value === 0 || value === '0') return null;
+    const parsed = parseInt(value, 10);
+    return isNaN(parsed) ? value : parsed;
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  cupo?: number | null;
+
   @ApiPropertyOptional({ example: 'Presencial' })
   @IsOptional()
   @IsString()

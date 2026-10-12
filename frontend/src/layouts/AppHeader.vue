@@ -177,6 +177,11 @@ const fetchEventosAsignados = async () => {
       const res = await api.get('/admin/eventos/lista?limit=1000');
       const data = res.data?.data || res.data || [];
       asignadosIds.value = data.map((e: any) => e.id);
+      const permitido = eventoStore.eventosAplanados.some((e) => e.id === eventoStore.selectedEventoId && asignadosIds.value.includes(e.id));
+      if (!permitido) {
+        const primero = eventoStore.eventosAplanados.find((e) => asignadosIds.value.includes(e.id));
+        if (primero) eventoStore.setEventoPorNombre(primero.nombre);
+      }
     } catch (e) {
       console.error('Error fetching assigned events:', e);
     }

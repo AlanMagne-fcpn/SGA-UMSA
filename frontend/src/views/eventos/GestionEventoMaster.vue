@@ -136,6 +136,7 @@ const formEvento = ref({
   coordinadores_grados: {} as Record<number, number>,
   fase: 1, // 1: Planificación, 2: Inscripciones, 3: Ejecución, 4: Finalizado, 5: Archivado
   mostrar_correos: true,
+  secciones: { cronograma: true, directorio: true, ubicacion: true, contacto: true },
 });
 
 const formatDate = (dateStr: string) => {
@@ -205,7 +206,8 @@ const resetFormEvento = () => {
         logistica_ids: [] as number[],
         coordinadores_grados: {} as Record<number, number>,
         fase: 1,
-        mostrar_correos: true
+        mostrar_correos: true,
+        secciones: { cronograma: true, directorio: true, ubicacion: true, contacto: true },
     };
 };
 
@@ -614,6 +616,7 @@ const handleSaveEvento = async () => {
         formData.append('coordinadores_ids', JSON.stringify(formEvento.value.coordinadores_ids));
         formData.append('logistica_ids', JSON.stringify(formEvento.value.logistica_ids));
         formData.append('coordinadores_grados', JSON.stringify(formEvento.value.coordinadores_grados));
+        formData.append('secciones_visibles', JSON.stringify(formEvento.value.secciones));
 
         // Contacto y Auspicios
         formData.append('telefono', formEvento.value.contacto_telefono || '');
@@ -763,13 +766,17 @@ const editarEvento = (evento: any) => {
         fase: evento.fase || 1,
         mostrar_correos: mostrarCorreos,
         coordinadores_ids: (evento.coordinaciones || [])
-          .filter((c: any) => c.usuario?.usuariosRoles?.some((ur: any) => 
-              ur.rol?.nombre_rol?.toLowerCase() === 'coordinador' || 
-              Number(ur.rol?.id) === 2 || 
-              Number(ur.rol?.id) === 7
-          ))
-          .map((c: any) => c.usuario.id),
-        logistica_ids: [],
+          .map((c: any) => c.usuario?.id)
+          .filter((id: number) => usuariosCoordinadores.value.some((u) => u.id === id)),
+        logistica_ids: (evento.coordinaciones || [])
+          .map((c: any) => c.usuario?.id)
+          .filter((id: number) => usuariosLogistica.value.some((u) => u.id === id) && !usuariosCoordinadores.value.some((u) => u.id === id)),
+        secciones: {
+          cronograma: evento.secciones_visibles?.cronograma !== false,
+          directorio: evento.secciones_visibles?.directorio !== false,
+          ubicacion: evento.secciones_visibles?.ubicacion !== false,
+          contacto: evento.secciones_visibles?.contacto !== false,
+        },
         coordinadores_grados: (evento.coordinaciones || []).reduce((acc: any, c: any) => {
             if (c.gradoAdministrativo) acc[c.usuario.id] = c.gradoAdministrativo.id;
             return acc;
@@ -791,18 +798,13 @@ const editarEvento = (evento: any) => {
 
 // --- GESTIÓN DE PERSONAL ---
 const usuariosCoordinadores = ref<any[]>([]);
+const usuariosLogistica = ref<any[]>([]);
 
 const fetchUsuariosPersonal = async () => {
     try {
-        const res = await api.get('/usuarios?rol=Coordinador&limit=100');
-        const data = res.data.data || res.data || [];
-        
-        usuariosCoordinadores.value = data.filter((u: any) => 
-            u.usuariosRoles?.some((ur: any) => 
-                ur.rol?.nombre_rol?.toLowerCase() === 'coordinador' || 
-                Number(ur.rol?.id) === 7
-            )
-        );
+        const res = await api.get('/usuarios/personal-evento');
+        usuariosCoordinadores.value = res.data?.coordinadores || [];
+        usuariosLogistica.value = res.data?.logistica || [];
     } catch (err) {
         console.error("Error fetching personnel:", err);
     }
@@ -812,6 +814,12 @@ const toggleCoordinador = (id: number) => {
     const idx = formEvento.value.coordinadores_ids.indexOf(id);
     if (idx === -1) formEvento.value.coordinadores_ids.push(id);
     else formEvento.value.coordinadores_ids.splice(idx, 1);
+};
+
+const toggleLogistica = (id: number) => {
+    const idx = formEvento.value.logistica_ids.indexOf(id);
+    if (idx === -1) formEvento.value.logistica_ids.push(id);
+    else formEvento.value.logistica_ids.splice(idx, 1);
 };
 
 const togglePonenteSeleccionado = (id: number) => {
@@ -924,6 +932,7 @@ const nuevaActividad = ref({
     min_nota: 51,
     min_asistencia: 80,
     horas: null as number | null,
+    cupo: null as number | null,
     modalidad: 'Presencial',
     fecha_inicio: '',
     fecha_fin: '',
@@ -963,6 +972,7 @@ const resetNuevaActividad = (eventoId: number) => {
         min_nota: 51,
         min_asistencia: 80,
         horas: null,
+        cupo: null,
         modalidad: 'Presencial',
         fecha_inicio: '',
         fecha_fin: '',
@@ -1005,6 +1015,7 @@ const prepararEdicionActividad = async (actId: number) => {
             min_nota: act.min_nota ?? 51,
             min_asistencia: act.min_asistencia ?? 80,
             horas: act.horas ?? null,
+            cupo: act.cupo ?? null,
             modalidad: act.modalidad || 'Presencial',
             fecha_inicio: act.fecha_inicio ? act.fecha_inicio.split('T')[0] : '',
             fecha_fin: act.fecha_fin ? act.fecha_fin.split('T')[0] : '',
@@ -1174,6 +1185,11 @@ const publicarActividad = async () => {
             formData.append('horas', String(nuevaActividad.value.horas));
         } else {
             formData.append('horas', '');
+        }
+        if (nuevaActividad.value.cupo) {
+            formData.append('cupo', String(nuevaActividad.value.cupo));
+        } else {
+            formData.append('cupo', '');
         }
         if (nuevaActividad.value.modalidad) {
             formData.append('modalidad', nuevaActividad.value.modalidad);
@@ -1354,7 +1370,7 @@ const changeStep = (delta: number) => {
           <h2 class="text-2xl sm:text-3xl font-black text-primary-dark dark:text-white uppercase italic">Gestión de Eventos</h2>
         </div>
         
-        <div v-if="authStore.esSuperUsuario" class="flex items-center gap-3 w-full sm:w-auto justify-end">
+        <div v-if="authStore.puedeCrearEventos" class="flex items-center gap-3 w-full sm:w-auto justify-end">
           <button @click="isCreatingEvento = true; isEditingEvento = false; resetFormEvento()" 
             :class="[themeBg, themeHover, themeShadow]"
             class="w-full sm:w-auto text-white font-black px-8 py-4 rounded-2xl text-[12px] uppercase tracking-widest hover:-translate-y-1 active:translate-y-0 transition-all flex items-center gap-3 justify-center shadow-xl">
@@ -1685,7 +1701,7 @@ const changeStep = (delta: number) => {
       <div v-show="currentStep === 2" class="space-y-8 animate-in slide-in-from-right-8 duration-500">
           <div class="bg-white dark:bg-gray-900 p-8 rounded-[2rem] shadow-sm border border-slate-100 dark:border-gray-800">
               <h3 class="text-xl font-black text-primary-dark dark:text-white uppercase italic mb-8">2. Parámetros de Aprobación</h3>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
                   <div class="p-8 rounded-[2rem] border-2 border-slate-100 dark:border-gray-800 border-l-[8px] border-l-primary-dark bg-slate-50 dark:bg-gray-800">
                       <h4 class="font-black text-primary-dark dark:text-white mb-2 uppercase text-sm">Nota Mínima</h4>
                       <input v-model="nuevaActividad.min_nota" type="number" min="0" max="100" class="w-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 font-black text-xl text-center text-primary-dark dark:text-gray-200" />
@@ -1697,6 +1713,10 @@ const changeStep = (delta: number) => {
                   <div class="p-8 rounded-[2rem] border-2 border-slate-100 dark:border-gray-800 border-l-[8px] border-l-umsa-blue bg-slate-50 dark:bg-gray-800">
                       <h4 class="font-black text-primary-dark dark:text-white mb-2 uppercase text-sm">Carga Horaria (Hrs Académicas)</h4>
                       <input v-model="nuevaActividad.horas" type="number" min="1" class="w-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 font-black text-xl text-center text-primary-dark dark:text-gray-200" />
+                  </div>
+                  <div class="p-8 rounded-[2rem] border-2 border-slate-100 dark:border-gray-800 border-l-[8px] border-l-emerald-500 bg-slate-50 dark:bg-gray-800">
+                      <h4 class="font-black text-primary-dark dark:text-white mb-2 uppercase text-sm">Cupo de estudiantes</h4>
+                      <input v-model="nuevaActividad.cupo" type="number" min="1" placeholder="Sin límite" class="w-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 font-black text-xl text-center text-primary-dark dark:text-gray-200" />
                   </div>
               </div>
           </div>
@@ -2290,6 +2310,9 @@ const changeStep = (delta: number) => {
                                 <span class="material-symbols-outlined text-umsa-gold">view_timeline</span>
                                 <h4 class="text-sm font-black text-primary-dark dark:text-white uppercase italic">Paso 3: Cronograma y Fechas</h4>
                             </div>
+                            <button type="button" @click="formEvento.secciones.cronograma = !formEvento.secciones.cronograma" :class="formEvento.secciones.cronograma ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'" class="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                                {{ formEvento.secciones.cronograma ? 'Visible en el evento' : 'Oculto en el evento' }}
+                            </button>
                         </div>
                         
                         <div class="grid grid-cols-2 gap-6 bg-slate-50 dark:bg-gray-800 p-4 rounded-2xl border border-slate-100 dark:border-gray-700">
@@ -2303,11 +2326,12 @@ const changeStep = (delta: number) => {
                             </div>
                         </div>
 
-                        <div class="flex justify-end">
+                        <div v-if="formEvento.secciones.cronograma" class="flex justify-end">
                             <button @click.prevent="agregarDiaEvento" class="bg-umsa-gold text-white px-4 py-2 rounded-xl font-black text-[9px] uppercase tracking-widest shadow-lg hover:bg-yellow-500 transition-colors">+ AGREGAR DÍA</button>
                         </div>
+                        <p v-else class="text-[11px] font-bold text-slate-400">El cronograma detallado no se publicará. Las fechas de inicio y fin sí quedan en el evento.</p>
 
-                        <div class="space-y-4 max-h-[350px] overflow-y-auto thin-scrollbar pr-2">
+                        <div v-if="formEvento.secciones.cronograma" class="space-y-4 max-h-[350px] overflow-y-auto thin-scrollbar pr-2">
                             <div v-for="(dia, dIdx) in formEvento.cronograma_lista" :key="dIdx" class="bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-2xl p-6 relative">
                                 <div class="flex items-center justify-between mb-4">
                                     <span class="text-[10px] font-black text-umsa-gold uppercase tracking-tighter">Día #{{ dia.day }}</span>
@@ -2336,10 +2360,15 @@ const changeStep = (delta: number) => {
                                 <span class="material-symbols-outlined text-umsa-blue">badge</span>
                                 <h4 class="text-sm font-black text-primary-dark dark:text-white uppercase italic">Paso 4: Directorio y Personal del Evento</h4>
                             </div>
+                            <div class="flex items-center gap-2">
+                            <button type="button" @click="formEvento.secciones.directorio = !formEvento.secciones.directorio" :class="formEvento.secciones.directorio ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'" class="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                                {{ formEvento.secciones.directorio ? 'Visible en el evento' : 'Oculto en el evento' }}
+                            </button>
                             <button @click="fetchUsuariosPersonal" type="button" class="px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-umsa-blue rounded-lg text-[9px] font-black uppercase tracking-widest border border-blue-100 dark:border-blue-800 hover:bg-umsa-blue hover:text-white transition-all">
                                 <span class="material-symbols-outlined text-[12px] align-middle mr-1">refresh</span>
                                 Actualizar Usuarios
                             </button>
+                            </div>
                         </div>
 
                         <!-- SECCIÓN COORDINADORES -->
@@ -2348,7 +2377,7 @@ const changeStep = (delta: number) => {
                                 <span class="material-symbols-outlined text-sm">groups</span> Asignar Coordinadores
                             </label>
                             <div v-if="usuariosCoordinadores.length === 0" class="p-8 text-center bg-slate-50 dark:bg-gray-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-gray-700">
-                                <p class="text-[10px] font-bold text-slate-400 uppercase">No se encontraron usuarios con rol de Coordinador o Logística</p>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase">No se encontraron coordinadores activos</p>
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[350px] overflow-y-auto thin-scrollbar pr-2">
                                 <div v-for="user in usuariosCoordinadores" :key="user.id" 
@@ -2382,6 +2411,28 @@ const changeStep = (delta: number) => {
                                             Firma digital pendiente de cargar en perfil
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-8">
+                            <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-4 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-sm">local_shipping</span> Asignar logística
+                            </label>
+                            <p class="text-[10px] font-bold text-slate-400 mb-3">Se asigna al evento, pero no aparece en la página pública.</p>
+                            <div v-if="usuariosLogistica.length === 0" class="p-8 text-center bg-slate-50 dark:bg-gray-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-gray-700">
+                                <p class="text-[10px] font-bold text-slate-400 uppercase">No se encontró personal de logística activo</p>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[280px] overflow-y-auto thin-scrollbar pr-2">
+                                <div v-for="user in usuariosLogistica" :key="user.id"
+                                     @click="toggleLogistica(user.id)"
+                                     :class="[formEvento.logistica_ids.includes(user.id) ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20' : 'border-slate-100 dark:border-gray-800 bg-white dark:bg-gray-900']"
+                                     class="p-4 border-2 rounded-2xl cursor-pointer transition-all flex items-center gap-4">
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-xs font-black text-slate-700 dark:text-gray-200 uppercase truncate">{{ user.persona?.nombres }} {{ user.persona?.primer_apellido }}</p>
+                                        <p class="text-[9px] font-bold text-slate-400 truncate">{{ user.email }}</p>
+                                    </div>
+                                    <span class="text-[7px] font-black uppercase px-1.5 py-0.5 rounded bg-teal-100 text-teal-700">Logística</span>
                                 </div>
                             </div>
                         </div>
@@ -2433,11 +2484,17 @@ const changeStep = (delta: number) => {
 
                     <!-- PASO 5: UBICACIÓN -->
                     <div v-if="currentStep === 5" class="space-y-6">
-                        <div class="flex items-center gap-3 border-b border-slate-100 dark:border-gray-800 pb-4 mb-6">
-                            <span class="material-symbols-outlined text-umsa-blue">room</span>
-                            <h4 class="text-sm font-black text-primary-dark dark:text-white uppercase italic">Paso 5: Sede y Mapa</h4>
+                        <div class="flex items-center justify-between border-b border-slate-100 dark:border-gray-800 pb-4 mb-6">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-umsa-blue">room</span>
+                                <h4 class="text-sm font-black text-primary-dark dark:text-white uppercase italic">Paso 5: Sede y Mapa</h4>
+                            </div>
+                            <button type="button" @click="formEvento.secciones.ubicacion = !formEvento.secciones.ubicacion" :class="formEvento.secciones.ubicacion ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'" class="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                                {{ formEvento.secciones.ubicacion ? 'Visible en el evento' : 'Oculto en el evento' }}
+                            </button>
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
+                        <p v-if="!formEvento.secciones.ubicacion" class="text-[11px] font-bold text-slate-400">La sede y el mapa no se publicarán en el evento.</p>
+                        <div v-if="formEvento.secciones.ubicacion" class="grid grid-cols-2 gap-4">
                             <div class="col-span-2 sm:col-span-1">
                                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Ciudad / Sede</label>
                                 <input v-model="formEvento.ubicacion" type="text" placeholder="Ej: La Paz" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold" />
@@ -2447,7 +2504,7 @@ const changeStep = (delta: number) => {
                                 <input v-model="formEvento.direccion" type="text" placeholder="Ej: Edif. Central UMSA" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold" />
                             </div>
                         </div>
-                        <div>
+                        <div v-if="formEvento.secciones.ubicacion">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Iframe de Google Maps</label>
                             <textarea v-model="formEvento.google_maps_link" rows="3" placeholder="Pega aquí el <iframe ...>" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-2xl px-5 py-4 text-[10px] font-mono text-emerald-600 resize-none"></textarea>
                         </div>
@@ -2455,12 +2512,18 @@ const changeStep = (delta: number) => {
 
                     <!-- PASO 6: CONTACTO, ORGANIZACIÓN Y AUSPICIOS -->
                     <div v-if="currentStep === 6" class="space-y-6">
-                        <div class="flex items-center gap-3 border-b border-slate-100 dark:border-gray-800 pb-4 mb-6">
-                            <span class="material-symbols-outlined text-umsa-blue">contact_support</span>
-                            <h4 class="text-sm font-black text-primary-dark dark:text-white uppercase italic">Paso 6: Contacto, Organización y Auspicios</h4>
+                        <div class="flex items-center justify-between border-b border-slate-100 dark:border-gray-800 pb-4 mb-6">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-umsa-blue">contact_support</span>
+                                <h4 class="text-sm font-black text-primary-dark dark:text-white uppercase italic">Paso 6: Contacto, Organización y Auspicios</h4>
+                            </div>
+                            <button type="button" @click="formEvento.secciones.contacto = !formEvento.secciones.contacto" :class="formEvento.secciones.contacto ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'" class="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                                {{ formEvento.secciones.contacto ? 'Visible en el evento' : 'Oculto en el evento' }}
+                            </button>
                         </div>
+                        <p v-if="!formEvento.secciones.contacto" class="text-[11px] font-bold text-slate-400">El bloque de contacto no se publicará en el evento.</p>
                         
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div v-if="formEvento.secciones.contacto" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Dónde Estamos & Contacto -->
                             <div class="space-y-4">
                                 <h5 class="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 pb-2">Información de Contacto</h5>
@@ -2864,7 +2927,7 @@ const changeStep = (delta: number) => {
                         <!-- SECCIÓN UBICACIÓN (PASO 5) -->
                         <div
                             ref="previewStep5Ref"
-                            v-if="currentStep === 5"
+                            v-if="currentStep === 5 && formEvento.secciones.ubicacion"
                             class="bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 rounded-[2.5rem] overflow-hidden shadow-2xl animate-in slide-in-from-right-8 duration-500 ring-4 ring-emerald-400/40 ring-offset-2"
                         >
                              <div class="p-8 space-y-6">
@@ -2893,7 +2956,7 @@ const changeStep = (delta: number) => {
                         <!-- SECCIÓN DIRECTORIO (PASO 4) -->
                         <div
                             ref="previewStep4Ref"
-                            v-if="currentStep === 4"
+                            v-if="currentStep === 4 && formEvento.secciones.directorio"
                             class="bg-slate-50 dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2.5rem] overflow-hidden shadow-2xl animate-in slide-in-from-bottom-8 duration-500 ring-4 ring-umsa-blue/30 ring-offset-2"
                         >
                              <div class="p-8">
@@ -2902,6 +2965,12 @@ const changeStep = (delta: number) => {
                                     <h2 class="text-xl font-black text-primary-dark dark:text-white uppercase italic tracking-tighter">Expositores y Ponentes</h2>
                                 </div>
 
+                                <div v-if="formEvento.coordinadores_ids.length" class="grid grid-cols-2 gap-3 mb-4">
+                                    <div v-for="id in formEvento.coordinadores_ids" :key="'c'+id" class="p-4 bg-white dark:bg-gray-800 rounded-2xl border border-slate-100 dark:border-gray-700 shadow-sm">
+                                        <p class="text-[7px] font-black uppercase text-umsa-blue">Coordinador</p>
+                                        <p class="text-[8px] font-black uppercase truncate">{{ usuariosCoordinadores.find(p => p.id === id)?.persona?.nombres }} {{ usuariosCoordinadores.find(p => p.id === id)?.persona?.primer_apellido }}</p>
+                                    </div>
+                                </div>
                                 <div v-if="formEvento.ponentes_seleccionados.length > 0" class="grid grid-cols-2 gap-3">
                                     <div v-for="id in formEvento.ponentes_seleccionados.slice(0, 4)" :key="id" class="p-4 bg-white dark:bg-gray-800 rounded-2xl border border-slate-100 dark:border-gray-700 shadow-sm flex items-center gap-3">
                                         <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-gray-700 flex items-center justify-center border-2 border-emerald-500/30">
@@ -2925,7 +2994,7 @@ const changeStep = (delta: number) => {
                         <!-- SECCIÓN CRONOGRAMA (PASO 3) -->
                         <div
                             ref="previewStep3Ref"
-                            v-if="currentStep === 3"
+                            v-if="currentStep === 3 && formEvento.secciones.cronograma"
                             class="bg-slate-50 dark:bg-gray-950 rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200 dark:border-gray-800 animate-in slide-in-from-bottom-8 duration-500 ring-4 ring-emerald-500/30 ring-offset-2"
                         >
                             <div class="p-8">
@@ -2966,7 +3035,7 @@ const changeStep = (delta: number) => {
                         <!-- SECCIÓN CONTACTO Y FOOTER (PASO 6) -->
                         <div
                             ref="previewStep6Ref"
-                            v-if="currentStep === 6"
+                            v-if="currentStep === 6 && formEvento.secciones.contacto"
                             class="bg-primary-dark dark:bg-gray-900 rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-800 animate-in fade-in duration-500 ring-4 ring-primary-dark/40 ring-offset-2 flex flex-col justify-end"
                         >
                              <div class="p-6 text-white text-[7px] font-sans">

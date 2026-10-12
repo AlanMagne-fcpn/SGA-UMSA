@@ -10,6 +10,7 @@ import {
   Query,
   UseGuards,
   Patch,
+  Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { InscripcionesService } from './inscripciones.service';
@@ -24,6 +25,13 @@ import { Roles } from '../../Seguridad/auth/roles.decorator';
 @Controller('admin/inscripciones')
 export class InscripcionesAdminController {
   constructor(private readonly service: InscripcionesService) {}
+
+  @Roles('Coordinador', 'Super Usuario', 'Logística')
+  @Get('pendientes')
+  @ApiOperation({ summary: 'Inscripciones enviadas y aún no aceptadas' })
+  findPendientes(@Request() req: any) {
+    return this.service.findPendientes(req.user);
+  }
 
   @Roles('Coordinador', 'Super Usuario', 'Logística')
   @Get()

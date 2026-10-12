@@ -35,11 +35,9 @@ const fetchCandidatos = async () => {
   try {
     const res = await usuariosService.getAll({ soloActivos: 'true' });
     const allUsers = (res.data as any)?.data ?? res.data;
-    candidatosCoordinadores.value = allUsers.filter((u: any) => {
-      // Filtrar solo Coordinadores (2) y Logística (3)
-      const roles = u.usuariosRoles?.map((ur: any) => Number(ur.rol?.id)) || [];
-      const hasValidRole = roles.includes(2) || roles.includes(3);
-      
+    candidatosCoordinadores.value = (Array.isArray(allUsers) ? allUsers : []).filter((u: any) => {
+      const roles = u.usuariosRoles?.map((ur: any) => (ur.rol?.nombre_rol || '').toLowerCase()) || [];
+      const hasValidRole = roles.some((r: string) => r.includes('coordinador') || r.includes('logist'));
       const isAlreadyAssigned = coordinadoresActuales.value.some(c => Number(c.usuario?.id) === Number(u.id));
       return hasValidRole && !isAlreadyAssigned;
     });
@@ -106,10 +104,11 @@ const quitarCoordinador = async (coordinacion: any) => {
 
 const candidatosFiltrados = computed(() => {
   if (!queryCandidato.value) return candidatosCoordinadores.value;
-  return candidatosCoordinadores.value.filter(u => 
-    u.email.toLowerCase().includes(queryCandidato.value.toLowerCase()) ||
-    u.persona?.nombres.toLowerCase().includes(queryCandidato.value.toLowerCase())
-  );
+  const q = queryCandidato.value.trim().toLowerCase();
+  return candidatosCoordinadores.value.filter(u => {
+    const nombre = [u.persona?.nombres, u.persona?.primer_apellido, u.persona?.segundo_apellido].filter(Boolean).join(' ').toLowerCase();
+    return !q || nombre.includes(q) || (u.email || '').toLowerCase().includes(q);
+  });
 });
 
 // --- Estado ---

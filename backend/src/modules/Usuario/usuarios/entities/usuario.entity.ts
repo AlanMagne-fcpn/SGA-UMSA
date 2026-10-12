@@ -41,6 +41,14 @@ export class Usuario {
   @Column({ type: 'integer', default: 1 })
   estado: number;
 
+  /**
+   * Alcance de un coordinador sobre los eventos.
+   * libre: puede gestionar todos los eventos y crear actividades en ellos.
+   * restringido: solo los eventos en los que está asignado.
+   */
+  @Column({ length: 20, default: 'restringido' })
+  alcance_eventos: string;
+
   /** Flag para obligar al cambio de contraseña en el primer acceso o tras un reset */
   @Column({ type: 'boolean', default: false })
   requiere_cambio_password: boolean;

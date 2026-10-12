@@ -9,6 +9,7 @@ import {
   UseGuards,
   BadRequestException,
   ParseFilePipe,
+  Request,
   MaxFileSizeValidator,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -108,6 +109,7 @@ export class InscripcionesExcelController {
     @Body('crear_usuarios') crearUsuarios?: string,
     @Body('modo') modo?: 'verificar' | 'guardar',
     @Body('id_template') idTemplate?: string,
+    @Request() req?: any,
   ) {
     if (!file) throw new BadRequestException('Debe adjuntar un archivo Excel.');
     return this.service.inscripcionMasivaEvento(
@@ -121,7 +123,8 @@ export class InscripcionesExcelController {
         .filter((valor) => Number.isInteger(valor) && valor > 0),
       modo || 'guardar',
       crearUsuarios === 'true',
-      idTemplate ? Number(idTemplate) : undefined
+      idTemplate ? Number(idTemplate) : undefined,
+      req?.user,
     );
   }
 
@@ -161,6 +164,7 @@ export class InscripcionesExcelController {
     @Body('id_evento') idEvento: string,
     @Body('modo') modo?: 'verificar' | 'guardar',
     @Body('crear_usuarios') crearUsuarios?: string,
+    @Request() req?: any,
   ) {
     if (!file) throw new BadRequestException('Debe adjuntar un archivo Excel.');
     return this.service.asignacionMasivaPonentes(
@@ -168,7 +172,8 @@ export class InscripcionesExcelController {
       false,
       Number(idEvento),
       modo || 'guardar',
-      crearUsuarios === 'true'
+      crearUsuarios === 'true',
+      req?.user,
     );
   }
 

@@ -51,6 +51,10 @@ export class ActividadAcademica {
   @Column({ type: 'integer', nullable: true })
   horas: number;
 
+  /** Máximo de estudiantes aceptados. Vacío = sin límite. */
+  @Column({ type: 'integer', nullable: true })
+  cupo: number | null;
+
   /** 1 = Activo | 0 = Finalizado | -1 = Inhabilitado */
   @Column({ type: 'integer', default: 1 })
   estado: number;

@@ -103,7 +103,9 @@ const cargarEventos = async () => {
                         return null; 
                     } 
                 })(),
-                ponentes: ponentesArr
+                ponentes: ponentesArr,
+                coordinadores: Array.isArray(ev.coordinadores) ? ev.coordinadores : [],
+                secciones: ev.secciones_visibles || {},
             };
         }));
 
@@ -346,7 +348,7 @@ const abrirMapa = (url: string) => {
     </section>
 
     <!-- SECCIÓN DEL CRONOGRAMA -->
-    <section class="py-24 bg-slate-50 dark:bg-gray-950 transition-colors duration-300 w-full">
+    <section v-if="eventoSeleccionado?.secciones?.cronograma !== false" class="py-24 bg-slate-50 dark:bg-gray-950 transition-colors duration-300 w-full">
       <div class="w-full px-6 md:px-16 lg:px-24 max-w-[2500px] mx-auto">
         <div class="flex items-center gap-4 mb-2">
             <div class="h-1 w-12 bg-emerald-500 rounded-full"></div>
@@ -389,12 +391,19 @@ const abrirMapa = (url: string) => {
     </section>
 
     <!-- SECCIÓN DE EXPOSITORES -->
-    <section id="organizacion" class="py-24 bg-white dark:bg-black transition-colors duration-300 border-t border-slate-100 dark:border-gray-800 w-full">
+    <section v-if="eventoSeleccionado?.secciones?.directorio !== false" id="organizacion" class="py-24 bg-white dark:bg-black transition-colors duration-300 border-t border-slate-100 dark:border-gray-800 w-full">
       <div class="w-full px-6 md:px-16 lg:px-24 max-w-[2500px] mx-auto">
         <div class="flex items-center justify-center gap-4 mb-2">
             <span class="text-umsa-blue font-black uppercase tracking-widest text-xs md:text-sm">Red Especializada TWAS</span>
         </div>
         <h2 class="text-4xl md:text-6xl font-black text-center text-primary-dark dark:text-white mb-20 uppercase tracking-tighter italic"><span class="text-umsa-blue dark:text-blue-400">Directorio</span> Expositor</h2>
+
+        <div v-if="eventoSeleccionado?.coordinadores?.length" class="flex flex-wrap justify-center gap-4 mb-12">
+            <div v-for="coord in eventoSeleccionado.coordinadores" :key="coord.id" class="px-5 py-4 bg-slate-50 dark:bg-gray-900 border border-slate-100 dark:border-gray-800 rounded-2xl min-w-[220px]">
+                <p class="text-[9px] font-black uppercase tracking-widest text-umsa-blue">Coordinador</p>
+                <p class="text-sm font-black uppercase text-primary-dark dark:text-white">{{ coord.nombres }} {{ coord.primer_apellido }}</p>
+            </div>
+        </div>
 
         <div v-if="eventoSeleccionado?.ponentes?.length" class="w-full relative">
             <!-- Contenedor Deslizable Horizontal -->
@@ -436,7 +445,7 @@ const abrirMapa = (url: string) => {
                 <span class="material-symbols-outlined animate-bounce-horizontal text-xs">trending_flat</span>
             </div>
         </div>
-        <div v-else class="text-center py-20 opacity-70">
+        <div v-else-if="!eventoSeleccionado?.coordinadores?.length" class="text-center py-20 opacity-70">
            <span class="material-symbols-outlined text-6xl text-slate-300 dark:text-gray-600 mb-4">groups</span>
            <p class="text-lg font-black text-slate-400 uppercase tracking-widest">Ponentes por confirmar</p>
         </div>
@@ -444,7 +453,7 @@ const abrirMapa = (url: string) => {
     </section>
 
     <!-- SECCIÓN DE UBICACIÓN -->
-    <section id="ubicacion" class="py-24 bg-slate-50 dark:bg-gray-950 transition-colors duration-300 border-t border-slate-100 dark:border-gray-900 w-full">
+    <section v-if="eventoSeleccionado?.secciones?.ubicacion !== false" id="ubicacion" class="py-24 bg-slate-50 dark:bg-gray-950 transition-colors duration-300 border-t border-slate-100 dark:border-gray-900 w-full">
        <div class="w-full px-6 md:px-16 lg:px-24 max-w-[2500px] mx-auto">
           <div class="flex flex-col md:flex-row items-center justify-between mb-16 gap-8 px-4">
              <div>

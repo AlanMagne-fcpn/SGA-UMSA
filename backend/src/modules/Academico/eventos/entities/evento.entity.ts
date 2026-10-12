@@ -144,6 +144,15 @@ export class Evento {
   @Column({ length: 50, default: 'visible' })
   visibilidad_al_finalizar: string;
 
+  /** Qué bloques se publican en la página del evento. Vacío = se muestran todos. */
+  @Column({ type: 'jsonb', nullable: true })
+  secciones_visibles: {
+    cronograma?: boolean;
+    directorio?: boolean;
+    ubicacion?: boolean;
+    contacto?: boolean;
+  } | null;
+
   // ── Relaciones ────────────────────────────────────────────────────────────
 
   /** Un evento tiene múltiples actividades (cursos, talleres, conferencias). */

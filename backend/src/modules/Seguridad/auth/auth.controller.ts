@@ -16,6 +16,7 @@ import { LoginDto } from '../../Usuario/usuarios/dto/login.dto';
 import { RegisterDto } from '../../Usuario/usuarios/dto/register.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { ExtractJwt } from 'passport-jwt';
+import { MailService } from '../../Comun/mail/mail.service';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -23,6 +24,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly usuariosService: UsuariosService,
+    private readonly mailService: MailService,
   ) {}
 
   // ══════════════════════════════════════════════════════════
@@ -150,14 +152,19 @@ export class AuthController {
     }
 
     const resetToken = this.authService.generarResetToken(email);
+    const frontend = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const enlace = `${frontend}/restablecer-contrasena?token=${encodeURIComponent(resetToken)}`;
 
-    // En un entorno de producción aquí se enviaría el correo con el token.
-    // Como el módulo de email no está configurado, el token se devuelve directamente
-    // para que el frontend lo consuma desde el flujo de recuperación.
+    await this.mailService.sendMail(
+      email,
+      'Restablece tu contraseña',
+      undefined,
+      undefined,
+      `Recibimos una solicitud para cambiar la contraseña de esta cuenta.\n\nAbre este enlace (vence en 1 hora):\n${enlace}\n\nSi no fuiste tú, ignora este correo.`,
+    );
+
     return {
-      mensaje:
-        'Token de recuperación generado. Úsalo en POST /auth/reset-password.',
-      reset_token: resetToken,
+      mensaje: 'Si el correo está registrado, recibirás instrucciones de recuperación.',
     };
   }
 

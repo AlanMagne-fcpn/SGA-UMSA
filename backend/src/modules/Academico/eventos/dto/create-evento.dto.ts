@@ -194,4 +194,9 @@ export class CreateEventoDto {
   @IsOptional()
   @IsString()
   coordinadores_grados?: string;
+
+  @ApiPropertyOptional({ example: '{"cronograma":true,"directorio":false,"ubicacion":true,"contacto":false}' })
+  @IsOptional()
+  @IsString()
+  secciones_visibles?: string;
 }

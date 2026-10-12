@@ -62,7 +62,7 @@ const STAFF_ROLES = ['coordinador', 'super usuario', 'super administrador', 'adm
 const rolesDe = (u: any): string[] => {
   const desdeRelacion = (u.usuariosRoles || [])
     .map((ur: any) => ur?.rol?.nombre_rol)
-    .filter((nombre): nombre is string => Boolean(nombre));
+    .filter((nombre: string | undefined): nombre is string => Boolean(nombre));
   if (desdeRelacion.length) return desdeRelacion;
   if (u.rol) return [String(u.rol)];
   return [];

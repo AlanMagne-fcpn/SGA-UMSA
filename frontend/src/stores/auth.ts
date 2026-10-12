@@ -59,6 +59,11 @@ export const useAuthStore = defineStore('auth', () => {
   /** True si el usuario es Super Usuario o Coordinador (Permisos Admin) */
   const esAdmin = computed(() => esSuperUsuario.value || userRoles.value.includes('Coordinador'));
 
+  /** Super Usuario y coordinador libre pueden abrir eventos. El restringido solo crea cursos en los suyos. */
+  const puedeCrearEventos = computed(
+    () => esSuperUsuario.value || (user.value as any)?.alcance_eventos === 'libre',
+  );
+
   /** ID del rol principal (jerarquía: SU > Coord > Log > Ponente > Estudiante) */
   const id_rol = computed(() => {
     const roles = (user.value as any)?.usuariosRoles?.map((ur: any) => ur.rol?.id) || [];
@@ -181,6 +186,7 @@ export const useAuthStore = defineStore('auth', () => {
     esEstudiante,
     esLogistica,
     esSuperUsuario,
+    puedeCrearEventos,
     cambiarRolActivo,
     marcarPonenteNotificado,
     checkNotificacionPendiente,

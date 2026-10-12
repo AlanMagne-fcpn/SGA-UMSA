@@ -8,6 +8,8 @@ import { useAuthStore } from '@/stores/auth';
 const authStore = useAuthStore();
 const route = useRoute();
 const mostrarFirma = computed(() => route.path.startsWith('/ponente') || route.path.startsWith('/coordinador'));
+const esCuentaSoporte = computed(() => authStore.esSuperUsuario && route.path.startsWith('/admin'));
+const correoCuenta = computed(() => (authStore.user as any)?.email || '');
 
 const loading = ref(false);
 const error = ref('');
@@ -405,7 +407,21 @@ const cambiarContrasena = () => {
   });
 };
 
+const enviarEnlaceContrasena = async () => {
+  if (!correoCuenta.value) {
+    Swal.fire('Sin correo', 'Esta sesión no tiene un correo asociado.', 'error');
+    return;
+  }
+  try {
+    await api.post('/auth/forgot-password', { email: correoCuenta.value });
+    Swal.fire('Revisa tu correo', `Enviamos un enlace de confirmación a ${correoCuenta.value}. Vence en una hora.`, 'success');
+  } catch {
+    Swal.fire('No se pudo enviar', 'Inténtalo de nuevo en un momento.', 'error');
+  }
+};
+
 onMounted(() => {
+  if (esCuentaSoporte.value) return;
   loadProfile();
   loadGradosAcademicos();
   loadGradosAdministrativos();
@@ -416,23 +432,31 @@ onMounted(() => {
   <div class="p-4 md:p-8 max-w-4xl mx-auto space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 dark:border-gray-800 pb-6 mb-4 md:mb-8 gap-4">
       <div class="max-w-full sm:max-w-[60%]">
-        <h1 class="text-xl md:text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">Mi Perfil</h1>
-        <p class="text-[10px] md:text-sm font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mt-1">Gestiona tus datos personales y credenciales</p>
+        <h1 class="text-xl md:text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">{{ esCuentaSoporte ? 'Cuenta de soporte' : 'Mi Perfil' }}</h1>
+        <p class="text-[10px] md:text-sm font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mt-1">{{ esCuentaSoporte ? 'Esta cuenta opera el sistema. Solo usa correo.' : 'Gestiona tus datos personales y credenciales' }}</p>
       </div>
       <div class="flex items-center gap-2 sm:gap-3 shrink-0">
-        <button @click="cambiarContrasena" class="bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-gray-300 px-3 md:px-4 py-2 rounded-xl text-[10px] font-black hover:bg-slate-100 dark:hover:bg-gray-700 transition-all uppercase flex items-center gap-1 md:gap-2 shadow-sm tracking-widest">
+        <button @click="esCuentaSoporte ? enviarEnlaceContrasena() : cambiarContrasena()" class="bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-gray-300 px-3 md:px-4 py-2 rounded-xl text-[10px] font-black hover:bg-slate-100 dark:hover:bg-gray-700 transition-all uppercase flex items-center gap-1 md:gap-2 shadow-sm tracking-widest">
             <span class="material-symbols-outlined text-[14px] md:text-[16px]">key</span>
-            <span class="hidden sm:inline">Contraseña</span>
+            <span class="hidden sm:inline">{{ esCuentaSoporte ? 'Enviar enlace' : 'Contraseña' }}</span>
         </button>
-        <button @click="abrirSoporteDatos" class="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 text-amber-600 dark:text-amber-400 px-3 md:px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 transition-all flex items-center gap-1 md:gap-2">
+        <button v-if="!esCuentaSoporte" @click="abrirSoporteDatos" class="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 text-amber-600 dark:text-amber-400 px-3 md:px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 transition-all flex items-center gap-1 md:gap-2">
             <span class="material-symbols-outlined text-[14px] md:text-[16px]">support_agent</span>
             Soporte
         </button>
       </div>
     </div>
 
+    <section v-if="esCuentaSoporte" class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-3xl p-8 space-y-4">
+      <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Correo de la cuenta</p>
+      <p class="text-lg font-black text-slate-800 dark:text-white">{{ correoCuenta }}</p>
+      <p class="text-sm text-slate-500 leading-relaxed">El super usuario no lleva foto, documento ni afiliación. Con este correo se administra todo el sistema y se atienden las solicitudes de soporte.</p>
+      <p class="text-sm text-slate-500 leading-relaxed">Para cambiar la contraseña se envía un enlace a este correo. Al abrirlo confirmas que el buzón es tuyo y eliges la nueva clave. El navegador puede ofrecer guardarla después.</p>
+      <router-link to="/admin/soporte" class="inline-flex text-[11px] font-black uppercase tracking-widest text-sky-700">Ver solicitudes de soporte</router-link>
+    </section>
+
     <!-- Alerta de Firma Digital Faltante -->
-    <div v-if="mostrarFirma && !firmaUrl && !loading" class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 md:p-6 rounded-2xl flex items-start gap-3 md:gap-4 shadow-sm animate-pulse">
+    <div v-if="!esCuentaSoporte && mostrarFirma && !firmaUrl && !loading" class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 md:p-6 rounded-2xl flex items-start gap-3 md:gap-4 shadow-sm animate-pulse">
       <span class="material-symbols-outlined text-amber-500 dark:text-amber-400 text-2xl md:text-3xl shrink-0">warning</span>
       <div>
         <h4 class="text-amber-800 dark:text-amber-300 font-black uppercase text-xs md:text-sm">Firma Digital Faltante</h4>
@@ -442,7 +466,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-if="isCompleted" class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-4 md:p-6 rounded-2xl flex items-start gap-3 md:gap-4">
+    <div v-if="!esCuentaSoporte && isCompleted" class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-4 md:p-6 rounded-2xl flex items-start gap-3 md:gap-4">
       <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-2xl md:text-3xl shrink-0">verified_user</span>
       <div>
         <h4 class="text-emerald-800 dark:text-emerald-300 font-black uppercase text-xs md:text-sm">Perfil Finalizado</h4>
@@ -453,7 +477,7 @@ onMounted(() => {
     <div v-if="error" class="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold border border-red-200 animate-pulse">{{ error }}</div>
     <div v-if="success" class="bg-emerald-50 text-emerald-600 p-4 rounded-xl text-sm font-bold border border-emerald-200">{{ success }}</div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+    <div v-if="!esCuentaSoporte" class="grid grid-cols-1 md:grid-cols-3 gap-8">
       
       <!-- Panel lateral de Archivos -->
       <div class="space-y-6 md:col-span-1">

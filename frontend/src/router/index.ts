@@ -20,6 +20,11 @@ const router = createRouter({
       component: LoginView,
     },
     {
+      path: '/restablecer-contrasena',
+      name: 'restablecer-contrasena',
+      component: () => import('../views/auth/RestablecerContrasenaView.vue'),
+    },
+    {
       path: '/register',
       name: 'register',
       component: RegisterView,

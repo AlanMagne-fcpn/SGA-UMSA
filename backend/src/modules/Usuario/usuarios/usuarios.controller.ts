@@ -461,6 +461,15 @@ export class UsuariosController {
     return this.usuariosService.actualizarRolesBulk(id, rolIds, notificar ?? true);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Super Usuario', 'Coordinador')
+  @ApiBearerAuth()
+  @Get('personal-evento')
+  @ApiOperation({ summary: 'Coordinadores y logística para armar un evento' })
+  listarPersonalEvento() {
+    return this.usuariosService.listarPersonalEvento();
+  }
+
   /**
    * GET /usuarios/:id
    * Busca un usuario por ID. Incluye persona + roles asignados.
