@@ -67,6 +67,13 @@ export class EventosService {
       order: { prioridad: 'ASC', fecha_creacion: 'DESC' }
     });
     const coordinadoresPorEvento = await this.coordinadoresPublicos(eventos.map((evento) => evento.id));
+    const idsActividades = eventos.flatMap((evento) => (evento.actividades || []).map((actividad) => actividad.id));
+    const valoraciones = idsActividades.length ? await this.dataSource.query(
+      `SELECT id_actividad_academica, COUNT(*)::integer AS cantidad, ROUND(AVG(puntuacion)::numeric,1) AS promedio
+       FROM curso_valoraciones WHERE id_actividad_academica = ANY($1::int[]) GROUP BY id_actividad_academica`,
+      [idsActividades],
+    ) : [];
+    const valoracionesPorActividad = new Map(valoraciones.map((item: any) => [Number(item.id_actividad_academica), { cantidad: Number(item.cantidad), promedio: Number(item.promedio) }]));
     return eventos.map(evento => ({
       ...evento,
       logo: this.formatImageUrl(evento.logo, 'logo'),
@@ -89,6 +96,7 @@ export class EventosService {
             min_nota: firstMod ? firstMod.min_nota : 51,
             min_asistencia: firstMod ? firstMod.min_asistencia : 80,
             modalidad: firstMod ? firstMod.tipo : 'Presencial',
+            valoracion: valoracionesPorActividad.get(act.id) || { cantidad: 0, promedio: null },
             imagen: this.formatImageUrl(act.imagen, 'cursos')
           };
         })
@@ -124,37 +132,48 @@ export class EventosService {
       where: { id },
       relations: [
         'imparticiones',
+        'imparticiones.actividadAcademica',
         'imparticiones.usuario',
         'imparticiones.usuario.persona',
         'imparticiones.usuario.afiliaciones',
         'imparticiones.usuario.afiliaciones.gradoAcademico',
       ],
     });
+    if (!evento || evento.secciones_visibles?.directorio === false) return [];
 
-    if (!evento || !evento.imparticiones) return [];
-
-    // Agrupar por usuario para evitar duplicados si un ponente tiene varias actividades
+    // Asignar actividades no publica automaticamente las cuentas en el directorio.
+    // Respetar la seleccion que guarda el editor del evento.
+    const descripcion = evento.descripcion || '';
+    const seleccion = descripcion.match(/(?:^|\n)\[PONENTES_METADATA\]:([^\n]*)/)?.[1] || '';
+    const normalizar = (nombre: string) => nombre.normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '').replace(/\./g, '')
+      .replace(/\s+/g, ' ').trim().toLowerCase();
+    const publicados = new Set(seleccion.split(',').map(normalizar).filter(Boolean));
+    if (!publicados.size) return [];
+    const mostrarCorreos = descripcion.match(/(?:^|\n)\[MOSTRAR_CORREOS\]:([^\n]*)/)?.[1]?.trim() === 'true';
     const expositoresMap = new Map();
 
-    evento.imparticiones.forEach((imp) => {
-      if (imp.usuario && !expositoresMap.has(imp.usuario.id)) {
-        const u = imp.usuario;
-        const persona = u.persona || {};
-        const ga = u.afiliaciones?.[0]?.gradoAcademico || {};
-
-        expositoresMap.set(u.id, {
-          id: u.id,
-          email: u.email,
-          nombres: persona.nombres,
-          primer_apellido: persona.primer_apellido,
-          segundo_apellido: persona.segundo_apellido,
-          profesion: u.afiliaciones?.[0]?.institucion || 'Expositor',
-          grado_abreviacion: ga.abreviacion || '',
-          foto: this.formatImageUrl(persona.firma_dig, 'perfiles'), // Usamos perfiles para fotos
-        });
-      }
-    });
-
+    for (const imp of evento.imparticiones || []) {
+      const u = imp.usuario;
+      if (!u || Number(u.estado) !== 1 || !imp.actividadAcademica || Number(imp.actividadAcademica.estado) === -1) continue;
+      if (expositoresMap.has(u.id)) continue;
+      const persona = u.persona;
+      if (!persona?.nombres) continue;
+      const grado = u.afiliaciones?.[0]?.gradoAcademico?.abreviacion || '';
+      const nombre = [persona.nombres, persona.primer_apellido].filter(Boolean).join(' ');
+      if (!publicados.has(normalizar(nombre)) && !publicados.has(normalizar(grado + ' ' + nombre))) continue;
+      const institucion = u.afiliaciones?.[0]?.institucion;
+      expositoresMap.set(u.id, {
+        id: u.id,
+        ...(mostrarCorreos ? { email: u.email } : {}),
+        nombres: persona.nombres,
+        primer_apellido: persona.primer_apellido,
+        segundo_apellido: persona.segundo_apellido,
+        profesion: institucion && institucion !== '0' ? institucion : 'Expositor',
+        grado_abreviacion: grado === '0' ? '' : grado,
+        foto: null,
+      });
+    }
     return Array.from(expositoresMap.values());
   }
 
@@ -193,6 +212,66 @@ export class EventosService {
         imagen: this.formatImageUrl(act.imagen, 'cursos')
       };
     });
+  }
+
+  async getUsuariosEventoAdmin(id: number, usuarioActual: any) {
+    await this.verificarPropiedad(id, usuarioActual);
+    const evento = await this.eventoRepository.findOne({
+      where: { id },
+      relations: [
+        'actividades',
+        'actividades.inscripciones',
+        'actividades.inscripciones.usuario',
+        'actividades.inscripciones.usuario.persona',
+        'actividades.imparticiones',
+        'actividades.imparticiones.usuario',
+        'actividades.imparticiones.usuario.persona',
+        'coordinaciones',
+        'coordinaciones.usuario',
+        'coordinaciones.usuario.persona',
+        'coordinaciones.usuario.usuariosRoles',
+        'coordinaciones.usuario.usuariosRoles.rol',
+        'imparticiones',
+        'imparticiones.actividadAcademica',
+        'imparticiones.usuario',
+        'imparticiones.usuario.persona',
+      ],
+    });
+    if (!evento) throw new NotFoundException('Evento no encontrado.');
+
+    const participantes = new Map<number, {
+      id: number; nombre: string; email: string; roles: string[]; actividades: string[];
+    }>();
+    const agregar = (usuario: any, rol: string, actividad?: string) => {
+      if (!usuario?.id) return;
+      let participante = participantes.get(usuario.id);
+      if (!participante) {
+        participante = {
+          id: usuario.id,
+          nombre: [usuario.persona?.nombres, usuario.persona?.primer_apellido, usuario.persona?.segundo_apellido]
+            .filter(Boolean).join(' ') || usuario.email || 'Sin nombre',
+          email: usuario.email || '',
+          roles: [],
+          actividades: [],
+        };
+        participantes.set(usuario.id, participante);
+      }
+      if (!participante.roles.includes(rol)) participante.roles.push(rol);
+      if (actividad && !participante.actividades.includes(actividad)) participante.actividades.push(actividad);
+    };
+
+    for (const coordinacion of evento.coordinaciones || []) {
+      const roles = coordinacion.usuario?.usuariosRoles?.map((asignacion) => asignacion.rol?.nombre_rol?.toLowerCase()) || [];
+      if (roles.some((rol) => rol?.includes('coordinador'))) agregar(coordinacion.usuario, 'Coordinador');
+    }
+    for (const imparticion of evento.imparticiones || []) {
+      agregar(imparticion.usuario, 'Ponente', imparticion.actividadAcademica?.nombre);
+    }
+    for (const actividad of evento.actividades || []) {
+      for (const inscripcion of actividad.inscripciones || []) agregar(inscripcion.usuario, 'Estudiante', actividad.nombre);
+      for (const imparticion of actividad.imparticiones || []) agregar(imparticion.usuario, 'Ponente', actividad.nombre);
+    }
+    return Array.from(participantes.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   }
 
   // ══════════════════════════════════════════════════════════

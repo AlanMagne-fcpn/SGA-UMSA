@@ -8,23 +8,21 @@ const router = useRouter();
 const eventosAsignados = ref<any[]>([]);
 const isLoading = ref(false);
 const searchQuery = ref('');
+const loadError = ref('');
 
 const fetchData = async () => {
   try {
     isLoading.value = true;
-    const res = await api.get('/imparticiones/mis-actividades');
-    const imparticiones = res.data || [];
-    
-    // Agrupar actividades por evento
-    const eventosMap = new Map<number, any>();
+    loadError.value = '';
+    const res = await api.get('/imparticiones/mis-eventos');
+    const grupos = Array.isArray(res.data) ? res.data : [];
 
-    imparticiones.forEach((imp: any) => {
-      const act = imp.actividadAcademica;
-      const ev = imp.evento;
-      if (!act || !ev || Number(act.estado) === -1) return;
-
-      if (!eventosMap.has(ev.id)) {
-        eventosMap.set(ev.id, {
+    eventosAsignados.value = grupos
+      .filter((grupo: any) => grupo?.evento)
+      .map((grupo: any) => {
+        const ev = grupo.evento;
+        const actividades = (grupo.actividades || []).filter((act: any) => act && Number(act.estado) !== -1);
+        return {
           id: ev.id,
           nombre: ev.nombre || 'Evento Principal',
           logo: ev.logo,
@@ -33,24 +31,21 @@ const fetchData = async () => {
           fechaFin: ev.fecha_fin ? new Date(ev.fecha_fin).toLocaleDateString() : '',
           image: imagenEvento(ev),
           gestion: ev.fecha_inicio ? new Date(ev.fecha_inicio).getFullYear().toString() : '2026',
-          actividades: []
-        });
-      }
-
-      eventosMap.get(ev.id).actividades.push({
-        id: act.id,
-        title: act.nombre || 'Actividad',
-        status: act.estado === 1 ? 'En Progreso' : (act.estado === 0 ? 'Finalizado' : 'Próximamente'),
-        date: act.fecha_inicio ? `${new Date(act.fecha_inicio).toLocaleDateString()} - ${new Date(act.fecha_fin).toLocaleDateString()}` : 'Fechas por definir',
-        students: act.inscripciones?.length || 0,
-        type: act.tipo || 'Actividad',
-        image: imagenActividad({ ...act, evento: ev })
+          descripcion: ev.descripcion || '',
+          actividades: actividades.map((act: any) => ({
+            id: act.id,
+            title: act.nombre || 'Actividad',
+            status: act.estado === 1 ? 'En Progreso' : (act.estado === 0 ? 'Finalizado' : 'Próximamente'),
+            date: act.fecha_inicio ? `${new Date(act.fecha_inicio).toLocaleDateString()} - ${new Date(act.fecha_fin).toLocaleDateString()}` : 'Fechas por definir',
+            students: act.inscripciones?.length || 0,
+            type: act.tipo || 'Actividad',
+            image: imagenActividad({ ...act, evento: ev }),
+          })),
+        };
       });
-    });
-
-    eventosAsignados.value = Array.from(eventosMap.values());
   } catch (error) {
     console.error('Error al cargar eventos asignados:', error);
+    loadError.value = 'No se pudieron cargar tus asignaciones. Intenta nuevamente.';
   } finally {
     isLoading.value = false;
   }
@@ -90,9 +85,9 @@ const openActividadDetalle = (actividadId: any) => {
       <div class="relative w-full max-w-2xl group">
         <label class="absolute -top-3 left-6 px-2 bg-[#f8f9fc] dark:bg-black z-10 text-[9px] font-black text-slate-400 uppercase tracking-widest italic transition-colors">Buscador de mis eventos y actividades</label>
         <span class="absolute inset-y-0 left-5 flex items-center text-slate-400">
-          <span class="material-symbols-outlined text-xl group-focus-within:text-umsa-blue transition-colors">search</span>
+          <VIcon class="material-symbols-outlined text-xl group-focus-within:text-umsa-blue transition-colors">search</VIcon>
         </span>
-        <input v-model="searchQuery" class="w-full pl-14 pr-6 py-4 bg-white dark:bg-gray-900 border-2 border-slate-200 dark:border-gray-800 rounded-full shadow-sm text-sm focus:ring-4 focus:ring-umsa-blue/10 focus:border-umsa-blue outline-none transition-all font-bold text-primary-dark dark:text-gray-200 placeholder-slate-400" placeholder="Buscar por evento o actividad..." type="text">
+        <UiInput v-model="searchQuery" class="w-full pl-14 pr-6 py-4 bg-white dark:bg-gray-900 border-2 border-slate-200 dark:border-gray-800 rounded-full shadow-sm text-sm focus:ring-4 focus:ring-umsa-blue/10 focus:border-umsa-blue outline-none transition-all font-bold text-primary-dark dark:text-gray-200 placeholder-slate-400" placeholder="Buscar por evento o actividad..." type="text" />
       </div>
     </div>
     
@@ -100,7 +95,7 @@ const openActividadDetalle = (actividadId: any) => {
     <div class="flex items-center justify-between border-b border-slate-200 dark:border-gray-800 mb-8 pb-6 px-4 md:px-0">
       <div>
         <h2 class="text-2xl md:text-3xl font-black text-primary-dark dark:text-white uppercase italic flex items-center gap-3">
-          <span class="material-symbols-outlined text-umsa-blue text-3xl">event</span>
+          <VIcon class="material-symbols-outlined text-umsa-blue text-3xl">event</VIcon>
           Mis Eventos Asignados
         </h2>
         <p class="text-[9px] md:text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mt-1">Eventos y programas en los que tienes actividades a tu cargo como docente/ponente</p>
@@ -108,22 +103,31 @@ const openActividadDetalle = (actividadId: any) => {
     </div>
 
     <div v-if="isLoading" class="p-20 flex flex-col items-center justify-center gap-4 text-slate-400">
-      <span class="material-symbols-outlined animate-spin text-4xl">sync</span>
+      <VIcon class="material-symbols-outlined animate-spin text-4xl">sync</VIcon>
       <p class="text-xs font-black uppercase tracking-widest">Cargando eventos...</p>
     </div>
 
+    <div v-else-if="loadError" class="p-10 text-center text-rose-600">
+      <p>{{ loadError }}</p>
+      <VBtn @click="fetchData" class="mt-4 font-bold">Reintentar</VBtn>
+    </div>
+
     <!-- Lista vacía -->
-    <div v-else-if="filteredEventos.length === 0" class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2.5rem] p-20 text-center shadow-sm">
+    <div v-else-if="loadError" class="p-10 text-center text-rose-600">
+      <p>{{ loadError }}</p>
+      <VBtn @click="fetchData" class="mt-4 font-bold">Reintentar</VBtn>
+    </div>
+    <VCard v-else-if="filteredEventos.length === 0" class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2.5rem] p-20 text-center shadow-sm">
       <div class="w-20 h-20 bg-slate-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
-        <span class="material-symbols-outlined text-4xl text-slate-300">event_busy</span>
+        <VIcon class="material-symbols-outlined text-4xl text-slate-300">event_busy</VIcon>
       </div>
       <h3 class="text-xl font-black text-slate-600 dark:text-gray-400 uppercase tracking-tighter">Sin eventos asignados</h3>
       <p class="text-xs text-slate-400 max-w-xs mx-auto font-medium">No se encontraron eventos ni actividades asignadas a tu cuenta actualmente.</p>
-    </div>
+    </VCard>
 
     <!-- Grid de Eventos -->
     <div v-else class="space-y-12">
-      <div v-for="evento in filteredEventos" :key="evento.id" 
+      <VCard v-for="evento in filteredEventos" :key="evento.id"
         class="bg-white dark:bg-gray-900 rounded-[2.5rem] overflow-hidden shadow-lg border border-slate-100 dark:border-gray-800 flex flex-col group/card">
         
         <!-- Banner del Evento -->
@@ -142,7 +146,7 @@ const openActividadDetalle = (actividadId: any) => {
             </div>
             
             <div class="flex items-center gap-2 text-white/90 bg-black/40 border border-white/10 px-4 py-2 rounded-xl backdrop-blur-md text-[10px] font-bold uppercase tracking-wider shadow-inner w-fit">
-              <span class="material-symbols-outlined text-sm text-umsa-gold">calendar_month</span>
+              <VIcon class="material-symbols-outlined text-sm text-umsa-gold">calendar_month</VIcon>
               <span>{{ evento.fechaInicio }} - {{ evento.fechaFin }}</span>
             </div>
           </div>
@@ -154,19 +158,22 @@ const openActividadDetalle = (actividadId: any) => {
             Mis Actividades Asignadas en este Evento
           </h4>
 
+          <p v-if="evento.actividades.length === 0" class="text-sm text-slate-500 dark:text-gray-400">
+            Estás asignado a este evento como responsable. Aún no tienes actividades asignadas para impartir.
+          </p>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div v-for="actividad in evento.actividades" :key="actividad.id" @click="openActividadDetalle(actividad.id)"
+            <VCard v-for="actividad in evento.actividades" :key="actividad.id" @click="openActividadDetalle(actividad.id)"
               class="bg-white dark:bg-gray-900 rounded-[2.5rem] overflow-hidden shadow-lg border border-slate-100 dark:border-gray-800 hover:border-umsa-blue transition-all duration-500 hover:-translate-y-2 cursor-pointer group flex flex-col relative">
               
               <!-- Imagen Predominante -->
               <div class="relative h-60 w-full overflow-hidden shrink-0">
-                <img :src="actividad.image" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out">   
+                <img :src="actividad.image" data-course-image :alt="actividad.title" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out">
                 <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"></div>
                 
                 <!-- Badge de Asignado -->
                 <div class="absolute top-4 left-4 z-30">
                   <span class="bg-umsa-gold text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-full shadow-xl flex items-center gap-1 border border-white/20 backdrop-blur-md">
-                    <span class="material-symbols-outlined text-[12px]">assignment_ind</span>
+                    <VIcon class="material-symbols-outlined text-[12px]">assignment_ind</VIcon>
                     ASIGNADO
                   </span>
                 </div>
@@ -189,11 +196,11 @@ const openActividadDetalle = (actividadId: any) => {
               <div class="p-6 flex flex-col flex-1 bg-white dark:bg-gray-900">
                 <div class="flex items-center justify-between text-slate-500 dark:text-gray-400 mb-6">
                   <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm text-umsa-blue">calendar_month</span>
+                    <VIcon class="material-symbols-outlined text-sm text-umsa-blue">calendar_month</VIcon>
                     <span class="text-[10px] font-bold uppercase tracking-wider">{{ actividad.date }}</span>
                   </div>
                   <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm text-umsa-blue">groups</span>
+                    <VIcon class="material-symbols-outlined text-sm text-umsa-blue">groups</VIcon>
                     <span class="text-[10px] font-bold uppercase tracking-wider">{{ actividad.students }} Estudiantes</span>
                   </div>
                 </div>
@@ -201,16 +208,16 @@ const openActividadDetalle = (actividadId: any) => {
                 <div class="mt-auto flex justify-between items-center pt-5 border-t border-slate-100 dark:border-gray-800">
                     <div class="flex items-center text-umsa-blue font-black group/btn">
                         <span class="text-[11px] uppercase tracking-widest">Gestionar Actividad</span>
-                        <span class="material-symbols-outlined text-[18px] ml-2 group-hover/btn:translate-x-1 transition-transform">arrow_forward</span>
+                        <VIcon class="material-symbols-outlined text-[18px] ml-2 group-hover/btn:translate-x-1 transition-transform">arrow_forward</VIcon>
                     </div>
                 </div>
               </div>
 
-            </div>
+            </VCard>
           </div>
 
         </div>
-      </div>
+      </VCard>
     </div>
 
   </div>

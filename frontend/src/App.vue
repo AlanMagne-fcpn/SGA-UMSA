@@ -1,11 +1,22 @@
 <script setup lang="ts">
 import { RouterView, useRoute } from 'vue-router'
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
+import { useTheme } from 'vuetify'
 import AppNavbar from './layouts/AppNavbar.vue'
 import AppFooter from './layouts/AppFooter.vue'
 import ForcePasswordChange from './components/ForcePasswordChange.vue'
+import DialogHost from './components/ui/DialogHost.vue'
 
 const route = useRoute()
+const theme = useTheme()
+let themeObserver: MutationObserver | undefined
+onMounted(() => {
+  const syncTheme = () => { theme.global.name.value = document.documentElement.classList.contains('dark') ? 'sgeaDark' : 'sgeaLight' }
+  syncTheme()
+  themeObserver = new MutationObserver(syncTheme)
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+})
+onUnmounted(() => themeObserver?.disconnect())
 // Rutas que tienen su propio layout (no necesitan navbar/footer globales)
 const isDashboard = computed(() =>
   route.path.startsWith('/coordinador') ||
@@ -15,11 +26,11 @@ const isDashboard = computed(() =>
   route.path.startsWith('/logistica')
 )
 
-const showFooter = computed(() => route.path === '/')
+const showFooter = computed(() => route.path === '/' || route.path === '/eventos' || route.path.startsWith('/eventos/') || route.path.startsWith('/cursos/'))
 </script>
 
 <template>
-  <div class="min-h-[100vh] flex flex-col font-sans antialiased text-gray-900 bg-white dark:bg-gray-950 dark:text-gray-100 transition-colors duration-300">
+  <VApp class="min-h-[100vh] flex flex-col font-sans antialiased text-gray-900 bg-white dark:bg-gray-950 dark:text-gray-100 transition-colors duration-300">
 
     <AppNavbar v-if="!isDashboard" />
     <main class="flex-grow">
@@ -29,7 +40,8 @@ const showFooter = computed(() => route.path === '/')
 
     <!-- Overlay de seguridad global -->
     <ForcePasswordChange />
-  </div>
+    <DialogHost />
+  </VApp>
 </template>
 
 

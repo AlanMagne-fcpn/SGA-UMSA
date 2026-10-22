@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 import type { Persona } from '@/types/admin';
 import { useAuthStore } from '@/stores/auth';
 
@@ -338,7 +338,7 @@ const rechazarCuenta = async (id: number) => {
             confirmButtonColor: '#d33',
             confirmButtonText: 'Rechazar',
             cancelButtonText: 'Cancelar',
-            inputValidator: (value) => {
+            inputValidator: (value: string) => {
                 if (!value) {
                     return '¡Debes escribir un motivo para el rechazo!';
                 }
@@ -384,14 +384,14 @@ const tieneReverso = (firmaDig?: string) => {
 
 <template>
   <div class="animate-in fade-in duration-500 max-w-7xl mx-auto space-y-8">
-    <div class="relative bg-white dark:bg-slate-800 rounded-[2.5rem] p-8 md:p-12 overflow-hidden shadow-sm border border-sky-100 dark:border-slate-700 group">
+    <VCard class="relative bg-white dark:bg-slate-800 rounded-[2.5rem] p-8 md:p-12 overflow-hidden shadow-sm border border-sky-100 dark:border-slate-700 group">
       <div class="absolute top-0 right-0 w-64 h-64 bg-sky-50 dark:bg-sky-900/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
       <div class="absolute inset-0 bg-gradient-to-br from-sky-50/50 to-transparent dark:from-sky-900/5 pointer-events-none"></div>
 
       <div class="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8">
         <div class="flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
           <div class="w-20 h-20 bg-sky-100 dark:bg-sky-900/30 rounded-3xl flex items-center justify-center shadow-sm border border-sky-200 dark:border-sky-800 transition-transform duration-500">
-            <span class="material-symbols-outlined text-4xl text-sky-600 dark:text-sky-400">person_add_check</span>
+            <VIcon class="material-symbols-outlined text-4xl text-sky-600 dark:text-sky-400">person_add_check</VIcon>
           </div>
           <div>
             <h2 class="text-4xl md:text-5xl font-black text-sky-950 dark:text-white italic uppercase tracking-tighter leading-none">
@@ -408,47 +408,47 @@ const tieneReverso = (firmaDig?: string) => {
             <p class="text-3xl font-black text-sky-900 dark:text-white italic">{{ cuentasPendientes.length }}</p>
         </div>
       </div>
-    </div>
+    </VCard>
 
     <!-- SELECTOR DE PESTAÑAS -->
-    <div class="flex items-center gap-4 bg-white dark:bg-slate-900 p-2 rounded-[2rem] border border-slate-100 dark:border-slate-800 w-fit mx-auto shadow-sm">
-        <button @click="activeTab = 'cuentas'; refreshData()" 
+    <VCard class="flex items-center gap-4 bg-white dark:bg-slate-900 p-2 rounded-[2rem] border border-slate-100 dark:border-slate-800 w-fit mx-auto shadow-sm">
+        <VBtn @click="activeTab = 'cuentas'; refreshData()"
           :class="[activeTab === 'cuentas' ? 'bg-sky-600 text-white shadow-lg shadow-sky-500/30' : 'text-slate-400 hover:text-sky-500']"
           class="flex items-center gap-3 px-8 py-4 rounded-full font-black text-[10px] uppercase tracking-widest transition-all duration-300">
-          <span class="material-symbols-outlined text-sm">person_add</span>
+          <VIcon class="material-symbols-outlined text-sm">person_add</VIcon>
           Cuentas Pendientes
           <span v-if="cuentasPendientes.length > 0" class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-        </button>
-        <button @click="activeTab = 'logistica'; refreshData()" 
+        </VBtn>
+        <VBtn @click="activeTab = 'logistica'; refreshData()"
           :class="[activeTab === 'logistica' ? 'bg-teal-600 text-white shadow-lg shadow-teal-500/30' : 'text-slate-400 hover:text-teal-500']"
           class="flex items-center gap-3 px-8 py-4 rounded-full font-black text-[10px] uppercase tracking-widest transition-all duration-300">
-          <span class="material-symbols-outlined text-sm">support_agent</span>
+          <VIcon class="material-symbols-outlined text-sm">support_agent</VIcon>
           Designación de Logística
-        </button>
-    </div>
+        </VBtn>
+    </VCard>
 
-    <div v-if="activeTab === 'cuentas'" class="bg-white dark:bg-gray-900 rounded-[2rem] border border-slate-100 dark:border-gray-800 p-6 shadow-sm">
+    <VCard v-if="activeTab === 'cuentas'" class="bg-white dark:bg-gray-900 rounded-[2rem] border border-slate-100 dark:border-gray-800 p-6 shadow-sm">
       <h3 class="text-[12px] font-black uppercase tracking-widest text-slate-700 dark:text-white mb-4">Agregar usuario e inscribirlo</h3>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <input v-model="nuevoUsuario.email" type="email" placeholder="Correo" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
-        <input v-model="nuevoUsuario.password" type="text" placeholder="Contraseña" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
-        <input v-model="nuevoUsuario.nombres" type="text" placeholder="Nombres" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
-        <input v-model="nuevoUsuario.primer_apellido" type="text" placeholder="Apellido" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
-        <input v-model="nuevoUsuario.documento_identidad" type="text" placeholder="Documento" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
-        <select v-model="nuevoUsuario.id_evento" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" @change="cargarActividades">
+        <UiInput v-model="nuevoUsuario.email" type="email" placeholder="Correo" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+        <UiInput v-model="nuevoUsuario.password" type="text" placeholder="Contraseña" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+        <UiInput v-model="nuevoUsuario.nombres" type="text" placeholder="Nombres" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+        <UiInput v-model="nuevoUsuario.primer_apellido" type="text" placeholder="Apellido" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+        <UiInput v-model="nuevoUsuario.documento_identidad" type="text" placeholder="Documento" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+        <UiSelect v-model="nuevoUsuario.id_evento" class="rounded-xl border border-slate-200 px-3 py-2 text-sm" @change="cargarActividades">
           <option value="">Evento</option>
           <option v-for="ev in eventosDisponibles" :key="ev.id" :value="String(ev.id)">{{ ev.nombre }}</option>
-        </select>
-        <select v-model="nuevoUsuario.id_actividad" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+        </UiSelect>
+        <UiSelect v-model="nuevoUsuario.id_actividad" class="rounded-xl border border-slate-200 px-3 py-2 text-sm">
           <option value="">Actividad</option>
           <option v-for="act in actividadesEvento" :key="act.id" :value="String(act.id)">{{ act.nombre }}{{ act.cupo ? ` · cupo ${act.cupo}` : '' }}</option>
-        </select>
-        <button type="button" class="rounded-xl bg-sky-600 px-4 py-2 text-[11px] font-black uppercase text-white" @click="agregarUsuario">Crear e inscribir</button>
+        </UiSelect>
+        <VBtn type="button" class="rounded-xl bg-sky-600 px-4 py-2 text-[11px] font-black uppercase text-white" @click="agregarUsuario">Crear e inscribir</VBtn>
       </div>
-    </div>
+    </VCard>
 
     <!-- PESTAÑA: CUENTAS -->
-    <div v-if="activeTab === 'cuentas'" class="bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-800 overflow-hidden relative z-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <VCard v-if="activeTab === 'cuentas'" class="bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-800 overflow-hidden relative z-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div class="p-6 bg-slate-50 dark:bg-gray-800 border-b border-slate-200 dark:border-gray-700 flex justify-between items-center">
             <div>
                 <h3 class="text-[12px] font-black text-primary-dark dark:text-white uppercase tracking-widest">
@@ -460,25 +460,25 @@ const tieneReverso = (firmaDig?: string) => {
             </div>
             <div class="flex items-center gap-3">
               <!-- Selector plantilla correo bienvenida -->
-              <div class="hidden md:flex items-center gap-2 bg-white dark:bg-gray-700 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-gray-600">
-                <span class="material-symbols-outlined text-slate-400 text-sm">mail</span>
-                <select v-model="selectedTemplateId"
+              <VCard class="hidden md:flex items-center gap-2 bg-white dark:bg-gray-700 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-gray-600">
+                <VIcon class="material-symbols-outlined text-slate-400 text-sm">mail</VIcon>
+                <UiSelect v-model="selectedTemplateId"
                         class="bg-transparent text-[11px] font-bold text-slate-600 dark:text-slate-300 outline-none cursor-pointer min-w-[140px]">
                   <option value="">Plantilla por Defecto (admission)</option>
                   <option v-for="p in plantillasCorreo" :key="p.id" :value="String(p.id)">{{ p.nombre }}</option>
-                </select>
-                <button @click="openMailPreview" class="w-6 h-6 flex items-center justify-center text-sky-500 hover:bg-sky-500/10 rounded-lg transition-all" title="Previsualizar plantilla">
-                  <span class="material-symbols-outlined text-[17px]">visibility</span>
-                </button>
-              </div>
-              <button @click="refreshData" class="p-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg text-slate-400 hover:text-sky-500 transition-colors">
-                  <span class="material-symbols-outlined text-[18px]">refresh</span>
-              </button>
+                </UiSelect>
+                <VBtn @click="openMailPreview" class="w-6 h-6 flex items-center justify-center text-sky-500 hover:bg-sky-500/10 rounded-lg transition-all" title="Previsualizar plantilla">
+                  <VIcon class="material-symbols-outlined text-[17px]">visibility</VIcon>
+                </VBtn>
+              </VCard>
+              <VBtn @click="refreshData" class="p-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg text-slate-400 hover:text-sky-500 transition-colors">
+                  <VIcon class="material-symbols-outlined text-[18px]">refresh</VIcon>
+              </VBtn>
             </div>
       </div>
 
       <div class="w-full overflow-x-auto">
-        <table class="w-full text-left">
+        <VTable class="w-full text-left">
             <thead class="bg-slate-50 dark:bg-gray-800/50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-200 dark:border-gray-800">
                 <tr>
                     <th class="px-6 py-4">Fecha</th>
@@ -491,7 +491,7 @@ const tieneReverso = (firmaDig?: string) => {
             <tbody class="divide-y divide-slate-100 dark:divide-gray-800">
                 <tr v-if="loading" class="bg-white dark:bg-gray-900">
                     <td colspan="5" class="py-12 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">
-                        <span class="material-symbols-outlined animate-spin align-middle mr-2">refresh</span> Cargando...
+                        <VIcon class="material-symbols-outlined animate-spin align-middle mr-2">refresh</VIcon> Cargando...
                     </td>
                 </tr>
                 <tr v-if="!loading && cuentasPendientes.length === 0" class="bg-white dark:bg-gray-900">
@@ -515,33 +515,33 @@ const tieneReverso = (firmaDig?: string) => {
                         <span class="text-[10px] font-bold text-slate-500">{{ item.usuario?.persona?.documento_identidad || 'Sin documento' }}</span>
                     </td>
                     <td class="px-6 py-4 flex justify-center gap-2">
-                        <button @click="aceptarInscripcion(item.id)" class="p-2 border border-emerald-200 dark:border-emerald-900/50 text-emerald-500 rounded-lg hover:bg-emerald-500 hover:text-white transition-all" title="Aceptar inscripción">
-                            <span class="material-symbols-outlined text-[18px]">how_to_reg</span>
-                        </button>
-                        <button @click="rechazarInscripcion(item.id)" class="p-2 border border-red-200 dark:border-red-900/50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all" title="Rechazar inscripción">
-                            <span class="material-symbols-outlined text-[18px]">person_off</span>
-                        </button>
+                        <VBtn @click="aceptarInscripcion(item.id)" class="p-2 border border-emerald-200 dark:border-emerald-900/50 text-emerald-500 rounded-lg hover:bg-emerald-500 hover:text-white transition-all" title="Aceptar inscripción">
+                            <VIcon class="material-symbols-outlined text-[18px]">how_to_reg</VIcon>
+                        </VBtn>
+                        <VBtn @click="rechazarInscripcion(item.id)" class="p-2 border border-red-200 dark:border-red-900/50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all" title="Rechazar inscripción">
+                            <VIcon class="material-symbols-outlined text-[18px]">person_off</VIcon>
+                        </VBtn>
                     </td>
                 </tr>
             </tbody>
-        </table>
+        </VTable>
       </div>
-    </div>
+    </VCard>
 
     <!-- PESTAÑA: LOGISTICA -->
     <div v-if="activeTab === 'logistica'" class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
         
         <!-- Buscador de Usuarios y Botón Crear -->
         <div class="flex flex-col lg:flex-row gap-6">
-            <div class="flex-1 bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-gray-800 shadow-sm">
+            <VCard class="flex-1 bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-gray-800 shadow-sm">
                 <h3 class="text-[12px] font-black text-teal-600 uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <span class="material-symbols-outlined">person_search</span>
+                    <VIcon class="material-symbols-outlined">person_search</VIcon>
                     Designar desde Usuarios Existentes
                 </h3>
                 
                 <div class="relative max-w-2xl">
-                    <input v-model="searchTerm" @input="fetchAllUsers" type="text" placeholder="Buscar por nombre, correo o documento (min. 3 caracteres)..." 
-                    class="w-full bg-slate-50 dark:bg-gray-800 border-none rounded-2xl px-6 py-4 text-sm font-bold placeholder:text-slate-400 focus:ring-2 focus:ring-teal-500 transition-all outline-none">
+                    <UiInput v-model="searchTerm" @input="fetchAllUsers" type="text" placeholder="Buscar por nombre, correo o documento (min. 3 caracteres)..."
+                    class="w-full bg-slate-50 dark:bg-gray-800 border-none rounded-2xl px-6 py-4 text-sm font-bold placeholder:text-slate-400 focus:ring-2 focus:ring-teal-500 transition-all outline-none" />
                     <div v-if="allUsers.length > 0 && searchTerm.length >= 3" class="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-slate-100 dark:border-gray-700 z-20 max-h-64 overflow-y-auto overflow-x-hidden">
                         <div v-for="u in allUsers" :key="u.id" 
                         class="p-4 hover:bg-slate-50 dark:hover:bg-gray-700/50 cursor-pointer flex items-center justify-between border-b border-slate-50 dark:border-gray-700 last:border-none">
@@ -549,17 +549,17 @@ const tieneReverso = (firmaDig?: string) => {
                                 <p class="text-xs font-black text-slate-800 dark:text-white uppercase">{{ parseFullName(u.persona) }}</p>
                                 <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{{ u.email }} | {{ u.persona?.documento_identidad }}</p>
                             </div>
-                            <button @click="asignarLogistica(u.id)" class="px-4 py-2 bg-teal-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-700 transition-colors">
+                            <VBtn @click="asignarLogistica(u.id)" class="px-4 py-2 bg-teal-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-700 transition-colors">
                                 Designar
-                            </button>
+                            </VBtn>
                         </div>
                     </div>
                 </div>
-            </div>
+            </VCard>
         </div>
 
         <!-- Listado de Personal Actual -->
-        <div class="bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-800 overflow-hidden relative z-0">
+        <VCard class="bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-800 overflow-hidden relative z-0">
             <div class="p-6 bg-slate-50 dark:bg-gray-800 border-b border-slate-200 dark:border-gray-700 flex justify-between items-center">
                     <div>
                         <h3 class="text-[12px] font-black text-teal-600 uppercase tracking-widest">
@@ -569,13 +569,13 @@ const tieneReverso = (firmaDig?: string) => {
                             {{ personalLogistica.length }} usuarios autorizados para escaneo de QR
                         </p>
                     </div>
-                    <button @click="refreshData" class="p-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg text-slate-400 hover:text-teal-500 transition-colors">
-                        <span class="material-symbols-outlined text-[18px]">refresh</span>
-                    </button>
+                    <VBtn @click="refreshData" class="p-2 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg text-slate-400 hover:text-teal-500 transition-colors">
+                        <VIcon class="material-symbols-outlined text-[18px]">refresh</VIcon>
+                    </VBtn>
             </div>
 
             <div class="w-full overflow-x-auto">
-                <table class="w-full text-left">
+                <VTable class="w-full text-left">
                     <thead class="bg-slate-50 dark:bg-gray-800/50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-200 dark:border-gray-800">
                         <tr>
                             <th class="px-6 py-4">Usuario</th>
@@ -587,7 +587,7 @@ const tieneReverso = (firmaDig?: string) => {
                     <tbody class="divide-y divide-slate-100 dark:divide-gray-800">
                         <tr v-if="loading" class="bg-white dark:bg-gray-900">
                             <td colspan="4" class="py-12 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">
-                                <span class="material-symbols-outlined animate-spin align-middle mr-2">refresh</span> Cargando...
+                                <VIcon class="material-symbols-outlined animate-spin align-middle mr-2">refresh</VIcon> Cargando...
                             </td>
                         </tr>
                         <tr v-if="!loading && personalLogistica.length === 0" class="bg-white dark:bg-gray-900">
@@ -614,34 +614,34 @@ const tieneReverso = (firmaDig?: string) => {
                                 <p class="text-xs font-bold text-slate-500 dark:text-gray-400">{{ p.email }}</p>
                             </td>
                             <td class="px-6 py-4 text-center flex justify-center gap-2">
-                                <button @click="quitarLogistica(p.id)" 
+                                <VBtn @click="quitarLogistica(p.id)"
                                   class="p-2 border border-orange-200 dark:border-orange-900/50 text-orange-500 rounded-lg hover:bg-orange-500 hover:text-white transition-all group" title="Quitar Rol de Logística">
-                                  <span class="material-symbols-outlined text-[18px]">person_remove</span>
-                                </button>
+                                  <VIcon class="material-symbols-outlined text-[18px]">person_remove</VIcon>
+                                </VBtn>
                                 
-                                <button v-if="authStore.esAdmin" @click="eliminarFisico(p.id)" 
+                                <VBtn v-if="authStore.esAdmin" @click="eliminarFisico(p.id)"
                                   class="p-2 border border-red-200 dark:border-red-900/50 text-red-500 rounded-lg hover:bg-red-600 hover:text-white transition-all group" title="Eliminar Cuenta Permanentemente">
-                                  <span class="material-symbols-outlined text-[18px]">delete_forever</span>
-                                </button>
+                                  <VIcon class="material-symbols-outlined text-[18px]">delete_forever</VIcon>
+                                </VBtn>
                             </td>
                         </tr>
                     </tbody>
-                </table>
+                </VTable>
             </div>
-        </div>
+        </VCard>
     </div>
 
     <!-- Modal Previsualización Correo de Bienvenida -->
-    <div v-if="showMailPreview" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+    <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" v-if="showMailPreview" >
       <div class="bg-white dark:bg-[#1a1a24] w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-white/10 flex flex-col max-h-[90vh]">
         <div class="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-black/20">
           <h3 class="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
-            <span class="material-symbols-outlined text-sky-500">mark_email_read</span>
+            <VIcon class="material-symbols-outlined text-sky-500">mark_email_read</VIcon>
             Vista Previa — Correo de Bienvenida
           </h3>
-          <button @click="showMailPreview = false" class="w-10 h-10 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center transition-all">
-            <span class="material-symbols-outlined">close</span>
-          </button>
+          <VBtn @click="showMailPreview = false" class="w-10 h-10 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center transition-all">
+            <VIcon class="material-symbols-outlined">close</VIcon>
+          </VBtn>
         </div>
         <div class="flex-1 overflow-y-auto bg-slate-100 dark:bg-black/40 p-4 md:p-8">
           <div class="bg-white rounded-xl shadow-sm overflow-hidden mx-auto max-w-[600px] border border-slate-200">
@@ -652,7 +652,7 @@ const tieneReverso = (firmaDig?: string) => {
           <p class="text-[10px] text-slate-400 font-medium">※ Los datos mostrados son solo de ejemplo para previsualización.</p>
         </div>
       </div>
-    </div>
+    </VDialog>
 
   </div>
 </template>

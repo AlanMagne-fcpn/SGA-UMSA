@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useUIStore } from '@/stores/ui';
 import api, { getBaseUrl } from '@/services/api';
 import { usuariosService } from '@/services/usuarios.service';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 const router = useRouter();
 const isProfileOpen = ref(false);
@@ -228,7 +228,7 @@ const closeDropdowns = (e: MouseEvent) => {
 
 onMounted(async () => {
   const savedTheme = localStorage.getItem('theme');
-  if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+  if (savedTheme === 'dark') {
     isDark.value = true;
     document.documentElement.classList.add('dark');
   }
@@ -272,13 +272,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <header class="fixed top-0 left-0 right-0 h-[75px] bg-white dark:bg-gray-900 border-b border-slate-200 dark:border-gray-800 z-[100] px-4 md:px-8 flex items-center justify-between shadow-sm transition-colors duration-300">       
+  <VSheet tag="header" class="fixed top-0 left-0 right-0 h-[75px] bg-white dark:bg-gray-900 border-b border-slate-200 dark:border-gray-800 z-[100] px-4 md:px-8 flex items-center justify-between shadow-sm transition-colors duration-300">
     <!-- Logo & Title matching Ponente -->
     <!-- Logo & Title -->
     <div class="flex items-center flex-1 space-x-4 md:space-x-6">
-      <button @click="uiStore.toggleSidebar()" class="lg:hidden w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800 text-slate-500">
-        <span class="material-symbols-outlined text-[24px]">menu</span>
-      </button>
+      <VBtn @click="uiStore.toggleSidebar()" class="lg:hidden w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800 text-slate-500">
+        <VIcon class="material-symbols-outlined text-[24px]">menu</VIcon>
+      </VBtn>
 
       <div class="hidden sm:flex flex-col flex-shrink-0 cursor-pointer border-r border-slate-200 dark:border-gray-800 pr-4 md:pr-6 justify-center">
         <h2 class="text-black dark:text-white font-clarendon font-black text-[10px] md:text-xs tracking-tighter leading-none">Sistema de Gestión de Eventos</h2>
@@ -293,8 +293,8 @@ onUnmounted(() => {
     <!-- Center Search Bar (Hidden to match exact layout, but can be kept if wanted. I'll hide it for identical structural match) -->
     <div class="hidden md:flex flex-1 max-w-xl mx-8">
       <div class="relative w-full">
-        <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-        <input 
+        <VIcon class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</VIcon>
+        <UiInput
           type="text" 
           placeholder="Buscar cursos, calificaciones..." 
           class="w-full bg-slate-50 dark:bg-gray-900 border-none rounded-xl pl-12 pr-4 py-3 
@@ -306,25 +306,25 @@ onUnmounted(() => {
 
     <!-- Actions & Profile -->
     <div class="flex items-center space-x-2 md:space-x-4">
-      <button
+      <VBtn
         @click="toggleDark"
         class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-gray-800 text-slate-500 dark:text-gray-400 hover:text-umsa-blue hover:bg-slate-100 dark:hover:text-blue-500 dark:hover:bg-gray-700 transition-all shadow-sm border border-slate-200 dark:border-gray-700 mx-1 md:mx-2"
         aria-label="Toggle Dark Mode"
       >
-        <span class="material-symbols-outlined text-[20px]">{{ isDark ? 'light_mode' : 'dark_mode' }}</span>
-      </button>
+        <VIcon class="material-symbols-outlined text-[20px]">{{ isDark ? 'light_mode' : 'dark_mode' }}</VIcon>
+      </VBtn>
 
       <div class="relative" ref="notificationsRef">
-        <button
+        <VBtn
           @click="toggleNotifications"
           class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-gray-800 text-slate-500 dark:text-gray-400 hover:text-umsa-blue hover:bg-slate-100 dark:hover:text-blue-500 dark:hover:bg-gray-700 transition-all shadow-sm border border-slate-200 dark:border-gray-700 relative"
           aria-label="Notificaciones"
         >
-          <span class="material-symbols-outlined text-[22px]" :class="studentNotifications.some(n => n.prioridad === 'alta') ? 'animate-pulse text-primary-dark dark:text-white' : ''">notifications</span>
+          <VIcon class="material-symbols-outlined text-[22px]" :class="studentNotifications.some(n => n.prioridad === 'alta') ? 'animate-pulse text-primary-dark dark:text-white' : ''">notifications</VIcon>
           <span v-if="studentNotifications.length > 0" class="absolute -top-1 -right-1 min-w-[16px] h-4 bg-red-500 rounded-full border border-white dark:border-gray-950 flex items-center justify-center text-[9px] font-bold text-white px-1">
             {{ studentNotifications.length }}
           </span>
-        </button>
+        </VBtn>
 
         <!-- Dropdown Estudiante -->
         <div v-if="showStudentNotifications" @click.stop @mousemove="resetAutoClose"
@@ -343,13 +343,13 @@ onUnmounted(() => {
                   'w-9 h-9 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 shrink-0',
                   notif.tipo === 'success' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
                 ]">
-                  <span class="material-symbols-outlined text-[20px]">{{ notif.tipo === 'success' ? 'verified' : 'priority_high' }}</span>
+                  <VIcon class="material-symbols-outlined text-[20px]">{{ notif.tipo === 'success' ? 'verified' : 'priority_high' }}</VIcon>
                 </div>
                 <div class="flex-1 min-w-0">
                   <p class="text-[10px] font-black text-primary-dark dark:text-white uppercase leading-tight truncate">{{ notif.titulo }}</p>
                   <p class="text-[9px] text-slate-500 dark:text-gray-400 mt-1 leading-relaxed">{{ notif.mensaje }}</p>
                   <div class="flex items-center gap-1 mt-2 text-[7px] font-bold text-slate-400 uppercase tracking-tighter">
-                    <span class="material-symbols-outlined text-[10px]">schedule</span>
+                    <VIcon class="material-symbols-outlined text-[10px]">schedule</VIcon>
                     {{ new Date(notif.fecha).toLocaleDateString() }}
                   </div>
                 </div>
@@ -357,7 +357,7 @@ onUnmounted(() => {
             </div>
 
             <div v-if="studentNotifications.length === 0" class="p-10 text-center">
-              <span class="material-symbols-outlined text-4xl text-slate-200 dark:text-gray-800 mb-2">notifications_off</span>
+              <VIcon class="material-symbols-outlined text-4xl text-slate-200 dark:text-gray-800 mb-2">notifications_off</VIcon>
               <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">No hay nuevas alertas</p>
             </div>
           </div>
@@ -368,17 +368,17 @@ onUnmounted(() => {
       
       <!-- Profile Button matched exactly to Ponente -->
       <div class="relative" ref="profileRef">
-        <button @click="toggleProfile" class="flex items-center gap-2 md:gap-3 bg-slate-50 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors rounded-xl pr-2 md:pr-3 py-1 pl-1 shadow-sm">
+        <VBtn @click="toggleProfile" class="flex items-center gap-2 md:gap-3 bg-slate-50 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors rounded-xl pr-2 md:pr-3 py-1 pl-1 shadow-sm">
           <div class="h-8 w-8 rounded-full overflow-hidden bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 p-0 flex flex-shrink-0 items-center justify-center">
             <img v-if="profilePhotoUrl" :src="profilePhotoUrl" alt="Foto" class="w-full h-full object-cover" />
-            <span v-else class="material-symbols-outlined text-2xl text-slate-400">account_circle</span>
+            <VIcon v-else class="material-symbols-outlined text-2xl text-slate-400">account_circle</VIcon>
           </div>
           <div class="hidden md:flex flex-col items-start pr-1">
             <span class="text-xs font-black text-primary-dark dark:text-white leading-tight">{{ authStore.user?.persona?.nombres || 'Usuario' }} {{ authStore.user?.persona?.primer_apellido || '' }}</span>
             <span class="text-[9px] uppercase tracking-widest text-slate-400 dark:text-gray-500 font-bold">Portal - Mi Perfil</span>
           </div>
-          <span class="material-symbols-outlined text-slate-400 text-sm transition-transform duration-200" :class="[isProfileOpen ? 'rotate-180' : '']">expand_more</span>
-        </button>
+          <VIcon class="material-symbols-outlined text-slate-400 text-sm transition-transform duration-200" :class="[isProfileOpen ? 'rotate-180' : '']">expand_more</VIcon>
+        </VBtn>
 
         <!-- Dropdown -->
         <div v-if="isProfileOpen" @mousemove="resetAutoClose" class="absolute right-0 top-full mt-2 w-[220px] bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
@@ -389,42 +389,42 @@ onUnmounted(() => {
           </div>
 
           <div class="p-2 space-y-1">
-            <button @click="$router.push('/estudiante/perfil')" class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-800 hover:text-umsa-blue transition-colors flex items-center gap-2">
-              <span class="material-symbols-outlined text-[18px]">badge</span>
+            <VBtn @click="$router.push('/estudiante/perfil')" class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-800 hover:text-umsa-blue transition-colors flex items-center gap-2">
+              <VIcon class="material-symbols-outlined text-[18px]">badge</VIcon>
               Ver Perfil
-            </button>
+            </VBtn>
             <!-- Cambiar a modo Ponente (solo si tiene ese rol) -->
-            <button v-if="authStore.tieneMultiplesRoles && authStore.esPonente" @click="cambiarAPonente"
+            <VBtn v-if="authStore.tieneMultiplesRoles && authStore.esPonente" @click="cambiarAPonente"
                     class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold text-slate-600 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-umsa-blue transition-colors flex items-center gap-2 border border-dashed border-transparent hover:border-blue-200 dark:hover:border-blue-800">
-              <span class="material-symbols-outlined text-[18px] text-blue-500">swap_horiz</span>
+              <VIcon class="material-symbols-outlined text-[18px] text-blue-500">swap_horiz</VIcon>
               Cambiar a Ponente
-            </button>
+            </VBtn>
 
             <!-- Cambiar a modo Logística (solo si tiene ese rol) -->
-            <button v-if="authStore.tieneMultiplesRoles && authStore.esLogistica" @click="cambiarALogistica"
+            <VBtn v-if="authStore.tieneMultiplesRoles && authStore.esLogistica" @click="cambiarALogistica"
                     class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold text-slate-600 dark:text-gray-300 hover:bg-teal-50 dark:hover:bg-teal-900/20 hover:text-teal-600 transition-colors flex items-center gap-2 border border-dashed border-transparent hover:border-teal-200 dark:hover:border-teal-800">
-              <span class="material-symbols-outlined text-[18px] text-teal-500">swap_horiz</span>
+              <VIcon class="material-symbols-outlined text-[18px] text-teal-500">swap_horiz</VIcon>
               Cambiar a Logística
-            </button>
+            </VBtn>
 
-            <button @click="abrirSoporte"
+            <VBtn @click="abrirSoporte"
                     class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-800 hover:text-blue-600 transition-colors flex items-center gap-2">
-              <span class="material-symbols-outlined text-[18px] text-slate-400">help</span>
+              <VIcon class="material-symbols-outlined text-[18px] text-slate-400">help</VIcon>
               Ayuda y Soporte
-            </button>
+            </VBtn>
 
             <div class="h-px bg-slate-100 dark:bg-gray-800 my-1"></div>
 
-            <button @click="handleLogout"
+            <VBtn @click="handleLogout"
                     class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors flex items-center gap-2">
-              <span class="material-symbols-outlined text-[18px]">logout</span>
+              <VIcon class="material-symbols-outlined text-[18px]">logout</VIcon>
               Cerrar Sesión
-            </button>
+            </VBtn>
           </div>
         </div>
       </div>
     </div>
-  </header>
+  </VSheet>
 </template>
 
 <style scoped>

@@ -20,21 +20,21 @@ onMounted(() => {
 
     <!-- Cargando -->
     <div v-if="certificadosStore.loading" class="flex flex-col items-center justify-center py-20 text-slate-400">
-      <span class="material-symbols-outlined animate-spin text-4xl mb-4">progress_activity</span>
+      <VIcon class="material-symbols-outlined animate-spin text-4xl mb-4">progress_activity</VIcon>
       <p class="text-xs font-bold uppercase tracking-widest">Cargando certificados...</p>
     </div>
 
     <!-- Vacío -->
     <div v-else-if="!certificadosStore.misCertificados.length" class="flex flex-col items-center justify-center py-20 bg-slate-50 dark:bg-gray-800/50 rounded-3xl border-2 border-dashed border-slate-200 dark:border-gray-700">
-      <span class="material-symbols-outlined text-6xl text-slate-300 dark:text-gray-600 mb-4">sentiment_dissatisfied</span>
+      <VIcon class="material-symbols-outlined text-6xl text-slate-300 dark:text-gray-600 mb-4">sentiment_dissatisfied</VIcon>
       <h3 class="text-xl font-black text-slate-500 dark:text-gray-400 mb-2 uppercase tracking-tighter">Aún no tienes certificados</h3>
       <p class="text-sm text-slate-400 text-center max-w-md">No se encontraron certificados emitidos a tu nombre. Participa en cursos y eventos para obtenerlos.</p>
     </div>
 
     <!-- Tabla interactiva -->
-    <div v-else class="bg-white dark:bg-gray-900 rounded-[2rem] shadow-sm border border-slate-100 dark:border-gray-800 overflow-hidden">
+    <VCard v-else class="bg-white dark:bg-gray-900 rounded-[2rem] shadow-sm border border-slate-100 dark:border-gray-800 overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="w-full text-left whitespace-nowrap">
+        <VTable class="w-full text-left whitespace-nowrap">
           <thead class="bg-slate-50 dark:bg-gray-800/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-gray-800">
             <tr>
               <th class="px-6 py-4">Evento / Actividad</th>
@@ -60,17 +60,17 @@ onMounted(() => {
                 <p class="font-mono text-slate-500">{{ new Date(cert.fecha_emision || cert.fecha_creacion).toLocaleDateString('es-BO') }}</p>
               </td>
               <td class="px-6 py-4 flex justify-center gap-2">
-                <button 
+                <VBtn
                   @click="certificadosStore.descargarCertificado(cert.id)"
                   class="bg-umsa-blue hover:bg-primary-accent text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md transition-all flex items-center gap-2">
-                  <span class="material-symbols-outlined text-[14px]">download</span>
+                  <VIcon class="material-symbols-outlined text-[14px]">download</VIcon>
                   Descargar PDF
-                </button>
+                </VBtn>
               </td>
             </tr>
           </tbody>
-        </table>
+        </VTable>
       </div>
-    </div>
+    </VCard>
   </div>
 </template>

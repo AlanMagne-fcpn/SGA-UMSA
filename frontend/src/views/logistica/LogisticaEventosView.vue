@@ -44,24 +44,24 @@ onMounted(fetchMisEventos);
         <p class="text-slate-500 dark:text-gray-400 font-medium mt-1">Eventos donde estás asignado como personal de apoyo.</p>
       </div>
       <div class="h-10 w-10 rounded-xl bg-teal-50 dark:bg-teal-900/20 text-teal-600 flex items-center justify-center border border-teal-100 dark:border-teal-800">
-        <span class="material-symbols-outlined">event_note</span>
+        <VIcon class="material-symbols-outlined">event_note</VIcon>
       </div>
     </div>
 
     <div v-if="loading" class="flex justify-center py-20">
-      <span class="material-symbols-outlined animate-spin text-4xl text-teal-500">progress_activity</span>
+      <VIcon class="material-symbols-outlined animate-spin text-4xl text-teal-500">progress_activity</VIcon>
     </div>
 
     <div v-else-if="misEventos.length === 0" class="text-center py-20">
       <div class="w-20 h-20 mx-auto rounded-full bg-slate-100 dark:bg-gray-800 flex items-center justify-center mb-6">
-        <span class="material-symbols-outlined text-4xl text-slate-300">event_busy</span>
+        <VIcon class="material-symbols-outlined text-4xl text-slate-300">event_busy</VIcon>
       </div>
       <p class="text-slate-500 dark:text-gray-400 font-bold uppercase tracking-widest text-xs">No tienes eventos asignados aún</p>
       <p class="text-slate-400 text-xs mt-2">Contacta a tu coordinador para que te asigne a un evento.</p>
     </div>
 
     <div v-else class="space-y-6">
-      <div v-for="evento in misEventos" :key="evento.id"
+      <VCard v-for="evento in misEventos" :key="evento.id"
            class="bg-white dark:bg-gray-900 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-sm overflow-hidden transition-all">
         
         <!-- Evento Header (clickable) -->
@@ -69,7 +69,7 @@ onMounted(fetchMisEventos);
              class="p-6 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors">
           <div class="flex items-center gap-4">
             <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex items-center justify-center shadow-lg shadow-teal-900/20">
-              <span class="material-symbols-outlined text-[28px]">event</span>
+              <VIcon class="material-symbols-outlined text-[28px]">event</VIcon>
             </div>
             <div>
               <h3 class="text-lg font-black text-slate-800 dark:text-white uppercase leading-tight">{{ evento.nombre }}</h3>
@@ -83,10 +83,10 @@ onMounted(fetchMisEventos);
               </div>
             </div>
           </div>
-          <span class="material-symbols-outlined text-slate-400 transition-transform duration-300"
+          <VIcon class="material-symbols-outlined text-slate-400 transition-transform duration-300"
                 :class="{ 'rotate-180': expandedEvento === evento.id }">
             expand_more
-          </span>
+          </VIcon>
         </div>
 
         <!-- Actividades (expandable) -->
@@ -101,7 +101,7 @@ onMounted(fetchMisEventos);
               <h4 class="text-sm font-black text-slate-700 dark:text-white uppercase">{{ act.nombre }}</h4>
               <router-link :to="'/logistica/asistencia'" 
                 class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-700 transition-colors shadow-sm">
-                <span class="material-symbols-outlined text-sm">qr_code_scanner</span>
+                <VIcon class="material-symbols-outlined text-sm">qr_code_scanner</VIcon>
                 Tomar Asistencia
               </router-link>
             </div>
@@ -109,7 +109,7 @@ onMounted(fetchMisEventos);
             <div v-if="act.sesiones && act.sesiones.length > 0" class="space-y-2">
               <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Sesiones Programadas</p>
               <div v-for="s in act.sesiones" :key="s.id" class="flex items-center gap-3 text-xs">
-                <span class="material-symbols-outlined text-teal-500 text-sm">schedule</span>
+                <VIcon class="material-symbols-outlined text-teal-500 text-sm">schedule</VIcon>
                 <span class="font-bold text-slate-600 dark:text-gray-300">{{ s.fecha }}</span>
                 <span class="text-slate-400">{{ s.hora_inicio }} - {{ s.hora_fin }}</span>
                 <span v-if="s.aula" class="text-slate-400">({{ s.aula }})</span>
@@ -118,7 +118,7 @@ onMounted(fetchMisEventos);
             <div v-else class="text-xs text-slate-400 italic">Sin sesiones programadas</div>
           </div>
         </div>
-      </div>
+      </VCard>
     </div>
   </div>
 </template>

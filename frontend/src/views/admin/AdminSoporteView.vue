@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 const tickets = ref<any[]>([]);
 const loading = ref(false);
@@ -147,7 +147,7 @@ const vincularUsuario = async (ticketId: number, emailSugerido: string) => {
     showCancelButton: true,
     confirmButtonText: 'Buscar y Vincular',
     confirmButtonColor: '#003a70',
-    inputValidator: (value) => {
+    inputValidator: (value: string) => {
       if (!value) return 'Debes ingresar un correo';
     }
   });
@@ -220,14 +220,14 @@ onMounted(() => {
         <h2 class="text-3xl font-black text-umsa-blue dark:text-blue-400 tracking-tighter uppercase italic">Centro de Soporte y Accesos</h2>
         <p class="text-slate-500 text-sm font-medium mt-1">Gestiona solicitudes de ayuda y restablecimiento de credenciales.</p>
       </div>
-      <button @click="fetchTickets" class="p-2 hover:bg-slate-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-        <span class="material-symbols-outlined text-slate-400">refresh</span>
-      </button>
+      <VBtn @click="fetchTickets" class="p-2 hover:bg-slate-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+        <VIcon class="material-symbols-outlined text-slate-400">refresh</VIcon>
+      </VBtn>
     </div>
 
     <!-- Pestañas de Navegación -->
     <div class="flex gap-1 bg-slate-100 dark:bg-gray-800 p-1 rounded-2xl w-fit">
-      <button v-for="t in [
+      <VBtn v-for="t in [
         { id: 'pendientes', label: 'Pendientes', icon: 'pending_actions' },
         { id: 'resueltos', label: 'Resueltos', icon: 'check_circle' },
         { id: 'historial', label: 'Historial', icon: 'history' }
@@ -237,22 +237,22 @@ onMounted(() => {
           'flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all',
           activeTab === t.id ? 'bg-white dark:bg-gray-700 text-umsa-blue shadow-sm' : 'text-slate-500 hover:text-slate-700'
         ]">
-        <span class="material-symbols-outlined text-sm">{{ t.icon }}</span>
+        <VIcon class="material-symbols-outlined text-sm">{{ t.icon }}</VIcon>
         {{ t.label }}
-      </button>
+      </VBtn>
     </div>
 
     <div v-if="loading" class="flex justify-center py-20">
       <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-umsa-blue"></div>
     </div>
 
-    <div v-else-if="filteredTickets.length === 0" class="bg-white dark:bg-gray-900 rounded-2xl p-20 text-center border border-slate-100 dark:border-gray-800">
-      <span class="material-symbols-outlined text-6xl text-slate-200 dark:text-gray-800 mb-4">support_agent</span>
+    <VCard v-else-if="filteredTickets.length === 0" class="bg-white dark:bg-gray-900 rounded-2xl p-20 text-center border border-slate-100 dark:border-gray-800">
+      <VIcon class="material-symbols-outlined text-6xl text-slate-200 dark:text-gray-800 mb-4">support_agent</VIcon>
       <p class="text-slate-400 font-bold uppercase tracking-widest text-xs">No hay solicitudes en esta sección</p>
-    </div>
+    </VCard>
 
     <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <div v-for="ticket in filteredTickets" :key="ticket.id" 
+      <VCard v-for="ticket in filteredTickets" :key="ticket.id"
         class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl p-6 hover:shadow-lg transition-all relative overflow-hidden group">
         
         <div :class="[
@@ -266,9 +266,9 @@ onMounted(() => {
               'w-10 h-10 rounded-xl flex items-center justify-center',
               ticket.tipo === 'password' ? 'bg-blue-100 text-blue-600' : ticket.tipo === 'datos' ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-600'
             ]">
-              <span class="material-symbols-outlined text-[20px]">
+              <VIcon class="material-symbols-outlined text-[20px]">
                 {{ ticket.tipo === 'password' ? 'lock_reset' : ticket.tipo === 'datos' ? 'edit_note' : 'help' }}
-              </span>
+              </VIcon>
             </div>
             <div>
               <p class="text-[10px] font-black uppercase text-slate-400 leading-none mb-1">Asunto:</p>
@@ -285,10 +285,10 @@ onMounted(() => {
             </span>
             
             <!-- Botón de Borrar (solo para resueltos) -->
-            <button v-if="ticket.estado === 1" @click="archivarTicket(ticket.id)" 
+            <VBtn v-if="ticket.estado === 1" @click="archivarTicket(ticket.id)"
               class="text-slate-300 hover:text-red-500 transition-colors">
-              <span class="material-symbols-outlined text-lg">delete</span>
-            </button>
+              <VIcon class="material-symbols-outlined text-lg">delete</VIcon>
+            </VBtn>
           </div>
         </div>
 
@@ -302,7 +302,7 @@ onMounted(() => {
         <div class="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-gray-800">
           <div class="flex items-center gap-2">
              <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
-                <span class="material-symbols-outlined text-slate-400 text-xl">account_circle</span>
+                <VIcon class="material-symbols-outlined text-slate-400 text-xl">account_circle</VIcon>
              </div>
              <div>
                 <p class="text-[9px] font-black text-slate-800 dark:text-white uppercase leading-none">
@@ -311,10 +311,10 @@ onMounted(() => {
                 <div class="flex items-center gap-2 mt-1">
                   <p class="text-[8px] text-slate-400 font-medium">{{ ticket.usuario?.email || 'Sin cuenta vinculada' }}</p>
                   <!-- Botón Vincular si no hay usuario -->
-                  <button v-if="!ticket.usuario" @click="vincularUsuario(ticket.id, ticket.email || '')"
+                  <VBtn v-if="!ticket.usuario" @click="vincularUsuario(ticket.id, ticket.email || '')"
                     class="text-umsa-blue hover:underline text-[8px] font-bold uppercase tracking-tighter">
                     [Vincular Usuario]
-                  </button>
+                  </VBtn>
                 </div>
              </div>
           </div>
@@ -323,28 +323,28 @@ onMounted(() => {
             
             <template v-if="ticket.estado === 0">
               <!-- Botón Restablecer Clave -->
-              <button @click="resetearPassword(ticket.usuario, ticket.id, ticket.email)"
+              <VBtn @click="resetearPassword(ticket.usuario, ticket.id, ticket.email)"
                 class="bg-umsa-blue hover:bg-blue-900 text-white px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1 shadow-sm">
-                <span class="material-symbols-outlined text-[14px]">key</span>
+                <VIcon class="material-symbols-outlined text-[14px]">key</VIcon>
                 Restablecer Clave
-              </button>
+              </VBtn>
 
               <!-- Botón Habilitar Edición -->
-              <button @click="habilitarEdicion(ticket.usuario, ticket.id, ticket.email)"
+              <VBtn @click="habilitarEdicion(ticket.usuario, ticket.id, ticket.email)"
                 class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1 shadow-sm">
-                <span class="material-symbols-outlined text-[14px]">edit</span>
+                <VIcon class="material-symbols-outlined text-[14px]">edit</VIcon>
                 Habilitar Edición
-              </button>
+              </VBtn>
 
               <!-- Botón Resolver (General) -->
-              <button @click="resolverTicket(ticket.id)"
+              <VBtn @click="resolverTicket(ticket.id)"
                 class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm">
                 Listo / Resolver
-              </button>
+              </VBtn>
             </template>
           </div>
         </div>
-      </div>
+      </VCard>
     </div>
   </div>
 </template>

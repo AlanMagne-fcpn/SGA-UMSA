@@ -30,7 +30,7 @@ export class CreateInfoCertificadoDto {
   @IsInt()
   tipo?: number;
 
-  @ApiPropertyOptional({ example: 0, description: 'Indicador de Excelencia (0: Participación, 1: Excelencia)' })
+  @ApiPropertyOptional({ example: 0, description: 'Tipo de certificado (0: Participación, 1: Aprobación)' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

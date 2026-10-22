@@ -101,40 +101,40 @@ onUnmounted(() => {
 <template>
   <div :class="[uiStore.isDark ? 'dark' : '', 'min-h-screen bg-slate-100 dark:bg-[#0a0a0f] transition-colors duration-300 relative']">
     <!-- Admin Header -->
-    <header :class="['fixed top-0 left-0 right-0 z-50 h-[72px] flex items-center justify-between px-6 bg-white dark:bg-[#0d0d14] border-b border-slate-200 shadow-sm dark:shadow-lg dark:shadow-black/40 transition-colors', themeBorder]">
-      <div class="flex items-center gap-4">
-        <button @click="uiStore.toggleSidebar()" :class="['w-10 h-10 flex items-center justify-center rounded-xl transition-all', themeText, themeHover]">
-          <span class="material-symbols-outlined">menu</span>
-        </button>
-        <div class="flex items-center gap-3">
+    <VSheet tag="header" :class="['fixed top-0 left-0 right-0 z-50 h-[72px] flex items-center justify-between gap-2 px-3 sm:px-4 lg:px-6 bg-white dark:bg-[#0d0d14] border-b border-slate-200 shadow-sm dark:shadow-lg dark:shadow-black/40 transition-colors', themeBorder]">
+      <div class="flex min-w-0 flex-1 items-center gap-2 lg:gap-4">
+        <VBtn @click="uiStore.toggleSidebar()" :class="['!min-w-0 w-10 h-10 shrink-0 flex items-center justify-center rounded-xl transition-all', themeText, themeHover]">
+          <VIcon class="material-symbols-outlined">menu</VIcon>
+        </VBtn>
+        <div class="flex min-w-0 items-center gap-3">
           <div :class="['w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center shadow-lg', themeGradient]">
-            <span class="material-symbols-outlined text-white text-[16px]">
+            <VIcon class="material-symbols-outlined text-white text-[16px]">
               {{ isSuperAdminTheme ? 'shield_person' : 'manage_accounts' }}
-            </span>
+            </VIcon>
           </div>
-          <div class="hidden sm:block">
+          <div class="hidden min-w-0 lg:block">
             <p :class="['text-[10px] font-black uppercase tracking-widest leading-none', themeLogoText]">Sistema SGEA</p>
-            <h1 class="text-sm font-black text-slate-800 dark:text-white leading-tight">
+            <h1 class="truncate text-sm font-black text-slate-800 dark:text-white leading-tight">
               {{ isSuperAdminTheme ? 'Panel de Super Administrador' : 'Portal del Coordinador' }}
             </h1>
           </div>
         </div>
       </div>
       
-      <div class="flex items-center gap-4">
+      <div class="flex shrink-0 items-center gap-2 lg:gap-3">
         <!-- Campanita de Notificaciones -->
         <div class="relative" ref="coordinatorNotificationsRef">
-          <button @click="toggleNotifications" 
-            class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400 border border-slate-200 dark:border-gray-700 hover:bg-slate-200 dark:hover:bg-gray-700 transition-all relative shrink-0">
-            <span class="material-symbols-outlined text-[18px] md:text-[20px] transition-transform" :class="notifications.total > 0 ? 'animate-bounce' : ''">notifications</span>
+          <VBtn @click="toggleNotifications"
+            class="!min-w-0 w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400 border border-slate-200 dark:border-gray-700 hover:bg-slate-200 dark:hover:bg-gray-700 transition-all relative shrink-0">
+            <VIcon class="material-symbols-outlined text-[18px] md:text-[20px] transition-transform" :class="notifications.total > 0 ? 'animate-bounce' : ''">notifications</VIcon>
             <span v-if="notifications.total > 0" class="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white dark:border-gray-900 shadow-sm">
               {{ notifications.total }}
             </span>
-          </button>
+          </VBtn>
 
           <!-- Dropdown de Notificaciones -->
           <div v-if="showNotifications" @mousemove="resetAutoClose"
-            class="absolute right-0 mt-4 w-80 bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl border border-slate-100 dark:border-gray-800 z-[200] overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
+            class="absolute right-0 mt-4 w-[min(20rem,calc(100vw-2rem))] bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl border border-slate-100 dark:border-gray-800 z-[200] overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
             <div class="p-6 border-b border-slate-100 dark:border-gray-800 flex justify-between items-center bg-slate-50/50 dark:bg-gray-800/50">
               <h3 class="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Gestión Académica</h3>
               <span class="text-[9px] font-bold text-slate-400 uppercase">{{ notifications.total }} Pendientes</span>
@@ -147,7 +147,7 @@ onUnmounted(() => {
                 class="p-5 hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer border-b border-slate-50 dark:border-gray-800 last:border-0 group">
                 <div class="flex items-start gap-4">
                   <div class="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
-                    <span class="material-symbols-outlined">person_add</span>
+                    <VIcon class="material-symbols-outlined">person_add</VIcon>
                   </div>
                   <div class="flex-1">
                     <p class="text-[11px] font-black text-slate-800 dark:text-white uppercase leading-tight">Nuevos Registros</p>
@@ -162,7 +162,7 @@ onUnmounted(() => {
                 class="p-5 hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer border-b border-slate-50 dark:border-gray-800 last:border-0 group">
                 <div class="flex items-start gap-4">
                   <div class="w-10 h-10 rounded-2xl bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center text-sky-600 dark:text-sky-400 group-hover:scale-110 transition-transform">
-                    <span class="material-symbols-outlined">app_registration</span>
+                    <VIcon class="material-symbols-outlined">app_registration</VIcon>
                   </div>
                   <div class="flex-1">
                     <p class="text-[11px] font-black text-slate-800 dark:text-white uppercase leading-tight">{{ act.nombre }}</p>
@@ -173,7 +173,7 @@ onUnmounted(() => {
               </div>
 
               <div v-if="notifications.total === 0" class="p-12 text-center">
-                <span class="material-symbols-outlined text-4xl text-slate-200 dark:text-gray-800 mb-2">notifications_off</span>
+                <VIcon class="material-symbols-outlined text-4xl text-slate-200 dark:text-gray-800 mb-2">notifications_off</VIcon>
                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">No hay pendientes</p>
               </div>
             </div>
@@ -181,15 +181,15 @@ onUnmounted(() => {
         </div>
 
         <!-- BOTÓN MODO CLARO/OSCURO -->
-        <button @click="uiStore.toggleTheme()" 
-                class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400 border border-slate-200 dark:border-gray-700 hover:bg-slate-200 dark:hover:bg-gray-700 transition-all shadow-sm shrink-0">
-          <span class="material-symbols-outlined text-[18px] md:text-[20px]">{{ uiStore.isDark ? 'light_mode' : 'dark_mode' }}</span>
-        </button>
+        <VBtn @click="uiStore.toggleTheme()"
+                class="!min-w-0 w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400 border border-slate-200 dark:border-gray-700 hover:bg-slate-200 dark:hover:bg-gray-700 transition-all shadow-sm shrink-0">
+          <VIcon class="material-symbols-outlined text-[18px] md:text-[20px]">{{ uiStore.isDark ? 'light_mode' : 'dark_mode' }}</VIcon>
+        </VBtn>
 
         <!-- Información del Usuario y Menú -->
         <div class="relative" ref="profileRef">
-          <button @click="toggleProfile" class="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-gray-800 text-left hover:opacity-80 transition-opacity">
-            <div class="hidden sm:block">
+          <VBtn @click="toggleProfile" class="!min-w-0 flex items-center gap-2 px-1 sm:px-2 lg:pl-3 border-l border-slate-200 dark:border-gray-800 text-left hover:opacity-80 transition-opacity">
+            <div class="hidden xl:block">
               <p :class="['text-[11px] font-black leading-tight truncate max-w-[150px] uppercase', themeText]">
                 {{ authStore.user?.persona?.nombres || (isSuperAdminTheme ? 'Super Admin' : 'Coordinador') }}
               </p>
@@ -198,10 +198,10 @@ onUnmounted(() => {
               </p>
             </div>
             <div class="w-10 h-10 bg-slate-100 dark:bg-gray-800 border-2 border-white dark:border-gray-700 rounded-full flex items-center justify-center shadow-sm ring-2 ring-slate-100 dark:ring-gray-800 overflow-hidden shrink-0">  
-              <span class="material-symbols-outlined text-xl text-slate-500 dark:text-gray-400">account_circle</span>
+              <VIcon class="material-symbols-outlined text-xl text-slate-500 dark:text-gray-400">account_circle</VIcon>
             </div>
-            <span class="material-symbols-outlined text-slate-400 text-sm transition-transform duration-200 hidden sm:block" :class="[isProfileOpen ? 'rotate-180' : '']">expand_more</span>
-          </button>
+            <VIcon class="material-symbols-outlined text-slate-400 text-sm transition-transform duration-200 hidden xl:block" :class="[isProfileOpen ? 'rotate-180' : '']">expand_more</VIcon>
+          </VBtn>
 
           <!-- Dropdown Menú Usuario -->
           <div v-if="isProfileOpen" @mousemove="resetAutoClose" class="absolute right-0 top-full mt-4 w-56 bg-white dark:bg-gray-900 border border-slate-100 dark:border-gray-800 rounded-2xl shadow-2xl overflow-hidden z-[200] animate-in fade-in slide-in-from-top-2 duration-200">
@@ -210,30 +210,30 @@ onUnmounted(() => {
                <span class="block text-[9px] font-bold text-slate-400">{{ authStore.user?.email }}</span>
             </div>
             <div class="p-2 space-y-1">
-              <button @click="$router.push({ name: 'admin-perfil' }); isProfileOpen = false" class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-800 hover:text-blue-600 transition-colors flex items-center gap-3">
-                <span class="material-symbols-outlined text-[18px]">badge</span>
+              <VBtn @click="$router.push({ name: 'admin-perfil' }); isProfileOpen = false" class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-800 hover:text-blue-600 transition-colors flex items-center gap-3">
+                <VIcon class="material-symbols-outlined text-[18px]">badge</VIcon>
                 Mi Perfil
-              </button>
-              <button v-if="authStore.esSuperUsuario" @click="$router.push({ name: 'admin-configuracion' }); isProfileOpen = false" class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-800 hover:text-umsa-blue transition-colors flex items-center gap-3">
-                <span class="material-symbols-outlined text-[18px]">settings</span>
+              </VBtn>
+              <VBtn v-if="authStore.esSuperUsuario" @click="$router.push({ name: 'admin-configuracion' }); isProfileOpen = false" class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-800 hover:text-umsa-blue transition-colors flex items-center gap-3">
+                <VIcon class="material-symbols-outlined text-[18px]">settings</VIcon>
                 Configuración del Sistema
-              </button>
+              </VBtn>
               <div class="h-px bg-slate-100 dark:bg-gray-800 my-1"></div>
-              <button @click="handleLogout" class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors flex items-center gap-3">
-                <span class="material-symbols-outlined text-[18px]">logout</span>
+              <VBtn @click="handleLogout" class="w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors flex items-center gap-3">
+                <VIcon class="material-symbols-outlined text-[18px]">logout</VIcon>
                 Cerrar Sesión
-              </button>
+              </VBtn>
             </div>
           </div>
         </div>
 
         <div v-if="authStore.esSuperUsuario" 
-             class="px-3 py-1.5 bg-sky-50 dark:bg-sky-900/30 border border-sky-200 dark:border-sky-700/40 rounded-full hidden lg:flex items-center gap-2">
+             class="px-3 py-1.5 bg-sky-50 dark:bg-sky-900/30 border border-sky-200 dark:border-sky-700/40 rounded-full hidden 2xl:flex items-center gap-2">
           <div class="w-2 h-2 rounded-full bg-umsa-blue animate-pulse"></div>
           <span class="text-[9px] font-black text-[#003B71] dark:text-sky-300 uppercase tracking-widest">Acceso Total</span>
         </div>
       </div>
-    </header>
+    </VSheet>
 
     <AdminSidebar v-if="!route.meta.hideSidebar" />
 

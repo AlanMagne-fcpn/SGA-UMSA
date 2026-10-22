@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 import api from '@/services/api';
 import { useI18n } from 'vue-i18n';
 
@@ -93,7 +93,7 @@ const abrirSoporte = () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-gray-950 p-4">
+  <div class="min-h-[100svh] flex items-center justify-center bg-slate-50 dark:bg-gray-950 px-4 pb-8 pt-24 md:pt-28">
     <div class="w-full max-w-5xl flex flex-col md:flex-row bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100 dark:border-gray-800">
       
       <!-- Left Box (Form) -->

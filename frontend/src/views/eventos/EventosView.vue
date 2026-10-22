@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 import { useEventoStore } from '@/stores/eventoStore';
 
 const eventoStore = useEventoStore();
@@ -298,7 +298,7 @@ const inhabilitarEvento = async (gestion: any) => {
         cancelButtonColor: '#94a3b8',
         confirmButtonText: 'Sí, Inhabilitar',
         cancelButtonText: 'Cancelar',
-        inputValidator: (value) => {
+        inputValidator: (value: string) => {
           if (!value) {
             return '¡Debes escribir un motivo!'
           }
@@ -542,20 +542,20 @@ const editarGestion = (gestion: any) => {
         <h2 class="text-3xl font-black text-primary-dark dark:text-white uppercase italic">Gestión de Eventos</h2>
         <p class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mt-1">Configuración unificada: Evento y sus Gestiones</p>
       </div>
-      <button v-if="!isCreating" @click="isCreating = true; isEditing = false; editId = null" class="bg-primary-dark dark:bg-blue-600 hover:bg-blue-900 dark:hover:bg-blue-700 text-white font-black px-6 py-3.5 rounded-xl text-[11px] uppercase tracking-widest shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2">
-        <span class="material-symbols-outlined text-[18px]">add_business</span> Crear Nuevo Evento
-      </button>
-      <button v-else @click="isCreating = false; isEditing = false; editId = null" class="bg-slate-200 dark:bg-gray-800 hover:bg-slate-300 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 font-black px-6 py-3.5 rounded-xl text-[11px] uppercase tracking-widest shadow-sm hover:-translate-y-0.5 transition-all flex items-center gap-2">
-        <span class="material-symbols-outlined text-[18px]">close</span> Cancelar
-      </button>
+      <VBtn v-if="!isCreating" @click="isCreating = true; isEditing = false; editId = null" class="bg-primary-dark dark:bg-blue-600 hover:bg-blue-900 dark:hover:bg-blue-700 text-white font-black px-6 py-3.5 rounded-xl text-[11px] uppercase tracking-widest shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2">
+        <VIcon class="material-symbols-outlined text-[18px]">add_business</VIcon> Crear Nuevo Evento
+      </VBtn>
+      <VBtn v-else @click="isCreating = false; isEditing = false; editId = null" class="bg-slate-200 dark:bg-gray-800 hover:bg-slate-300 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 font-black px-6 py-3.5 rounded-xl text-[11px] uppercase tracking-widest shadow-sm hover:-translate-y-0.5 transition-all flex items-center gap-2">
+        <VIcon class="material-symbols-outlined text-[18px]">close</VIcon> Cancelar
+      </VBtn>
     </div>
 
     <!-- Formulario de Creación / Edición -->
-    <div v-if="isCreating || isEditing" class="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl shadow-umsa-blue/10 dark:shadow-black/50 border border-blue-100 dark:border-gray-800 animate-in slide-in-from-top-4 duration-500 overflow-hidden relative">
+    <VCard v-if="isCreating || isEditing" class="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl shadow-umsa-blue/10 dark:shadow-black/50 border border-blue-100 dark:border-gray-800 animate-in slide-in-from-top-4 duration-500 overflow-hidden relative">
         <div class="bg-gradient-to-r from-umsa-blue to-emerald-500 p-8 pb-10 relative overflow-hidden">
-            <span class="material-symbols-outlined absolute -right-4 -top-8 text-[120px] text-white/10 rotate-12">design_services</span>
+            <VIcon class="material-symbols-outlined absolute -right-4 -top-8 text-[120px] text-white/10 rotate-12">design_services</VIcon>
             <h3 class="text-2xl md:text-3xl font-black text-white uppercase italic tracking-tighter drop-shadow-md relative z-10 flex items-center gap-3">
-                <span class="material-symbols-outlined text-3xl">{{ isEditing ? 'edit_calendar' : 'add_circle' }}</span>
+                <VIcon class="material-symbols-outlined text-3xl">{{ isEditing ? 'edit_calendar' : 'add_circle' }}</VIcon>
                 {{ isEditing ? 'Editar Gestión de Evento' : 'Crear Nueva Gestión de Evento' }}
             </h3>
         </div>
@@ -570,7 +570,7 @@ const editarGestion = (gestion: any) => {
                     (currentStep > step ? 'bg-emerald-500 text-white' : 'bg-slate-200 dark:bg-gray-700 text-slate-500'),
                     'w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black transition-all duration-500'
                 ]">
-                    <span v-if="currentStep > step" class="material-symbols-outlined text-sm">check</span>
+                    <VIcon v-if="currentStep > step" class="material-symbols-outlined text-sm">check</VIcon>
                     <span v-else>{{ step }}</span>
                 </div>
                 <span :class="currentStep === step ? 'text-primary-dark dark:text-white' : 'text-slate-400'" class="text-[9px] font-black uppercase tracking-widest hidden md:block mr-4">
@@ -596,31 +596,31 @@ const editarGestion = (gestion: any) => {
                     <!-- PASO 1: IDENTIDAD VISUAL -->
                     <div v-if="currentStep === 1" class="space-y-6">
                         <div class="flex items-center gap-3 border-b border-slate-100 dark:border-gray-800 pb-4 mb-6">
-                            <span class="material-symbols-outlined text-umsa-blue">palette</span>
+                            <VIcon class="material-symbols-outlined text-umsa-blue">palette</VIcon>
                             <h4 class="text-sm font-black text-primary-dark dark:text-white uppercase italic">Paso 1: Identidad Visual y Portada</h4>
                         </div>
                         <div>
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Nombre Principal del Evento</label>
-                            <input v-model="nuevoEvento.nombre" type="text" required placeholder="Ej: Congreso Internacional de Ciencias" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 focus:border-umsa-blue outline-none rounded-2xl px-5 py-4 text-sm font-bold shadow-sm" />
+                            <UiInput v-model="nuevoEvento.nombre" type="text" required placeholder="Ej: Congreso Internacional de Ciencias" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 focus:border-umsa-blue outline-none rounded-2xl px-5 py-4 text-sm font-bold shadow-sm" />
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sigla / Abreviación (Para el Header)</label>
-                                <input v-model="nuevoEvento.sigla" type="text" placeholder="Ej: TYAN" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 focus:border-umsa-blue rounded-2xl px-5 py-3 text-sm font-black uppercase" />
+                                <UiInput v-model="nuevoEvento.sigla" type="text" placeholder="Ej: TYAN" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 focus:border-umsa-blue rounded-2xl px-5 py-3 text-sm font-black uppercase" />
                             </div>
                             <div>
                                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Texto del Badge (Botón Verde)</label>
-                                <input v-model="nuevoEvento.institucion_badge" type="text" placeholder="Ej: Evento Oficial OEA/TYAN" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 focus:border-umsa-blue rounded-2xl px-5 py-3 text-sm font-bold uppercase" />
+                                <UiInput v-model="nuevoEvento.institucion_badge" type="text" placeholder="Ej: Evento Oficial OEA/TYAN" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 focus:border-umsa-blue rounded-2xl px-5 py-3 text-sm font-bold uppercase" />
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Versión / Slogan</label>
-                                <input v-model="nuevoEvento.version" type="text" placeholder="Ej: 4ta Edición" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 focus:border-umsa-blue rounded-2xl px-5 py-3 text-sm font-bold" />
+                                <UiInput v-model="nuevoEvento.version" type="text" placeholder="Ej: 4ta Edición" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 focus:border-umsa-blue rounded-2xl px-5 py-3 text-sm font-bold" />
                             </div>
                             <div>
                                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Gestión / Año</label>
-                                <input v-model="nuevoEvento.gestion" type="text" placeholder="2025" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 focus:border-umsa-blue rounded-2xl px-5 py-3 text-sm font-bold" />
+                                <UiInput v-model="nuevoEvento.gestion" type="text" placeholder="2025" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 focus:border-umsa-blue rounded-2xl px-5 py-3 text-sm font-bold" />
                             </div>
                             <div>
                                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Color de Identidad</label>
@@ -645,7 +645,7 @@ const editarGestion = (gestion: any) => {
                                 <div class="relative group h-32 bg-slate-50 dark:bg-gray-800 border-2 border-dashed border-slate-200 dark:border-gray-700 rounded-2xl flex flex-col items-center justify-center p-4 overflow-hidden transition-all hover:border-blue-400">
                                     <img v-if="logoPreview" :src="logoPreview" class="w-full h-full object-contain">
                                     <template v-else>
-                                        <span class="material-symbols-outlined text-slate-300 text-3xl mb-1">image</span>
+                                        <VIcon class="material-symbols-outlined text-slate-300 text-3xl mb-1">image</VIcon>
                                         <span class="text-[8px] text-slate-400 font-bold uppercase">Subir Logo Oficial</span>
                                     </template>
                                     <input type="file" @change="onLogoChange" class="absolute inset-0 opacity-0 cursor-pointer">
@@ -665,7 +665,7 @@ const editarGestion = (gestion: any) => {
                                 <div class="relative group h-32 bg-slate-50 dark:bg-gray-800 border-2 border-dashed border-slate-200 dark:border-gray-700 rounded-2xl flex flex-col items-center justify-center p-4 overflow-hidden transition-all hover:border-blue-400">
                                     <img v-if="fondoPreview" :src="fondoPreview" class="w-full h-full object-cover">
                                     <template v-else>
-                                        <span class="material-symbols-outlined text-slate-300 text-3xl mb-1">wallpaper</span>
+                                        <VIcon class="material-symbols-outlined text-slate-300 text-3xl mb-1">wallpaper</VIcon>
                                         <span class="text-[8px] text-slate-400 font-bold uppercase">Subir Fondo Principal</span>
                                     </template>
                                     <input type="file" @change="onFondoChange" class="absolute inset-0 opacity-0 cursor-pointer">
@@ -677,21 +677,21 @@ const editarGestion = (gestion: any) => {
                     <!-- PASO 2: NARRATIVA -->
                     <div v-if="currentStep === 2" class="space-y-6">
                         <div class="flex items-center gap-3 border-b border-slate-100 dark:border-gray-800 pb-4 mb-6">
-                            <span class="material-symbols-outlined text-umsa-blue">subject</span>
+                            <VIcon class="material-symbols-outlined text-umsa-blue">subject</VIcon>
                             <h4 class="text-sm font-black text-primary-dark dark:text-white uppercase italic">Paso 2: Historia y Frase Destacada</h4>
                         </div>
                         <div class="grid grid-cols-1 gap-6">
                             <div>
                                 <label class="text-xs font-black text-umsa-blue uppercase tracking-wide block mb-2">Párrafo Principal</label>
-                                <textarea v-model="nuevoEvento.sobre_evento_1" rows="4" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-2xl px-5 py-4 text-sm font-medium"></textarea>
+                                <VTextarea v-model="nuevoEvento.sobre_evento_1" rows="4" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-2xl px-5 py-4 text-sm font-medium"></VTextarea>
                             </div>
                             <div>
                                 <label class="text-xs font-black text-umsa-blue uppercase tracking-wide block mb-2">Párrafo Secundario</label>
-                                <textarea v-model="nuevoEvento.sobre_evento_2" rows="4" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-2xl px-5 py-4 text-sm font-medium"></textarea>
+                                <VTextarea v-model="nuevoEvento.sobre_evento_2" rows="4" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-2xl px-5 py-4 text-sm font-medium"></VTextarea>
                             </div>
                             <div class="bg-umsa-blue/5 p-6 rounded-[2rem] border-2 border-dashed border-umsa-blue/20">
                                 <label class="text-xs font-black text-umsa-blue uppercase tracking-wide block mb-4">Cita Central (Impacto)</label>
-                                <textarea v-model="nuevoEvento.frase_destacada" rows="3" class="w-full bg-white dark:bg-gray-900 border-2 border-umsa-blue/30 rounded-2xl px-5 py-4 text-lg font-black italic text-center shadow-inner resize-none"></textarea>
+                                <VTextarea v-model="nuevoEvento.frase_destacada" rows="3" class="w-full bg-white dark:bg-gray-900 border-2 border-umsa-blue/30 rounded-2xl px-5 py-4 text-lg font-black italic text-center shadow-inner resize-none"></VTextarea>
                             </div>
                         </div>
                     </div>
@@ -700,20 +700,20 @@ const editarGestion = (gestion: any) => {
                     <div v-if="currentStep === 3" class="space-y-6">
                         <div class="flex items-center justify-between border-b border-slate-100 dark:border-gray-800 pb-4 mb-6">
                             <div class="flex items-center gap-3">
-                                <span class="material-symbols-outlined text-emerald-600">group</span>
+                                <VIcon class="material-symbols-outlined text-emerald-600">group</VIcon>
                                 <h4 class="text-sm font-black text-primary-dark dark:text-white uppercase italic">Paso 3: Ponentes y Directorio</h4>
                             </div>
-                            <button @click.prevent="showRegistroRapido = true" class="text-[9px] font-black text-emerald-700 bg-emerald-100 px-4 py-2 rounded-xl">
+                            <VBtn @click.prevent="showRegistroRapido = true" class="text-[9px] font-black text-emerald-700 bg-emerald-100 px-4 py-2 rounded-xl">
                                 + NUEVO PERSONAL
-                            </button>
+                            </VBtn>
                         </div>
                         <div class="relative">
-                            <input v-model="filtroPonente" type="text" placeholder="Buscar por nombre..." class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 pl-10 text-xs font-bold" />
-                            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+                            <UiInput v-model="filtroPonente" type="text" placeholder="Buscar por nombre..." class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 pl-10 text-xs font-bold" />
+                            <VIcon class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</VIcon>
                         </div>
                         <div class="bg-slate-50 dark:bg-gray-950 border-2 border-slate-100 dark:border-gray-800 rounded-2xl p-4 max-h-[350px] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3 thin-scrollbar">
                            <label v-for="pn in ponentesFiltrados" :key="pn.id" class="flex items-center gap-3 p-4 bg-white dark:bg-gray-900 border border-slate-100 dark:border-gray-800 rounded-xl cursor-pointer hover:border-emerald-500 transition-all">
-                               <input type="checkbox" :value="pn.id" v-model="nuevoEvento.ponentes_seleccionados" class="w-5 h-5 rounded text-emerald-500" />
+                               <UiInput type="checkbox" :value="pn.id" v-model="nuevoEvento.ponentes_seleccionados" class="w-5 h-5 rounded text-emerald-500" />
                                <div class="flex flex-col min-w-0">
                                    <span class="text-xs font-black text-primary-dark dark:text-gray-200 truncate">{{ pn.displayName }}</span>
                                    <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">{{ pn.roleLabel }}</span>
@@ -725,49 +725,49 @@ const editarGestion = (gestion: any) => {
                     <!-- PASO 4: LOGÍSTICA -->
                     <div v-if="currentStep === 4" class="space-y-6">
                         <div class="flex items-center gap-3 border-b border-slate-100 dark:border-gray-800 pb-4 mb-6">
-                            <span class="material-symbols-outlined text-umsa-blue">event_note</span>
+                            <VIcon class="material-symbols-outlined text-umsa-blue">event_note</VIcon>
                             <h4 class="text-sm font-black text-primary-dark dark:text-white uppercase italic">Paso 4: Logística y Estados</h4>
                         </div>
                         <div class="grid grid-cols-2 gap-6">
                             <div>
                                 <label class="text-[10px] font-black text-slate-500 uppercase block mb-2">Fecha de Inicio</label>
-                                <input v-model="nuevoEvento.fecha_inicio" type="date" required class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold" />
+                                <UiInput v-model="nuevoEvento.fecha_inicio" type="date" required class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold" />
                             </div>
                             <div>
                                 <label class="text-[10px] font-black text-slate-500 uppercase block mb-2">Fecha de Fin</label>
-                                <input v-model="nuevoEvento.fecha_fin" type="date" required class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold" />
+                                <UiInput v-model="nuevoEvento.fecha_fin" type="date" required class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold" />
                             </div>
                         </div>
                         <div>
                              <label class="text-[10px] font-black text-slate-500 uppercase block mb-2">Estado del Evento</label>
-                             <select v-model="nuevoEvento.estado" class="w-full bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-black uppercase text-emerald-600 focus:border-emerald-500 outline-none cursor-pointer">
+                             <UiSelect v-model="nuevoEvento.estado" class="w-full bg-white dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-black uppercase text-emerald-600 focus:border-emerald-500 outline-none cursor-pointer">
                                  <option :value="2">Planificación</option>
                                  <option :value="1">Activo / Publicado</option>
                                  <option :value="0">Concluido / Histórico</option>
                                  <option :value="3">Borrador / Invisible</option>
-                             </select>
+                             </UiSelect>
                         </div>
                     </div>
 
                     <!-- PASO 5: UBICACIÓN -->
                     <div v-if="currentStep === 5" class="space-y-6">
                         <div class="flex items-center gap-3 border-b border-slate-100 dark:border-gray-800 pb-4 mb-6">
-                            <span class="material-symbols-outlined text-umsa-blue">room</span>
+                            <VIcon class="material-symbols-outlined text-umsa-blue">room</VIcon>
                             <h4 class="text-sm font-black text-primary-dark dark:text-white uppercase italic">Paso 5: Campus y Ubicación</h4>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="text-[10px] font-black text-slate-500 uppercase block mb-2">Ciudad / Sede</label>
-                                <input v-model="nuevoEvento.ubicacion" type="text" placeholder="Ej: La Paz" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold" />
+                                <UiInput v-model="nuevoEvento.ubicacion" type="text" placeholder="Ej: La Paz" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold" />
                             </div>
                             <div>
                                 <label class="text-[10px] font-black text-slate-500 uppercase block mb-2">Dirección Exacta</label>
-                                <input v-model="nuevoEvento.direccion" type="text" placeholder="Ej: Edif. Central UMSA" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold" />
+                                <UiInput v-model="nuevoEvento.direccion" type="text" placeholder="Ej: Edif. Central UMSA" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold" />
                             </div>
                         </div>
                         <div>
                             <label class="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase block mb-2">Mapa Interactivo (Iframe de Google)</label>
-                            <textarea v-model="nuevoEvento.google_maps_link" rows="5" placeholder="Pega aquí el código <iframe ...>" class="w-full bg-slate-50 dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-700 rounded-2xl px-5 py-4 text-[10px] font-mono text-emerald-600 resize-none"></textarea>
+                            <VTextarea v-model="nuevoEvento.google_maps_link" rows="5" placeholder="Pega aquí el código <iframe ...>" class="w-full bg-slate-50 dark:bg-gray-900 border-2 border-slate-100 dark:border-gray-700 rounded-2xl px-5 py-4 text-[10px] font-mono text-emerald-600 resize-none"></VTextarea>
                         </div>
                     </div>
 
@@ -775,29 +775,29 @@ const editarGestion = (gestion: any) => {
                     <div v-if="currentStep === 6" class="space-y-6">
                         <div class="flex items-center justify-between border-b border-slate-100 dark:border-gray-800 pb-4 mb-6">
                             <div class="flex items-center gap-3">
-                                <span class="material-symbols-outlined text-umsa-gold">view_timeline</span>
+                                <VIcon class="material-symbols-outlined text-umsa-gold">view_timeline</VIcon>
                                 <h4 class="text-sm font-black text-primary-dark dark:text-white uppercase italic">Paso 6: Estructura del Cronograma</h4>
                             </div>
-                            <button @click.prevent="agregarDia" class="bg-umsa-gold text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase">
+                            <VBtn @click.prevent="agregarDia" class="bg-umsa-gold text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase">
                                 + AÑADIR DÍA
-                            </button>
+                            </VBtn>
                         </div>
                         <div class="space-y-4 max-h-[400px] overflow-y-auto thin-scrollbar pr-2">
                             <div v-for="(dia, dIdx) in nuevoEvento.cronograma_lista" :key="dIdx" class="bg-slate-50 dark:bg-gray-800/50 border border-slate-100 dark:border-gray-700 rounded-2xl p-6">
                                 <div class="flex items-center gap-4 mb-4 border-b border-slate-200 dark:border-gray-700 pb-3">
                                     <span class="w-8 h-8 bg-umsa-gold text-white rounded-full flex items-center justify-center font-black text-xs italic">#{{ dia.day }}</span>
-                                    <input v-model="dia.name" class="flex-1 bg-transparent border-none outline-none text-xs font-black uppercase" />
-                                    <button @click.prevent="eliminarDia(dIdx)" class="text-slate-300 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
+                                    <UiInput v-model="dia.name" class="flex-1 bg-transparent border-none outline-none text-xs font-black uppercase" />
+                                    <VBtn @click.prevent="eliminarDia(dIdx)" class="text-slate-300 hover:text-red-500"><VIcon class="material-symbols-outlined text-lg">delete</VIcon></VBtn>
                                 </div>
                                 <div class="space-y-2">
                                     <div v-for="(act, aIdx) in dia.events" :key="aIdx" class="flex items-center gap-2">
-                                        <input v-model="act.time" type="time" class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-[10px] font-bold" />
-                                        <input v-model="act.title" placeholder="Descripción de la sesión o ponencia..." class="flex-1 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-[10px] font-bold" />
-                                        <button @click.prevent="eliminarActividad(dIdx, aIdx)" class="text-slate-300 hover:text-red-500 transition-colors"><span class="material-symbols-outlined text-sm">remove_circle</span></button>
+                                        <UiInput v-model="act.time" type="time" class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-lg px-2 py-1.5 text-[10px] font-bold" />
+                                        <UiInput v-model="act.title" placeholder="Descripción de la sesión o ponencia..." class="flex-1 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-[10px] font-bold" />
+                                        <VBtn @click.prevent="eliminarActividad(dIdx, aIdx)" class="text-slate-300 hover:text-red-500 transition-colors"><VIcon class="material-symbols-outlined text-sm">remove_circle</VIcon></VBtn>
                                     </div>
-                                    <button @click.prevent="agregarActividad(dIdx)" class="text-[8px] font-black text-emerald-600 mt-2 flex items-center gap-1">
-                                        <span class="material-symbols-outlined text-sm">add_circle</span> + AÑADIR PUNTO DE AGENDA
-                                    </button>
+                                    <VBtn @click.prevent="agregarActividad(dIdx)" class="text-[8px] font-black text-emerald-600 mt-2 flex items-center gap-1">
+                                        <VIcon class="material-symbols-outlined text-sm">add_circle</VIcon> + AÑADIR PUNTO DE AGENDA
+                                    </VBtn>
                                 </div>
                             </div>
                         </div>
@@ -805,18 +805,18 @@ const editarGestion = (gestion: any) => {
 
                     <!-- BOTONES DE NAVEGACIÓN -->
                     <div class="flex items-center justify-between pt-8 border-t border-slate-100 dark:border-gray-800 mt-auto">
-                        <button v-if="currentStep > 1" @click.prevent="prevStep" type="button" class="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-primary-dark transition-colors">
-                            <span class="material-symbols-outlined text-lg">arrow_back</span> Anterior
-                        </button>
+                        <VBtn v-if="currentStep > 1" @click.prevent="prevStep" type="button" class="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-primary-dark transition-colors">
+                            <VIcon class="material-symbols-outlined text-lg">arrow_back</VIcon> Anterior
+                        </VBtn>
                         <div v-else></div>
                         
                         <div class="flex gap-4">
-                            <button v-if="currentStep < totalSteps" @click.prevent="nextStep" type="button" class="bg-primary-dark text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all">
+                            <VBtn v-if="currentStep < totalSteps" @click.prevent="nextStep" type="button" class="bg-primary-dark text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all">
                                 Siguiente Parte
-                            </button>
-                            <button v-else type="submit" class="bg-emerald-600 text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
+                            </VBtn>
+                            <VBtn v-else type="submit" class="bg-emerald-600 text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
                                 {{ isEditing ? 'Actualizar Evento' : 'Finalizar y Crear' }}
-                            </button>
+                            </VBtn>
                         </div>
                     </div>
                 </div>
@@ -833,14 +833,14 @@ const editarGestion = (gestion: any) => {
                         </div>
 
                         <!-- CONTENEDOR MINI-HOME UNIFICADO -->
-                        <div class="bg-white dark:bg-gray-900 rounded-[2.5rem] border border-slate-200 dark:border-gray-800 overflow-hidden shadow-2xl flex flex-col relative transition-all duration-500 hover:shadow-blue-500/10">
+                        <VCard class="bg-white dark:bg-gray-900 rounded-[2.5rem] border border-slate-200 dark:border-gray-800 overflow-hidden shadow-2xl flex flex-col relative transition-all duration-500 hover:shadow-blue-500/10">
                             
                             <!-- HERO PREVIEW -->
                             <div class="relative aspect-[16/10] bg-slate-900 overflow-hidden">
                                 <!-- Banner -->
                                 <img v-if="resolvedBanner" :src="resolvedBanner" class="absolute inset-0 w-full h-full object-cover opacity-60 animate-in fade-in duration-700">
                                 <div v-else class="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-950 flex items-center justify-center">
-                                    <span class="material-symbols-outlined text-4xl text-white/10">wallpaper</span>
+                                    <VIcon class="material-symbols-outlined text-4xl text-white/10">wallpaper</VIcon>
                                 </div>
 
                                 <!-- Overlay Gradiente -->
@@ -848,23 +848,23 @@ const editarGestion = (gestion: any) => {
 
                                 <!-- Logo del Evento -->
                                 <div class="absolute top-4 left-4 z-20">
-                                    <div class="w-12 h-12 bg-white/95 backdrop-blur shadow-xl rounded-xl p-2 border border-white/20 flex items-center justify-center transform -rotate-3 hover:rotate-0 transition-transform duration-500">
+                                    <VCard class="w-12 h-12 bg-white/95 backdrop-blur shadow-xl rounded-xl p-2 border border-white/20 flex items-center justify-center transform -rotate-3 hover:rotate-0 transition-transform duration-500">
                                         <img v-if="resolvedLogo" :src="resolvedLogo" class="w-full h-full object-contain animate-in zoom-in-50 duration-500">
-                                        <span v-else class="material-symbols-outlined text-slate-300">image</span>
-                                    </div>
+                                        <VIcon v-else class="material-symbols-outlined text-slate-300">image</VIcon>
+                                    </VCard>
                                 </div>
 
                                 <!-- Badges Superiores -->
                                 <div class="absolute top-4 right-4 flex flex-col gap-1 items-end z-20">
                                     <div class="px-2 py-1 bg-emerald-500 text-white text-[7px] font-black rounded-md shadow-lg uppercase tracking-tighter">Evento Oficial</div>
-                                    <div class="px-2 py-1 bg-white/10 backdrop-blur-md text-white text-[7px] font-black rounded-md border border-white/20 uppercase">{{ nuevoEvento.version || 'Edición' }}</div>
+                                    <VCard class="px-2 py-1 bg-white/10 backdrop-blur-md text-white text-[7px] font-black rounded-md border border-white/20 uppercase">{{ nuevoEvento.version || 'Edición' }}</VCard>
                                 </div>
 
                                 <!-- Contenido del Hero -->
                                 <div class="absolute inset-x-0 bottom-0 p-6 space-y-3 z-10">
                                     <div class="flex items-center gap-2">
                                         <div class="px-2.5 py-1 bg-emerald-500 text-white rounded-md flex items-center gap-1 shadow-lg shadow-emerald-500/20 border border-emerald-400/50">
-                                            <span class="material-symbols-outlined text-[10px]">verified</span>
+                                            <VIcon class="material-symbols-outlined text-[10px]">verified</VIcon>
                                             <span class="text-[7px] font-black uppercase tracking-widest">{{ nuevoEvento.institucion_badge || 'Evento Oficial OEA/TYAN' }}</span>
                                         </div>
                                     </div>
@@ -880,20 +880,20 @@ const editarGestion = (gestion: any) => {
                                     
                                     <div class="flex flex-wrap gap-2 pt-1">
                                         <!-- Gestión -->
-                                        <div :style="{ borderColor: nuevoEvento.color_principal + '40' }" class="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 backdrop-blur-md border text-white rounded-lg text-[8px] font-black uppercase">
-                                            <span class="material-symbols-outlined text-[12px]">calendar_today</span>
+                                        <VCard :style="{ borderColor: nuevoEvento.color_principal + '40' }" class="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 backdrop-blur-md border text-white rounded-lg text-[8px] font-black uppercase">
+                                            <VIcon class="material-symbols-outlined text-[12px]">calendar_today</VIcon>
                                             {{ nuevoEvento.gestion || '202X' }}
-                                        </div>
+                                        </VCard>
                                         <!-- Fecha -->
-                                        <div class="flex items-center gap-1.5 px-2.5 py-1 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-lg text-[8px] font-black uppercase">
-                                            <span class="material-symbols-outlined text-[12px]">schedule</span>
+                                        <VCard class="flex items-center gap-1.5 px-2.5 py-1 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-lg text-[8px] font-black uppercase">
+                                            <VIcon class="material-symbols-outlined text-[12px]">schedule</VIcon>
                                             {{ nuevoEvento.fecha_inicio ? formatDate(nuevoEvento.fecha_inicio) : '13 DE MAYO' }}
-                                        </div>
+                                        </VCard>
                                         <!-- Lugar -->
-                                        <div class="flex items-center gap-1.5 px-2.5 py-1 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-lg text-[8px] font-black uppercase">
-                                            <span class="material-symbols-outlined text-[12px]">location_on</span>
+                                        <VCard class="flex items-center gap-1.5 px-2.5 py-1 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-lg text-[8px] font-black uppercase">
+                                            <VIcon class="material-symbols-outlined text-[12px]">location_on</VIcon>
                                             {{ nuevoEvento.ubicacion || 'SEDE' }}
-                                        </div>
+                                        </VCard>
                                     </div>
                                 </div>
                             </div>
@@ -912,7 +912,7 @@ const editarGestion = (gestion: any) => {
 
                                 <!-- Frase Destacada -->
                                 <div v-if="nuevoEvento.frase_destacada" class="bg-slate-50 dark:bg-gray-900 p-4 rounded-2xl border border-slate-100 dark:border-gray-800 relative">
-                                    <span class="material-symbols-outlined absolute -left-1 -top-1 text-blue-500/20 text-3xl">format_quote</span>
+                                    <VIcon class="material-symbols-outlined absolute -left-1 -top-1 text-blue-500/20 text-3xl">format_quote</VIcon>
                                     <p class="text-[9px] font-black italic text-center text-slate-700 dark:text-slate-300 leading-tight">
                                         "{{ nuevoEvento.frase_destacada }}"
                                     </p>
@@ -933,12 +933,12 @@ const editarGestion = (gestion: any) => {
                                 </div>
                                 <span class="text-[7px] font-bold text-slate-300 uppercase">Organización & Auspicio</span>
                             </div>
-                        </div>
+                        </VCard>
 
                         <!-- Info Card de Calidad -->
                         <div class="p-4 bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
                             <div class="flex items-center gap-2 mb-2">
-                                <span class="material-symbols-outlined text-emerald-500 text-sm">auto_awesome</span>
+                                <VIcon class="material-symbols-outlined text-emerald-500 text-sm">auto_awesome</VIcon>
                                 <span class="text-[9px] font-black text-emerald-700 dark:text-emerald-400 uppercase">Estado de la Marca</span>
                             </div>
                             <div class="grid grid-cols-2 gap-2">
@@ -950,11 +950,11 @@ const editarGestion = (gestion: any) => {
                 </div>
             </div>
         </form>
-    </div>
+    </VCard>
 
     <!-- Lista de eventos agrupados -->
     <div v-show="!isCreating && !isEditing" class="grid grid-cols-1 gap-8 mt-4">
-      <div v-for="(evento, index) in eventosAgrupados" :key="index" class="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl shadow-slate-200/40 dark:shadow-black/40 border border-slate-100 dark:border-gray-800 transition-all overflow-hidden relative group/evento">
+      <VCard v-for="(evento, index) in eventosAgrupados" :key="index" class="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl shadow-slate-200/40 dark:shadow-black/40 border border-slate-100 dark:border-gray-800 transition-all overflow-hidden relative group/evento">
         
         <!-- Decoration top bar / Banner -->
         <div class="h-32 w-full relative overflow-hidden bg-gradient-to-r from-umsa-blue to-emerald-500">
@@ -966,10 +966,10 @@ const editarGestion = (gestion: any) => {
             <div class="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
               <div class="flex-1">
                 <div class="flex items-end gap-5 mb-4">
-                  <div class="w-24 h-24 rounded-2xl bg-white dark:bg-gray-800 shadow-xl overflow-hidden flex items-center justify-center text-umsa-blue border-4 border-white dark:border-gray-900 shrink-0 relative z-20">
+                  <VCard class="w-24 h-24 rounded-2xl bg-white dark:bg-gray-800 shadow-xl overflow-hidden flex items-center justify-center text-umsa-blue border-4 border-white dark:border-gray-900 shrink-0 relative z-20">
                     <img v-if="evento.logo_img" :src="evento.logo_img" class="w-full h-full object-contain p-2">
-                    <span v-else class="material-symbols-outlined text-4xl text-slate-200">image</span>
-                  </div>
+                    <VIcon v-else class="material-symbols-outlined text-4xl text-slate-200">image</VIcon>
+                  </VCard>
                   <div class="pb-[0.1rem]">
                     <span class="text-[9px] font-black uppercase px-3 py-1 rounded-full tracking-widest border mb-2 inline-block shadow-sm" :class="evento.estadoGeneral === 'Activo' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/40' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-gray-800 dark:text-gray-400'">
                       ESTADO: {{ evento.estadoGeneral }}
@@ -992,7 +992,7 @@ const editarGestion = (gestion: any) => {
 
             <div class="pl-0 md:pl-[7.25rem]">
               <h4 class="text-[10px] font-black text-umsa-blue dark:text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <span class="material-symbols-outlined text-[14px]">view_timeline</span> Gestiones / Versiones Disponibles
+                <VIcon class="material-symbols-outlined text-[14px]">view_timeline</VIcon> Gestiones / Versiones Disponibles
               </h4>
               
               <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -1016,7 +1016,7 @@ const editarGestion = (gestion: any) => {
                   </div>
 
                   <div class="absolute -right-6 -top-6 text-slate-50 dark:text-gray-800 group-hover:text-blue-50 dark:group-hover:text-blue-900/30 transition-colors z-0">
-                    <span class="material-symbols-outlined text-[100px]">{{ gestion.estado === -1 ? 'block' : (gestion.estadoStr === 'Activo' ? 'verified' : (gestion.estadoStr === 'Planificación' ? 'edit_calendar' : 'history')) }}</span>
+                    <VIcon class="material-symbols-outlined text-[100px]">{{ gestion.estado === -1 ? 'block' : (gestion.estadoStr === 'Activo' ? 'verified' : (gestion.estadoStr === 'Planificación' ? 'edit_calendar' : 'history')) }}</VIcon>
                   </div>
 
                   <div class="flex flex-col mb-4 relative z-10" @click="editarGestion(gestion)">
@@ -1030,66 +1030,66 @@ const editarGestion = (gestion: any) => {
                     </span>
                     
                     <div class="flex items-center gap-1">
-                        <button v-if="gestion.estado !== -1" @click.stop="inhabilitarEvento(gestion)" class="w-8 h-8 rounded-lg bg-slate-50 dark:bg-gray-800 text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-all flex items-center justify-center" title="Inhabilitar Gestión">
-                            <span class="material-symbols-outlined text-lg">block</span>
-                        </button>
-                        <button @click.stop="editarGestion(gestion)" class="w-8 h-8 rounded-lg bg-slate-50 dark:bg-gray-800 text-slate-400 hover:bg-blue-50 hover:text-umsa-blue transition-all flex items-center justify-center" title="Editar">
-                            <span class="material-symbols-outlined text-lg">edit</span>
-                        </button>
+                        <VBtn v-if="gestion.estado !== -1" @click.stop="inhabilitarEvento(gestion)" class="w-8 h-8 rounded-lg bg-slate-50 dark:bg-gray-800 text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-all flex items-center justify-center" title="Inhabilitar Gestión">
+                            <VIcon class="material-symbols-outlined text-lg">block</VIcon>
+                        </VBtn>
+                        <VBtn @click.stop="editarGestion(gestion)" class="w-8 h-8 rounded-lg bg-slate-50 dark:bg-gray-800 text-slate-400 hover:bg-blue-50 hover:text-umsa-blue transition-all flex items-center justify-center" title="Editar">
+                            <VIcon class="material-symbols-outlined text-lg">edit</VIcon>
+                        </VBtn>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
         </div>
-      </div>
+      </VCard>
     </div>
 
   </div>
 
     <!-- MODAL REGISTRO RÁPIDO -->
-    <div v-if="showRegistroRapido" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-primary-dark/80 backdrop-blur-sm" @click="showRegistroRapido = false"></div>
-        <div class="bg-white dark:bg-gray-900 rounded-[2rem] w-full max-w-md p-8 relative z-10 shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100 dark:border-gray-800">
+    <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" @click:outside="showRegistroRapido = false" v-if="showRegistroRapido" >
+
+        <VCard class="bg-white dark:bg-gray-900 rounded-[2rem] w-full max-w-md p-8 relative z-10 shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100 dark:border-gray-800">
             <h3 class="text-2xl font-black text-primary-dark dark:text-white mb-6 uppercase italic tracking-tighter border-b-2 border-emerald-500 pb-2 inline-block">Personal Nuevo</h3>
             
             <div class="space-y-5">
                 <div>
                     <label class="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest block mb-2">Categoría / Rol</label>
-                    <select v-model="nuevoPonenteRegistro.id_rol" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:border-emerald-500 outline-none">
+                    <UiSelect v-model="nuevoPonenteRegistro.id_rol" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:border-emerald-500 outline-none">
                         <option :value="5">Ponente / Expositor</option>
                         <option :value="2">Coordinador de Evento</option>
-                    </select>
+                    </UiSelect>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest block mb-1.5">Nombres</label>
-                        <input v-model="nuevoPonenteRegistro.nombres" type="text" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:border-emerald-500" />
+                        <UiInput v-model="nuevoPonenteRegistro.nombres" type="text" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:border-emerald-500" />
                     </div>
                     <div>
                         <label class="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest block mb-1.5">Primer Apellido</label>
-                        <input v-model="nuevoPonenteRegistro.primer_apellido" type="text" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:border-emerald-500" />
+                        <UiInput v-model="nuevoPonenteRegistro.primer_apellido" type="text" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:border-emerald-500" />
                     </div>
                 </div>
 
                 <div>
                     <label class="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest block mb-1.5">Correo Electrónico</label>
-                    <input v-model="nuevoPonenteRegistro.email" type="email" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:border-emerald-500" />
+                    <UiInput v-model="nuevoPonenteRegistro.email" type="email" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:border-emerald-500" />
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest block mb-1.5">Grado Académico (Abreviado)</label>
-                        <input v-model="nuevoPonenteRegistro.grado_academico" type="text" placeholder="Ej: Lic. o MSc." class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:border-emerald-500" />
+                        <UiInput v-model="nuevoPonenteRegistro.grado_academico" type="text" placeholder="Ej: Lic. o MSc." class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:border-emerald-500" />
                     </div>
                 </div>
 
                 <div class="pt-6 flex gap-3">
-                    <button @click="showRegistroRapido = false" class="flex-1 px-4 py-4 rounded-xl text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">Cancelar</button>
-                    <button @click="registrarNuevoPonente" class="flex-[2] bg-emerald-500 text-white px-4 py-4 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg active:scale-95">Registrar Personal</button>
+                    <VBtn @click="showRegistroRapido = false" class="flex-1 px-4 py-4 rounded-xl text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">Cancelar</VBtn>
+                    <VBtn @click="registrarNuevoPonente" class="flex-[2] bg-emerald-500 text-white px-4 py-4 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg active:scale-95">Registrar Personal</VBtn>
                 </div>
             </div>
-        </div>
-    </div>
+        </VCard>
+    </VDialog>
 </template>

@@ -52,26 +52,26 @@ onMounted(fetchMisCertificados);
         <p class="text-slate-500 dark:text-gray-400 font-medium mt-1">Certificados emitidos a tu nombre por participación en eventos.</p>
       </div>
       <div class="h-10 w-10 rounded-xl bg-teal-50 dark:bg-teal-900/20 text-teal-600 flex items-center justify-center border border-teal-100 dark:border-teal-800">
-        <span class="material-symbols-outlined">workspace_premium</span>
+        <VIcon class="material-symbols-outlined">workspace_premium</VIcon>
       </div>
     </div>
 
     <!-- Loading -->
     <div v-if="loading" class="flex justify-center py-20">
-      <span class="material-symbols-outlined animate-spin text-4xl text-teal-500">progress_activity</span>
+      <VIcon class="material-symbols-outlined animate-spin text-4xl text-teal-500">progress_activity</VIcon>
     </div>
 
     <!-- Empty -->
     <div v-else-if="certificados.length === 0" class="text-center py-20">
       <div class="w-20 h-20 mx-auto rounded-full bg-slate-100 dark:bg-gray-800 flex items-center justify-center mb-6">
-        <span class="material-symbols-outlined text-4xl text-slate-300">inventory_2</span>
+        <VIcon class="material-symbols-outlined text-4xl text-slate-300">inventory_2</VIcon>
       </div>
       <p class="text-slate-500 dark:text-gray-400 font-bold uppercase tracking-widest text-xs">Aún no tienes certificados emitidos</p>
     </div>
 
     <!-- Certificados List -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <div v-for="cert in certificados" :key="cert.id"
+      <VCard v-for="cert in certificados" :key="cert.id"
            class="bg-white dark:bg-gray-900 rounded-3xl border border-slate-200 dark:border-gray-800 overflow-hidden shadow-sm hover:shadow-xl transition-all group">
         <div class="h-3 bg-gradient-to-r from-teal-500 to-emerald-600"></div>
         <div class="p-6 space-y-4">
@@ -113,13 +113,13 @@ onMounted(fetchMisCertificados);
           </div>
           
           <div class="mt-4 pt-4 border-t border-slate-100 dark:border-gray-800">
-              <button @click="downloadPdf(cert.id)" :disabled="downloading === cert.id" class="w-full bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-black uppercase py-2.5 rounded-xl tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer">
-                  <span class="material-symbols-outlined text-[16px]">{{ downloading === cert.id ? 'sync' : 'download' }}</span> 
+              <VBtn @click="downloadPdf(cert.id)" :disabled="downloading === cert.id" class="w-full bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-black uppercase py-2.5 rounded-xl tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer">
+                  <VIcon class="material-symbols-outlined text-[16px]">{{ downloading === cert.id ? 'sync' : 'download' }}</VIcon>
                   {{ downloading === cert.id ? 'Descargando...' : 'Descargar PDF' }}
-              </button>
+              </VBtn>
           </div>
         </div>
-      </div>
+      </VCard>
     </div>
   </div>
 </template>

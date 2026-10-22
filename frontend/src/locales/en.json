@@ -1,6 +1,8 @@
 {
   "navbar": {
+    "system_name": "Event and Activity Management System",
     "home": "Home",
+    "events": "Events",
     "info": "Information",
     "organization": "Organization",
     "location": "Location",
@@ -11,7 +13,7 @@
   },
   "footer": {
     "where_we_are": "Where we are",
-    "address": "Cota Cota, 27th Street, Faculty of Pure and Natural Sciences Building - La Paz, Bolivia",
+    "address": "UMSA, Central Monoblock, TIC building of the Faculty of Pure and Natural Sciences, La Paz, Bolivia",
     "contact_us": "Contact Us",
     "phone": "Reference phone",
     "email": "Email",
@@ -31,5 +33,22 @@
     "no_account": "Don't have an account?",
     "register_here": "Register here",
     "verifying": "Verifying..."
+  },
+  "welcome": {
+    "eyebrow": "Academic events and courses platform",
+    "heading_start": "Welcome to the",
+    "heading_accent": "academic system.",
+    "description": "Discover available events and activities, explore their details, and take part in upcoming learning experiences.",
+    "explore": "Explore events",
+    "register": "Create an account",
+    "hint": "To explore the events, click “Explore events”.",
+    "official": "Official portal",
+    "visual_eyebrow": "Your next experience starts here",
+    "visual_title": "Find the event that inspires you.",
+    "step_explore": "Explore",
+    "step_register": "Register",
+    "step_participate": "Participate",
+    "institutions": "Institutional support",
+    "institutions_description": "A platform that connects our academic community."
   }
 }

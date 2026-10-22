@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 // ── Tabs ───────────────────────────────────────────────────────────────────
 const activeTab = ref<'plantillas' | 'auditoria'>('plantillas');
@@ -259,44 +259,44 @@ const getStatusIcon = (status: string) => {
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="flex items-center gap-3">
           <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <span class="material-symbols-outlined text-white text-2xl">mail</span>
+            <VIcon class="material-symbols-outlined text-white text-2xl">mail</VIcon>
           </div>
           <div>
             <h1 class="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Correos del Sistema</h1>
             <p class="text-slate-500 dark:text-slate-400 font-medium text-sm">Gestiona plantillas y monitorea la cola de envíos</p>
           </div>
         </div>
-        <button v-if="activeTab === 'plantillas'" @click="openCreate"
+        <VBtn v-if="activeTab === 'plantillas'" @click="openCreate"
                 class="flex items-center gap-2 px-6 py-3 bg-umsa-blue text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 hover:-translate-y-1 transition-all">
-          <span class="material-symbols-outlined text-[18px]">add</span>
+          <VIcon class="material-symbols-outlined text-[18px]">add</VIcon>
           Nueva Plantilla
-        </button>
-        <button v-if="activeTab === 'auditoria'" @click="fetchAudit"
+        </VBtn>
+        <VBtn v-if="activeTab === 'auditoria'" @click="fetchAudit"
                 class="flex items-center gap-2 px-6 py-3 bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-white/10 transition-all border border-slate-200 dark:border-white/10">
-          <span class="material-symbols-outlined text-[18px]">refresh</span>
+          <VIcon class="material-symbols-outlined text-[18px]">refresh</VIcon>
           Actualizar
-        </button>
+        </VBtn>
       </div>
 
       <!-- Tab Selector -->
-      <div class="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200 dark:border-white/10 w-fit">
-        <button 
+      <VCard class="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200 dark:border-white/10 w-fit">
+        <VBtn
           @click="activeTab = 'plantillas'"
           :class="[activeTab === 'plantillas' ? 'bg-white dark:bg-white/10 shadow-sm text-umsa-blue dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300']"
           class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2"
         >
-          <span class="material-symbols-outlined text-[18px]">dashboard</span>
+          <VIcon class="material-symbols-outlined text-[18px]">dashboard</VIcon>
           Gestión de Plantillas
-        </button>
-        <button 
+        </VBtn>
+        <VBtn
           @click="activeTab = 'auditoria'"
           :class="[activeTab === 'auditoria' ? 'bg-white dark:bg-white/10 shadow-sm text-umsa-blue dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300']"
           class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center gap-2"
         >
-          <span class="material-symbols-outlined text-[18px]">history</span>
+          <VIcon class="material-symbols-outlined text-[18px]">history</VIcon>
           Auditoría de Envíos
-        </button>
-      </div>
+        </VBtn>
+      </VCard>
     </div>
 
     <!-- ======================================================================= -->
@@ -316,11 +316,11 @@ const getStatusIcon = (status: string) => {
             <p class="text-sm text-slate-400">Plantilla por defecto del sistema para bienvenida y aprobación de cuentas. No es editable desde este panel.</p>
           </div>
           <div class="flex gap-2 shrink-0">
-            <button @click="openDefaultPreview"
+            <VBtn @click="openDefaultPreview"
                     class="flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all border border-white/10">
-              <span class="material-symbols-outlined text-[16px]">visibility</span>
+              <VIcon class="material-symbols-outlined text-[16px]">visibility</VIcon>
               Previsualizar
-            </button>
+            </VBtn>
           </div>
         </div>
       </div>
@@ -331,29 +331,29 @@ const getStatusIcon = (status: string) => {
       </div>
 
       <!-- Empty -->
-      <div v-else-if="templates.length === 0" class="bg-white dark:bg-white/5 rounded-3xl p-16 text-center border border-slate-200 dark:border-white/10">
-        <span class="material-symbols-outlined text-6xl text-slate-300 mb-4 block">mail_outline</span>
+      <VCard v-else-if="templates.length === 0" class="bg-white dark:bg-white/5 rounded-3xl p-16 text-center border border-slate-200 dark:border-white/10">
+        <VIcon class="material-symbols-outlined text-6xl text-slate-300 mb-4 block">mail_outline</VIcon>
         <p class="text-slate-500 font-bold">No hay plantillas personalizadas creadas todavía.</p>
-      </div>
+      </VCard>
 
       <!-- Grid de plantillas custom -->
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div v-for="t in templates" :key="t.id"
+        <VCard v-for="t in templates" :key="t.id"
              class="bg-white dark:bg-[#0d0d14] rounded-3xl border border-slate-200 dark:border-white/5 p-6 shadow-xl shadow-slate-200/50 dark:shadow-none hover:border-umsa-blue/30 transition-all group flex flex-col">
           <div class="flex justify-between items-start mb-4">
             <span :class="getTipoColor(t.tipo)" class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border">
               {{ getTipoLabel(t.tipo) }}
             </span>
             <div class="flex gap-1">
-              <button @click="openCustomPreview(t)" class="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all" title="Previsualizar">
-                <span class="material-symbols-outlined text-[18px]">visibility</span>
-              </button>
-              <button @click="openEdit(t)" class="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all" title="Editar">
-                <span class="material-symbols-outlined text-[18px]">edit</span>
-              </button>
-              <button @click="deleteTemplate(t.id)" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all" title="Eliminar">
-                <span class="material-symbols-outlined text-[18px]">delete</span>
-              </button>
+              <VBtn @click="openCustomPreview(t)" class="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-500/10 rounded-xl transition-all" title="Previsualizar">
+                <VIcon class="material-symbols-outlined text-[18px]">visibility</VIcon>
+              </VBtn>
+              <VBtn @click="openEdit(t)" class="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all" title="Editar">
+                <VIcon class="material-symbols-outlined text-[18px]">edit</VIcon>
+              </VBtn>
+              <VBtn @click="deleteTemplate(t.id)" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all" title="Eliminar">
+                <VIcon class="material-symbols-outlined text-[18px]">delete</VIcon>
+              </VBtn>
             </div>
           </div>
           <h3 class="text-lg font-black text-slate-800 dark:text-white mb-1">{{ t.nombre }}</h3>
@@ -362,7 +362,7 @@ const getStatusIcon = (status: string) => {
             <span>{{ new Date(t.fecha_creacion).toLocaleDateString() }}</span>
             <span>{{ t.asunto?.slice(0, 30) || '—' }}</span>
           </div>
-        </div>
+        </VCard>
       </div>
     </template>
 
@@ -378,14 +378,14 @@ const getStatusIcon = (status: string) => {
         <!-- Info Cola con Fallos (si existen) -->
         <div v-if="auditData.colaFallidos?.length > 0" class="bg-amber-50 dark:bg-amber-500/10 rounded-3xl p-6 border border-amber-200 dark:border-amber-500/20">
           <div class="flex items-center gap-3 mb-4">
-            <span class="material-symbols-outlined text-amber-500">warning</span>
+            <VIcon class="material-symbols-outlined text-amber-500">warning</VIcon>
             <h3 class="text-amber-800 dark:text-amber-400 font-black">Problemas en la Cola ({{ auditData.colaFallidos.length }})</h3>
           </div>
           <p class="text-xs text-amber-700 dark:text-amber-300/80 font-medium mb-4">
             Estos correos superaron el máximo de {{ auditData.maxIntentos }} intentos y han sido CANCELADOS, o están fallando actualmente.
           </p>
-          <div class="overflow-x-auto rounded-xl border border-amber-200/50 dark:border-amber-500/20 bg-white dark:bg-black/20">
-            <table class="w-full text-left text-xs">
+          <VCard class="overflow-x-auto rounded-xl border border-amber-200/50 dark:border-amber-500/20 bg-white dark:bg-black/20">
+            <VTable class="w-full text-left text-xs">
               <thead class="bg-amber-100/50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200 font-bold">
                 <tr>
                   <th class="px-4 py-3">Destinatario</th>
@@ -402,20 +402,20 @@ const getStatusIcon = (status: string) => {
                   <td class="px-4 py-3 max-w-xs truncate" :title="cf.ultimo_error">{{ cf.ultimo_error }}</td>
                 </tr>
               </tbody>
-            </table>
-          </div>
+            </VTable>
+          </VCard>
         </div>
 
         <!-- Tabla general de Historial de Mail Logs -->
-        <div class="bg-white dark:bg-[#0d0d14] rounded-3xl border border-slate-200 dark:border-white/5 shadow-xl p-8">
+        <VCard class="bg-white dark:bg-[#0d0d14] rounded-3xl border border-slate-200 dark:border-white/5 shadow-xl p-8">
           <div class="flex items-center justify-between mb-6">
             <h3 class="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
-              <span class="material-symbols-outlined text-umsa-blue">history_edu</span>
+              <VIcon class="material-symbols-outlined text-umsa-blue">history_edu</VIcon>
               Historial de Envíos ({{ auditData.totalLogs }})
             </h3>
           </div>
           <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-white/10">
-            <table class="w-full text-left text-xs">
+            <VTable class="w-full text-left text-xs">
               <thead class="bg-slate-50 dark:bg-white/5 text-slate-500 font-black uppercase tracking-wider">
                 <tr>
                   <th class="px-4 py-3">Fecha</th>
@@ -432,7 +432,7 @@ const getStatusIcon = (status: string) => {
                   <td class="px-4 py-3">{{ log.asunto }}</td>
                   <td class="px-4 py-3">
                     <span :class="getStatusColor(log.estado)" class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border flex items-center gap-1.5 w-fit">
-                      <span class="material-symbols-outlined text-[14px]">{{ getStatusIcon(log.estado) }}</span>
+                      <VIcon class="material-symbols-outlined text-[14px]">{{ getStatusIcon(log.estado) }}</VIcon>
                       {{ log.estado }}
                     </span>
                   </td>
@@ -444,34 +444,34 @@ const getStatusIcon = (status: string) => {
                   <td colspan="5" class="px-4 py-8 text-center text-slate-400 font-bold">No hay registros de envío todavía.</td>
                 </tr>
               </tbody>
-            </table>
+            </VTable>
           </div>
-        </div>
+        </VCard>
 
       </div>
     </template>
 
     <!-- ── Modal Crear/Editar ──────────────────────────────────────────────── -->
-    <div v-if="showModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" v-if="showModal" >
       <div class="bg-white dark:bg-[#1a1a24] w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-in zoom-in duration-300">
         <div class="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-black/20">
           <h3 class="text-xl font-black text-slate-800 dark:text-white">
             {{ isEditing ? 'Editar Plantilla' : 'Nueva Plantilla' }}
           </h3>
           <div class="flex items-center gap-2">
-            <button v-if="isEditing" @click="openCustomPreview(currentTemplate)"
+            <VBtn v-if="isEditing" @click="openCustomPreview(currentTemplate)"
                     class="flex items-center gap-1.5 px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all border border-slate-200 dark:border-white/10">
-              <span class="material-symbols-outlined text-[16px]">visibility</span>
+              <VIcon class="material-symbols-outlined text-[16px]">visibility</VIcon>
               Previsualizar
-            </button>
-            <button v-if="isEditing && currentTemplate.cuerpo" @click="downloadHtml(`${currentTemplate.nombre}.html`, currentTemplate.cuerpo)"
+            </VBtn>
+            <VBtn v-if="isEditing && currentTemplate.cuerpo" @click="downloadHtml(`${currentTemplate.nombre}.html`, currentTemplate.cuerpo)"
                     class="flex items-center gap-1.5 px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all">
-              <span class="material-symbols-outlined text-[16px]">download</span>
+              <VIcon class="material-symbols-outlined text-[16px]">download</VIcon>
               Descargar
-            </button>
-            <button @click="showModal = false" class="w-10 h-10 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center transition-all">
-              <span class="material-symbols-outlined">close</span>
-            </button>
+            </VBtn>
+            <VBtn @click="showModal = false" class="w-10 h-10 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center transition-all">
+              <VIcon class="material-symbols-outlined">close</VIcon>
+            </VBtn>
           </div>
         </div>
 
@@ -479,38 +479,38 @@ const getStatusIcon = (status: string) => {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="space-y-2">
               <label class="text-[11px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nombre de la Plantilla</label>
-              <input v-model="currentTemplate.nombre" type="text" placeholder="Ej: Bienvenida Curso IA"
-                     class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-3 text-sm outline-none focus:border-umsa-blue transition-all">
+              <UiInput v-model="currentTemplate.nombre" type="text" placeholder="Ej: Bienvenida Curso IA"
+                     class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-3 text-sm outline-none focus:border-umsa-blue transition-all" />
             </div>
             <div class="space-y-2">
               <label class="text-[11px] font-black text-slate-400 uppercase ml-2 tracking-widest">Tipo de Notificación</label>
-              <select v-model="currentTemplate.tipo"
+              <UiSelect v-model="currentTemplate.tipo"
                       class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-3 text-sm outline-none focus:border-umsa-blue transition-all">
                 <option value="WELCOME">Registro al Sistema (Bienvenida)</option>
                 <option value="CERTIFICATE">Envío de Certificado</option>
-              </select>
+              </UiSelect>
             </div>
           </div>
 
           <div class="space-y-2">
             <label class="text-[11px] font-black text-slate-400 uppercase ml-2 tracking-widest">Descripción</label>
-            <input v-model="currentTemplate.descripcion" type="text" placeholder="Descripción breve de cuándo se usa esta plantilla"
-                   class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-3 text-sm outline-none focus:border-umsa-blue transition-all">
+            <UiInput v-model="currentTemplate.descripcion" type="text" placeholder="Descripción breve de cuándo se usa esta plantilla"
+                   class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-3 text-sm outline-none focus:border-umsa-blue transition-all" />
           </div>
 
           <div class="space-y-2">
             <label class="text-[11px] font-black text-slate-400 uppercase ml-2 tracking-widest">Asunto del Correo (Subject)</label>
-            <input v-model="currentTemplate.asunto" type="text" placeholder="Ej: ¡Bienvenido, {{nombre}}!"
-                   class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-3 text-sm outline-none focus:border-umsa-blue transition-all">
+            <UiInput v-model="currentTemplate.asunto" type="text" placeholder="Ej: ¡Bienvenido, {{nombre}}!"
+                   class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-3 text-sm outline-none focus:border-umsa-blue transition-all" />
           </div>
 
           <div class="space-y-2">
             <label class="text-[11px] font-black text-slate-400 uppercase ml-2 tracking-widest flex items-center gap-2">
-              <span class="material-symbols-outlined text-[16px]">title</span>
+              <VIcon class="material-symbols-outlined text-[16px]">title</VIcon>
               Encabezado del Correo (Cabecera visible en el email)
             </label>
-            <input v-model="currentTemplate.cabecera" type="text" placeholder="Ej: Universidad Mayor de San Andrés"
-                   class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-3 text-sm outline-none focus:border-umsa-blue transition-all">
+            <UiInput v-model="currentTemplate.cabecera" type="text" placeholder="Ej: Universidad Mayor de San Andrés"
+                   class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-3 text-sm outline-none focus:border-umsa-blue transition-all" />
             <p class="text-[10px] text-slate-400 ml-2">Este texto reemplaza "Plataforma Académica" en el encabezado superior del correo.</p>
           </div>
 
@@ -518,9 +518,9 @@ const getStatusIcon = (status: string) => {
             <label class="text-[11px] font-black text-slate-400 uppercase ml-2 tracking-widest">
               Cuerpo del Mensaje (HTML)
             </label>
-            <textarea v-model="currentTemplate.cuerpo" rows="14"
+            <VTextarea v-model="currentTemplate.cuerpo" rows="14"
                       class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-4 text-sm font-mono outline-none focus:border-umsa-blue transition-all"
-                      placeholder="Escribe tu mensaje aquí. Puedes usar etiquetas HTML..."></textarea>
+                      placeholder="Escribe tu mensaje aquí. Puedes usar etiquetas HTML..."></VTextarea>
           </div>
 
           <!-- Info box variables dinámico por tipo -->
@@ -528,7 +528,7 @@ const getStatusIcon = (status: string) => {
                :class="currentTemplate.tipo === 'CERTIFICATE' ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/20' : 'bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/20'">
             <p class="text-[10px] font-black uppercase tracking-wider mb-3 flex items-center gap-2"
                :class="currentTemplate.tipo === 'CERTIFICATE' ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'">
-              <span class="material-symbols-outlined text-[16px]">info</span>
+              <VIcon class="material-symbols-outlined text-[16px]">info</VIcon>
               Variables disponibles — {{ currentTemplate.tipo === 'CERTIFICATE' ? 'Envío de Certificado' : 'Registro al Sistema' }}
             </p>
             <div class="flex flex-wrap gap-2">
@@ -546,33 +546,33 @@ const getStatusIcon = (status: string) => {
         </div>
 
         <div class="p-6 border-t border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-black/20 flex justify-end gap-3">
-          <button @click="showModal = false" class="px-6 py-3 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all">
+          <VBtn @click="showModal = false" class="px-6 py-3 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all">
             Cancelar
-          </button>
-          <button @click="save" class="px-8 py-3 bg-umsa-blue text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 hover:scale-105 transition-all">
+          </VBtn>
+          <VBtn @click="save" class="px-8 py-3 bg-umsa-blue text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 hover:scale-105 transition-all">
             Guardar Plantilla
-          </button>
+          </VBtn>
         </div>
       </div>
-    </div>
+    </VDialog>
 
     <!-- ── Modal Previsualización ─────────────────────────────────────────── -->
-    <div v-if="showPreviewModal" class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-300">
+    <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" v-if="showPreviewModal" >
       <div class="bg-white dark:bg-[#1a1a24] w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden border border-white/10 flex flex-col max-h-[92vh]">
         <div class="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-black/20">
           <h3 class="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
-            <span class="material-symbols-outlined text-blue-500">mark_email_read</span>
+            <VIcon class="material-symbols-outlined text-blue-500">mark_email_read</VIcon>
             Vista Previa — {{ previewName }}
           </h3>
           <div class="flex items-center gap-2">
-            <button @click="downloadHtml(`${previewName}.html`, previewHtml)"
+            <VBtn @click="downloadHtml(`${previewName}.html`, previewHtml)"
                     class="flex items-center gap-1.5 px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all">
-              <span class="material-symbols-outlined text-[16px]">download</span>
+              <VIcon class="material-symbols-outlined text-[16px]">download</VIcon>
               Descargar HTML
-            </button>
-            <button @click="showPreviewModal = false" class="w-10 h-10 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center transition-all">
-              <span class="material-symbols-outlined">close</span>
-            </button>
+            </VBtn>
+            <VBtn @click="showPreviewModal = false" class="w-10 h-10 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center transition-all">
+              <VIcon class="material-symbols-outlined">close</VIcon>
+            </VBtn>
           </div>
         </div>
         <div class="flex-1 overflow-y-auto bg-slate-100 dark:bg-black/40 p-4 md:p-8">
@@ -584,7 +584,7 @@ const getStatusIcon = (status: string) => {
           <p class="text-[10px] text-slate-400 font-medium">※ Los datos mostrados (Juan Pérez, etc.) son solo de ejemplo para previsualización.</p>
         </div>
       </div>
-    </div>
+    </VDialog>
 
   </div>
 </template>

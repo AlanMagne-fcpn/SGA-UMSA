@@ -1,7 +1,9 @@
+import { CoordinacionEvento } from '../coordinaciones/entities/coordinacion.entity';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Imparticion } from './entities/imparticion.entity';
+import { ActividadAcademica } from '../actividades-academicas/entities/actividad-academica.entity';
 import { UsuariosService } from '../../Usuario/usuarios/usuarios.service';
 import { AsignarPonenteDto } from './dto/asignar-ponente.dto';
 import { CreateImparticionDto } from './dto/create-imparticion.dto';
@@ -13,6 +15,10 @@ export class ImparticionesService {
     @InjectRepository(Imparticion)
     private readonly imparticionRepository: Repository<Imparticion>,
     private readonly usuariosService: UsuariosService,
+    @InjectRepository(CoordinacionEvento)
+    private readonly coordinacionRepository: Repository<CoordinacionEvento>,
+    @InjectRepository(ActividadAcademica)
+    private readonly actividadRepository: Repository<ActividadAcademica>,
   ) {}
 
   /**
@@ -127,10 +133,67 @@ export class ImparticionesService {
   // ══════════════════════════════════════════════════════════
 
   /**
+   * Si el super admin asignó al ponente como responsable del evento
+   * (coordinacion_eventos), crea las imparticiones de las actividades activas
+   * para que el portal y las notas las reconozcan.
+   */
+  async asignarAEvento(eventoId: number, usuarioId: number) {
+    const actividades = await this.actividadRepository.find({
+      where: { evento: { id: eventoId } },
+    });
+    let asignadas = 0;
+    for (const act of actividades) {
+      if (Number(act.estado) === -1) continue;
+      const existe = await this.imparticionRepository.findOne({
+        where: {
+          usuario: { id: usuarioId },
+          actividadAcademica: { id: act.id },
+        },
+      });
+      if (existe) continue;
+      const nueva = this.imparticionRepository.create({
+        usuario: { id: usuarioId } as any,
+        actividadAcademica: { id: act.id } as any,
+        evento: { id: eventoId } as any,
+      });
+      await this.imparticionRepository.save(nueva);
+      asignadas += 1;
+    }
+    return { asignadas, totalActividades: actividades.filter((a) => Number(a.estado) !== -1).length };
+  }
+
+  private async usuarioEsPonente(usuarioId: number) {
+    const filas = await this.imparticionRepository.manager.query(
+      `SELECT 1
+         FROM usuarios_roles ur
+         JOIN roles r ON r.id = ur.id_rol
+        WHERE ur.id_usuario = $1
+          AND translate(lower(r.nombre_rol), 'áéíóúü', 'aeiouu') LIKE '%ponent%'
+        LIMIT 1`,
+      [usuarioId],
+    );
+    return Array.isArray(filas) && filas.length > 0;
+  }
+
+  private async asegurarImparticionesDesdeCoordinacion(usuarioId: number) {
+    if (!(await this.usuarioEsPonente(usuarioId))) return;
+    const coordinaciones = await this.coordinacionRepository.find({
+      where: { usuario: { id: usuarioId } },
+      relations: ['evento'],
+    });
+    for (const asignacion of coordinaciones) {
+      if (asignacion.evento?.id) {
+        await this.asignarAEvento(asignacion.evento.id, usuarioId);
+      }
+    }
+  }
+
+  /**
    * Devuelve las actividades académicas que imparte el ponente autenticado.
    * Incluye datos del evento y el conteo de inscritos por actividad.
    */
   async findMisActividades(usuarioId: number) {
+    await this.asegurarImparticionesDesdeCoordinacion(usuarioId);
     return this.imparticionRepository.find({
       where: { usuario: { id: usuarioId } },
       relations: [
@@ -144,12 +207,49 @@ export class ImparticionesService {
     });
   }
 
+  /** Eventos asignados directamente o mediante actividades; solo incluye actividades propias. */
+  async findMisEventos(usuarioId: number) {
+    await this.asegurarImparticionesDesdeCoordinacion(usuarioId);
+    const [coordinaciones, imparticiones] = await Promise.all([
+      this.coordinacionRepository.find({
+        where: { usuario: { id: usuarioId } },
+        relations: ['evento'],
+        order: { fecha_creacion: 'DESC' },
+      }),
+      this.imparticionRepository.find({
+        where: { usuario: { id: usuarioId } },
+        relations: [
+          'actividadAcademica',
+          'actividadAcademica.evento',
+          'actividadAcademica.modalidades',
+          'actividadAcademica.inscripciones',
+          'evento',
+        ],
+        order: { fecha_creacion: 'DESC' },
+      }),
+    ]);
+    const eventos = new Map<number, { evento: CoordinacionEvento['evento']; actividades: Imparticion['actividadAcademica'][] }>();
+    for (const asignacion of coordinaciones) {
+      if (asignacion.evento) eventos.set(asignacion.evento.id, { evento: asignacion.evento, actividades: [] });
+    }
+    for (const imparticion of imparticiones) {
+      const actividad = imparticion.actividadAcademica;
+      const evento = imparticion.evento || actividad?.evento;
+      if (!evento || !actividad || Number(actividad.estado) === -1) continue;
+      if (!eventos.has(evento.id)) eventos.set(evento.id, { evento, actividades: [] });
+      const grupo = eventos.get(evento.id)!;
+      if (!grupo.actividades.some((act) => act.id === actividad.id)) grupo.actividades.push(actividad);
+    }
+    return Array.from(eventos.values());
+  }
+
   /**
    * Devuelve los estudiantes inscritos en las actividades del ponente.
    * Incluye datos personales, notas y número de asistencias por modalidad.
    * Agrupado por actividad para fácil procesamiento en el frontend.
    */
   async findMisEstudiantes(usuarioId: number) {
+    await this.asegurarImparticionesDesdeCoordinacion(usuarioId);
     const imparticiones = await this.imparticionRepository.find({
       where: { usuario: { id: usuarioId } },
       relations: [

@@ -4,7 +4,8 @@ import { useAuthStore } from '@/stores/auth';
 import { useAdminHistorialStore } from '@/stores/adminHistorial';
 import { usuariosService } from '@/services/usuarios.service';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
+import { separarDocumento, unirDocumento, tiposDocumento } from '@/utils/identityDocument';
 
 const authStore = useAuthStore();
 const historialStore = useAdminHistorialStore();
@@ -91,6 +92,7 @@ const formUsuario = ref({
   primer_apellido: '',
   segundo_apellido: '',
   documento_identidad: '',
+  tipo_documento: 'Carnet de Identidad',
   id_rol: ROLE_IDS.COORDINADOR,
   notificar: true
 });
@@ -152,9 +154,7 @@ const getRoles = (u: any): string[] =>
 const tienePonente = (u: any) => getRoles(u).includes('Ponente');
 
 const cleanCI = (ci: string) => {
-  if (!ci) return 'N/A';
-  // Eliminar prefijos comunes que vienen del backend por error o diseño antiguo
-  return ci.replace(/Carnet de Identidad:|Otro Documento Válido:|Documento de Identidad:|CI:/gi, '').trim();
+  return separarDocumento(ci).numero || 'N/A';
 };
 
 // ── Crear usuario ──────────────────────────────────────────────────────────
@@ -176,7 +176,7 @@ const handleSaveUsuario = async () => {
       nombres,
       primer_apellido,
       segundo_apellido: formUsuario.value.segundo_apellido || undefined,
-      documento_identidad: formUsuario.value.documento_identidad || undefined,
+      documento_identidad: unirDocumento(formUsuario.value.tipo_documento, formUsuario.value.documento_identidad) || undefined,
       id_rol,
       notificar,
     });
@@ -197,7 +197,7 @@ const handleSaveUsuario = async () => {
     }
     
     isCreating.value = false;
-    formUsuario.value = { email: '', password: '', nombres: '', primer_apellido: '', segundo_apellido: '', documento_identidad: '', id_rol: ROLE_IDS.COORDINADOR, notificar: true };
+    formUsuario.value = { email: '', password: '', nombres: '', primer_apellido: '', segundo_apellido: '', documento_identidad: '', tipo_documento: 'Carnet de Identidad', id_rol: ROLE_IDS.COORDINADOR, notificar: true };
     await fetchUsuarios();
     currentPage.value = 1;
   } catch (error: any) {
@@ -270,6 +270,7 @@ const editForm = ref({
   primer_apellido: '',
   segundo_apellido: '',
   documento_identidad: '',
+  tipo_documento: '',
   celular: '',
   fecha_nacimiento: '',
   genero: 2,
@@ -300,7 +301,8 @@ const abrirEditModal = async (user: any) => {
       nombres: p.persona?.nombres || '',
       primer_apellido: p.persona?.primer_apellido || '',
       segundo_apellido: p.persona?.segundo_apellido || '',
-      documento_identidad: p.persona?.documento_identidad || '',
+      documento_identidad: separarDocumento(p.persona?.documento_identidad).numero,
+      tipo_documento: separarDocumento(p.persona?.documento_identidad).tipo,
       celular: p.persona?.celular || '',
       fecha_nacimiento: p.persona?.fecha_nacimiento ? p.persona.fecha_nacimiento.split('T')[0] : '',
       genero: p.persona?.genero ?? 2,
@@ -320,7 +322,7 @@ const abrirEditModal = async (user: any) => {
 };
 
 const guardarDetalles = async () => {
-  if (!editForm.value.id) return;
+  if (!editForm.value.id || isSavingDetails.value) return;
   
   if (!editForm.value.email || !editForm.value.nombres || !editForm.value.primer_apellido) {
     return Swal.fire('Atención', 'El email, nombre y primer apellido son obligatorios', 'warning');
@@ -333,7 +335,7 @@ const guardarDetalles = async () => {
       nombres: editForm.value.nombres,
       primer_apellido: editForm.value.primer_apellido,
       segundo_apellido: editForm.value.segundo_apellido,
-      documento_identidad: editForm.value.documento_identidad,
+      documento_identidad: unirDocumento(editForm.value.tipo_documento, editForm.value.documento_identidad),
       celular: editForm.value.celular,
       fecha_nacimiento: editForm.value.fecha_nacimiento,
       genero: editForm.value.genero,
@@ -568,14 +570,14 @@ onMounted(() => { fetchUsuarios(); fetchPlantillas(); });
 </script>
 
 <template>
-  <div class="space-y-8 animate-in fade-in duration-500">
+  <div class="user-controls space-y-8 animate-in fade-in duration-500">
 
     <!-- HEADER -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
         <div class="flex items-center gap-3 mb-2">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#003B71] to-[#0070BB] flex items-center justify-center shadow-lg shadow-[#003B71]/30">
-            <span class="material-symbols-outlined text-white text-[22px]">manage_accounts</span>
+            <VIcon class="material-symbols-outlined text-white text-[22px]">manage_accounts</VIcon>
           </div>
           <div>
             <p class="text-[10px] font-black text-umsa-blue dark:text-sky-400 uppercase tracking-widest leading-none">Administración</p>
@@ -589,30 +591,30 @@ onMounted(() => { fetchUsuarios(); fetchPlantillas(); });
       </div>
       <div class="flex items-center gap-3">
         <!-- Selector de plantilla de bienvenida -->
-        <div class="hidden md:flex items-center gap-2 bg-slate-50 dark:bg-white/5 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10">
-          <span class="material-symbols-outlined text-slate-400 text-sm">mail</span>
+        <VCard class="hidden md:flex items-center gap-2 bg-slate-50 dark:bg-white/5 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10">
+          <VIcon class="material-symbols-outlined text-slate-400 text-sm">mail</VIcon>
           <select v-model="selectedTemplateId"
                   class="bg-transparent text-[11px] font-bold text-slate-600 dark:text-slate-300 outline-none cursor-pointer min-w-[150px]">
             <option value="">Plantilla por Defecto (admission)</option>
             <option v-for="p in plantillasCorreo" :key="p.id" :value="String(p.id)">{{ p.nombre }}</option>
           </select>
-          <button @click="openMailPreview" class="w-6 h-6 flex items-center justify-center text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all" title="Previsualizar plantilla">
-            <span class="material-symbols-outlined text-[17px]">visibility</span>
-          </button>
-        </div>
-        <button @click="isCreating = true"
+          <VBtn @click="openMailPreview" class="w-6 h-6 flex items-center justify-center text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all" title="Previsualizar plantilla">
+            <VIcon class="material-symbols-outlined text-[17px]">visibility</VIcon>
+          </VBtn>
+        </VCard>
+        <VBtn @click="isCreating = true"
                 class="flex items-center gap-2 px-6 py-3 bg-umsa-blue text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-[#0070BB]/20 hover:-translate-y-1 transition-all">
-          <span class="material-symbols-outlined text-[18px]">person_add</span>
+          <VIcon class="material-symbols-outlined text-[18px]">person_add</VIcon>
           Nuevo Usuario
-        </button>
+        </VBtn>
       </div>
     </div>
 
     <!-- FILTROS -->
-    <div class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-2xl p-5">
+    <VCard class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-2xl p-5">
       <div class="flex flex-wrap items-center gap-4">
         <div class="flex-1 min-w-[250px] relative">
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400">search</span>
+          <VIcon class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400">search</VIcon>
           <input v-model="filtroTexto" type="text" placeholder="Buscar usuario..."
                  class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm outline-none focus:border-umsa-blue/50 transition-all" />
         </div>
@@ -622,23 +624,23 @@ onMounted(() => { fetchUsuarios(); fetchPlantillas(); });
         </select>
         
         <div class="flex items-center gap-2 ml-auto">
-          <button @click="exportarExcel" title="Exportar a Excel" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all">
-            <span class="material-symbols-outlined text-[16px]">grid_on</span> Excel
-          </button>
-          <button @click="exportarPDF" title="Exportar a PDF" class="bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all">
-            <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span> PDF
-          </button>
+          <VBtn @click="exportarExcel" title="Exportar a Excel" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all">
+            <VIcon class="material-symbols-outlined text-[16px]">grid_on</VIcon> Excel
+          </VBtn>
+          <VBtn @click="exportarPDF" title="Exportar a PDF" class="bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all">
+            <VIcon class="material-symbols-outlined text-[16px]">picture_as_pdf</VIcon> PDF
+          </VBtn>
         </div>
       </div>
-    </div>
+    </VCard>
 
     <!-- TABLA -->
-    <div class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2rem] overflow-hidden">
+    <VCard class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2rem] overflow-hidden">
       <div v-if="isLoading" class="flex justify-center items-center py-16">
-        <span class="material-symbols-outlined animate-spin text-3xl text-umsa-blue">progress_activity</span>
+        <VIcon class="material-symbols-outlined animate-spin text-3xl text-umsa-blue">progress_activity</VIcon>
       </div>
       <div v-else class="overflow-x-auto">
-        <table class="w-full text-left">
+        <VTable class="w-full text-left">
           <thead class="bg-slate-50 dark:bg-white/5 text-[10px] font-black text-slate-500 uppercase tracking-widest">
             <tr>
               <th class="px-6 py-4">Usuario</th>
@@ -696,43 +698,43 @@ onMounted(() => { fetchUsuarios(); fetchPlantillas(); });
               <td class="px-6 py-4">
                 <div class="flex items-center justify-end gap-1">
                   <!-- Botón editar detalles -->
-                  <button @click="abrirEditModal(user)"
+                  <VBtn @click="abrirEditModal(user)"
                           title="Ver / Editar Detalles"
                           class="p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-400 hover:text-emerald-500 transition-all">
-                    <span class="material-symbols-outlined text-[18px]">edit_document</span>
-                  </button>
+                    <VIcon class="material-symbols-outlined text-[18px]">edit_document</VIcon>
+                  </VBtn>
                   <!-- Botón gestionar roles -->
-                  <button @click="abrirGestionRoles(user)"
+                  <VBtn @click="abrirGestionRoles(user)"
                           title="Gestionar Roles"
                           class="p-2 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-900/20 text-slate-400 hover:text-sky-500 transition-all">
-                    <span class="material-symbols-outlined text-[18px]">verified_user</span>
-                  </button>
+                    <VIcon class="material-symbols-outlined text-[18px]">verified_user</VIcon>
+                  </VBtn>
                   <!-- Botón activar/desactivar -->
-                  <button @click="toggleEstado(user)"
+                  <VBtn @click="toggleEstado(user)"
                           :title="user.estado === 1 ? 'Desactivar' : 'Activar'"
                           class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-600 transition-all">
-                    <span class="material-symbols-outlined text-[18px]">{{ user.estado === 1 ? 'lock' : 'lock_open' }}</span>
-                  </button>
+                    <VIcon class="material-symbols-outlined text-[18px]">{{ user.estado === 1 ? 'lock' : 'lock_open' }}</VIcon>
+                  </VBtn>
                   <!-- Botones de eliminación -->
                   <div class="flex items-center border-l border-slate-200 dark:border-white/10 ml-1 pl-1 gap-1">
-                    <button @click="eliminarProgramada(user)"
+                    <VBtn @click="eliminarProgramada(user)"
                             v-if="!user.fecha_eliminacion"
                             title="Programar eliminación (30 días)"
                             class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-400 hover:text-rose-600 transition-all">
-                      <span class="material-symbols-outlined text-[18px]">delete_sweep</span>
-                    </button>
-                    <button @click="eliminarInmediata(user)"
+                      <VIcon class="material-symbols-outlined text-[18px]">delete_sweep</VIcon>
+                    </VBtn>
+                    <VBtn @click="eliminarInmediata(user)"
                             v-if="authStore.esSuperUsuario"
                             title="Eliminar AHORA (Permanente)"
                             class="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 transition-all">
-                      <span class="material-symbols-outlined text-[18px]">delete_forever</span>
-                    </button>
+                      <VIcon class="material-symbols-outlined text-[18px]">delete_forever</VIcon>
+                    </VBtn>
                   </div>
                 </div>
               </td>
             </tr>
           </tbody>
-        </table>
+        </VTable>
       </div>
 
       <!-- Paginación Footer -->
@@ -749,65 +751,71 @@ onMounted(() => { fetchUsuarios(); fetchPlantillas(); });
         </div>
 
         <div class="flex items-center gap-2">
-          <button @click="currentPage--" :disabled="currentPage === 1" class="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 dark:border-gray-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-gray-800 hover:text-umsa-blue transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            <span class="material-symbols-outlined text-[16px]">chevron_left</span>
-          </button>
+          <VBtn @click="currentPage--" :disabled="currentPage === 1" class="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 dark:border-gray-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-gray-800 hover:text-umsa-blue transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <VIcon class="material-symbols-outlined text-[16px]">chevron_left</VIcon>
+          </VBtn>
           
           <div class="flex items-center gap-1">
             <span class="text-xs font-black text-primary-dark dark:text-white px-2">Página {{ currentPage }} de {{ totalPages }}</span>
           </div>
 
-          <button @click="currentPage++" :disabled="currentPage === totalPages" class="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 dark:border-gray-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-gray-800 hover:text-umsa-blue transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            <span class="material-symbols-outlined text-[16px]">chevron_right</span>
-          </button>
+          <VBtn @click="currentPage++" :disabled="currentPage === totalPages" class="w-8 h-8 rounded-lg flex items-center justify-center border border-slate-200 dark:border-gray-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-gray-800 hover:text-umsa-blue transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <VIcon class="material-symbols-outlined text-[16px]">chevron_right</VIcon>
+          </VBtn>
         </div>
       </div>
-    </div>
+    </VCard>
 
     <!-- MODAL: CREAR USUARIO -->
-    <div v-if="isCreating" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
-      <div class="bg-white dark:bg-[#0d0d14] w-full max-w-lg rounded-[2rem] border border-white/10 overflow-hidden animate-in zoom-in duration-300">
+    <VDialog :model-value="true" persistent class="sgea-dialog user-controls" width="100%" max-width="600" v-if="isCreating" >
+      <VCard class="user-controls bg-white dark:bg-[#0d0d14] w-full max-w-lg rounded-[2rem] border border-white/10 max-h-[90vh] overflow-y-auto animate-in zoom-in duration-300">
         <div class="p-8">
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-black text-slate-800 dark:text-white uppercase italic">Crear Nuevo Acceso</h2>
-            <button @click="isCreating = false" class="text-slate-400 hover:text-red-600 transition-colors">
-              <span class="material-symbols-outlined">close</span>
-            </button>
+            <VBtn @click="isCreating = false" class="text-slate-400 hover:text-red-600 transition-colors">
+              <VIcon class="material-symbols-outlined">close</VIcon>
+            </VBtn>
           </div>
           <div class="space-y-4">
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-1">
                 <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Nombres *</label>
-                <input v-model="formUsuario.nombres" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-umsa-blue/50" />
+                <input aria-label="Nombres *" v-model="formUsuario.nombres" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-umsa-blue/50" />
               </div>
               <div class="space-y-1">
                 <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Primer Apellido *</label>
-                <input v-model="formUsuario.primer_apellido" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-umsa-blue/50" />
+                <input aria-label="Primer Apellido *" v-model="formUsuario.primer_apellido" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-umsa-blue/50" />
               </div>
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-1">
                 <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Segundo Apellido</label>
-                <input v-model="formUsuario.segundo_apellido" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-umsa-blue/50" />
+                <input aria-label="Segundo Apellido" v-model="formUsuario.segundo_apellido" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-umsa-blue/50" />
               </div>
               <div class="space-y-1">
-                <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Cédula / CI</label>
-                <input v-model="formUsuario.documento_identidad" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-umsa-blue/50" />
+                <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Número de documento</label>
+                <input aria-label="Número de documento" v-model="formUsuario.documento_identidad" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-umsa-blue/50" />
               </div>
             </div>
             <div class="space-y-1">
+              <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Tipo de documento</label>
+              <select aria-label="Tipo de documento" v-model="formUsuario.tipo_documento">
+                <option v-for="tipo in tiposDocumento" :key="tipo" :value="tipo">{{ tipo }}</option>
+              </select>
+            </div>
+            <div class="space-y-1">
               <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Rol del Sistema *</label>
-              <select v-model="formUsuario.id_rol" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-umsa-blue/50 font-bold uppercase">
+              <select aria-label="Rol del Sistema *" v-model="formUsuario.id_rol" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-umsa-blue/50 font-bold uppercase">
                 <option v-for="rol in rolesDisponiblesParaAsignar" :key="rol.id" :value="rol.id">{{ rol.nombre }}</option>
               </select>
             </div>
             <div class="space-y-1">
               <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Correo Electrónico *</label>
-              <input v-model="formUsuario.email" type="email" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-umsa-blue/50" />
+              <input aria-label="Correo Electrónico *" v-model="formUsuario.email" type="email" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-umsa-blue/50" />
             </div>
             <div class="space-y-1">
               <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Contraseña Temporal *</label>
-              <input v-model="formUsuario.password" type="password" placeholder="••••••••"
+              <input aria-label="Contraseña Temporal *" v-model="formUsuario.password" type="password" placeholder="••••••••"
                      class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-umsa-blue/50" />
             </div>
 
@@ -816,7 +824,7 @@ onMounted(() => { fetchUsuarios(); fetchPlantillas(); });
               <div class="flex items-center gap-2 cursor-pointer w-fit" @click="formUsuario.notificar = !formUsuario.notificar">
                 <div :class="formUsuario.notificar ? 'bg-umsa-blue border-umsa-blue' : 'bg-transparent border-slate-300 dark:border-slate-600'" 
                      class="w-5 h-5 rounded border flex items-center justify-center transition-colors">
-                  <span v-if="formUsuario.notificar" class="material-symbols-outlined text-white text-[14px] font-bold">check</span>
+                  <VIcon v-if="formUsuario.notificar" class="material-symbols-outlined text-white text-[14px] font-bold">check</VIcon>
                 </div>
                 <span class="text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors select-none">
                   Enviar correo con credenciales de acceso
@@ -826,36 +834,36 @@ onMounted(() => { fetchUsuarios(); fetchPlantillas(); });
           </div>
           <!-- Botones -->
           <div class="flex items-center gap-3 pt-6 mt-4 border-t border-slate-100 dark:border-gray-800">
-            <button type="button" @click="isCreating = false" :disabled="isSavingForm"
+            <VBtn type="button" @click="isCreating = false" :disabled="isSavingForm"
                     class="flex-1 px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-gray-700 text-slate-500 dark:text-gray-400 font-bold text-xs uppercase hover:bg-slate-50 dark:hover:bg-gray-800 hover:border-slate-300 dark:hover:border-gray-600 transition-all">
               Cancelar
-            </button>
-            <button type="submit" @click="handleSaveUsuario()" :disabled="isSavingForm"
+            </VBtn>
+            <VBtn type="submit" @click="handleSaveUsuario()" :disabled="isSavingForm"
                     class="flex-1 px-4 py-3 rounded-xl bg-umsa-blue text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20 hover:bg-blue-700 hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-              <span v-if="isSavingForm" class="material-symbols-outlined animate-spin text-[16px]">refresh</span>
-              <span v-else class="material-symbols-outlined text-[16px]">person_add</span>
+              <VIcon v-if="isSavingForm" class="material-symbols-outlined animate-spin text-[16px]">refresh</VIcon>
+              <VIcon v-else class="material-symbols-outlined text-[16px]">person_add</VIcon>
               {{ isSavingForm ? 'Guardando...' : 'Crear Usuario' }}
-            </button>
+            </VBtn>
           </div>
         </div>
-      </div>
-    </div>
+      </VCard>
+    </VDialog>
 
     <!-- MODAL: GESTIÓN DE ROLES MÚLTIPLES -->
-    <div v-if="isGestionandoRoles && usuarioSeleccionado" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
-      <div class="bg-white dark:bg-[#0d0d14] w-full max-w-md rounded-[2.5rem] border border-white/10 overflow-hidden animate-in zoom-in duration-300">
+    <VDialog :model-value="true" persistent class="sgea-dialog user-controls" width="100%" max-width="calc(100vw - 32px)" v-if="isGestionandoRoles && usuarioSeleccionado" >
+      <VCard class="user-controls bg-white dark:bg-[#0d0d14] w-full max-w-md rounded-[2.5rem] border border-white/10 overflow-hidden animate-in zoom-in duration-300">
         <div class="p-8">
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-black text-slate-800 dark:text-white uppercase italic">
               Gestionar Permisos
             </h2>
-            <button @click="isGestionandoRoles = false" class="text-slate-400 hover:text-red-600 transition-colors">
-              <span class="material-symbols-outlined">close</span>
-            </button>
+            <VBtn @click="isGestionandoRoles = false" class="text-slate-400 hover:text-red-600 transition-colors">
+              <VIcon class="material-symbols-outlined">close</VIcon>
+            </VBtn>
           </div>
 
           <!-- Info del usuario -->
-          <div class="flex items-center gap-4 p-4 bg-slate-50 dark:bg-white/5 rounded-2xl mb-6 border border-slate-100 dark:border-white/5">
+          <VCard class="flex items-center gap-4 p-4 bg-slate-50 dark:bg-white/5 rounded-2xl mb-6 border border-slate-100 dark:border-white/5">
             <div class="w-12 h-12 rounded-full bg-sky-100 dark:bg-sky-900/30 text-sky-600 flex items-center justify-center font-black text-xl shadow-inner">
               {{ usuarioSeleccionado.persona?.nombres?.charAt(0) || '?' }}
             </div>
@@ -863,7 +871,7 @@ onMounted(() => { fetchUsuarios(); fetchPlantillas(); });
               <p class="font-black text-slate-800 dark:text-white">{{ usuarioSeleccionado.persona?.nombres }} {{ usuarioSeleccionado.persona?.primer_apellido }}</p>
               <p class="text-[10px] text-slate-500 font-bold uppercase tracking-tight">{{ usuarioSeleccionado.email }}</p>
             </div>
-          </div>
+          </VCard>
 
           <!-- Lista de Roles -->
           <div class="space-y-2 mb-6">
@@ -878,16 +886,16 @@ onMounted(() => { fetchUsuarios(); fetchPlantillas(); });
                  ]"
                  class="flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all group">
               <div class="flex items-center gap-3">
-                <span class="material-symbols-outlined text-[20px]" 
+                <VIcon class="material-symbols-outlined text-[20px]"
                       :class="rolesTemp.includes(rol.id) ? 'text-red-500' : 'text-slate-300'">
                   {{ rolesTemp.includes(rol.id) ? 'check_circle' : 'radio_button_unchecked' }}
-                </span>
+                </VIcon>
                 <span class="text-xs font-black uppercase tracking-wide">{{ rol.nombre }}</span>
               </div>
             </div>
 
             <div v-if="!authStore.esSuperUsuario" class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30 flex items-start gap-2">
-              <span class="material-symbols-outlined text-blue-500 text-[18px]">info</span>
+              <VIcon class="material-symbols-outlined text-blue-500 text-[18px]">info</VIcon>
               <p class="text-[10px] text-blue-700 dark:text-blue-300 leading-snug">
                 El rol <strong>Super Usuario</strong> solo puede ser asignado o removido por otro Super Usuario.
               </p>
@@ -895,36 +903,36 @@ onMounted(() => { fetchUsuarios(); fetchPlantillas(); });
           </div>
 
           <!-- Opción de Notificación -->
-          <div class="flex items-center gap-3 p-4 bg-slate-50 dark:bg-white/5 rounded-2xl mb-8 border border-slate-100 dark:border-white/5">
+          <VCard class="flex items-center gap-3 p-4 bg-slate-50 dark:bg-white/5 rounded-2xl mb-8 border border-slate-100 dark:border-white/5">
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" v-model="notificarRoles" class="sr-only peer">
               <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-white/10 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-umsa-blue"></div>
             </label>
             <span class="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-tight">Notificar cambios por correo</span>
-          </div>
+          </VCard>
 
           <div class="flex gap-3">
-            <button @click="guardarRoles" :disabled="rolesCargando"
+            <VBtn @click="guardarRoles" :disabled="rolesCargando"
                     class="flex-1 py-4 bg-umsa-blue text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-xl hover:-translate-y-1 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-              <span v-if="rolesCargando" class="material-symbols-outlined animate-spin text-[16px]">refresh</span>
+              <VIcon v-if="rolesCargando" class="material-symbols-outlined animate-spin text-[16px]">refresh</VIcon>
               Listo, Guardar Cambios
-            </button>
+            </VBtn>
           </div>
         </div>
-      </div>
-    </div>
+      </VCard>
+    </VDialog>
 
     <!-- Modal Previsualización Correo de Bienvenida -->
-    <div v-if="showPreviewModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+    <VDialog :model-value="true" persistent class="sgea-dialog user-controls" width="100%" max-width="calc(100vw - 32px)" v-if="showPreviewModal" >
       <div class="bg-white dark:bg-[#1a1a24] w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-white/10 flex flex-col max-h-[90vh]">
         <div class="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-black/20">
           <h3 class="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
-            <span class="material-symbols-outlined text-blue-500">mark_email_read</span>
+            <VIcon class="material-symbols-outlined text-blue-500">mark_email_read</VIcon>
             Vista Previa — Correo de Bienvenida
           </h3>
-          <button @click="showPreviewModal = false" class="w-10 h-10 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center transition-all">
-            <span class="material-symbols-outlined">close</span>
-          </button>
+          <VBtn @click="showPreviewModal = false" class="w-10 h-10 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center transition-all">
+            <VIcon class="material-symbols-outlined">close</VIcon>
+          </VBtn>
         </div>
         <div class="flex-1 overflow-y-auto bg-slate-100 dark:bg-black/40 p-4 md:p-8">
           <div class="bg-white rounded-xl shadow-sm overflow-hidden mx-auto max-w-[600px] border border-slate-200">
@@ -935,25 +943,25 @@ onMounted(() => { fetchUsuarios(); fetchPlantillas(); });
           <p class="text-[10px] text-slate-400 font-medium">※ Los datos mostrados son solo de ejemplo para previsualización.</p>
         </div>
       </div>
-    </div>
+    </VDialog>
 
     <!-- Modal Editar Detalles -->
-    <div v-if="isEditingModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-300">
-      <div class="bg-white dark:bg-[#0d0d14] w-full max-w-3xl rounded-[2rem] border border-white/10 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+    <VDialog :model-value="true" persistent class="sgea-dialog user-controls" width="100%" max-width="800" v-if="isEditingModal" >
+      <div class="user-controls bg-white dark:bg-[#0d0d14] w-full max-w-3xl rounded-[2rem] border border-white/10 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         
-        <div class="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
+        <div class="shrink-0 p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between gap-3">
           <h2 class="text-xl font-black text-slate-800 dark:text-white uppercase italic flex items-center gap-2">
-            <span class="material-symbols-outlined text-emerald-500">edit_document</span>
+            <VIcon class="material-symbols-outlined text-emerald-500">edit_document</VIcon>
             Detalles del Usuario
           </h2>
-          <button @click="isEditingModal = false" class="text-slate-400 hover:text-red-600 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 dark:hover:bg-red-900/20">
-            <span class="material-symbols-outlined">close</span>
-          </button>
+          <VBtn @click="isEditingModal = false" class="text-slate-400 hover:text-red-600 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 dark:hover:bg-red-900/20">
+            <VIcon class="material-symbols-outlined">close</VIcon>
+          </VBtn>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-6 md:p-8">
+        <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6 md:p-8">
           <div v-if="isLoadingDetails" class="flex flex-col items-center justify-center py-12">
-            <span class="material-symbols-outlined animate-spin text-4xl text-emerald-500 mb-4">progress_activity</span>
+            <VIcon class="material-symbols-outlined animate-spin text-4xl text-emerald-500 mb-4">progress_activity</VIcon>
             <p class="text-sm font-bold text-slate-500 uppercase tracking-widest">Cargando detalles...</p>
           </div>
           
@@ -965,18 +973,18 @@ onMounted(() => { fetchUsuarios(); fetchPlantillas(); });
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Correo Electrónico *</label>
-                  <input v-model="editForm.email" type="email" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
+                  <input aria-label="Correo Electrónico *" v-model="editForm.email" type="email" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
                 </div>
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Estado del Perfil</label>
-                  <div class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 flex items-center gap-2">
-                    <span :class="detallesUsuario?.persona?.perfil_completado ? 'text-emerald-500' : 'text-amber-500'" class="material-symbols-outlined text-[18px]">
+                  <VCard class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 flex items-center gap-2">
+                    <VIcon :class="detallesUsuario?.persona?.perfil_completado ? 'text-emerald-500' : 'text-amber-500'" class="material-symbols-outlined text-[18px]">
                       {{ detallesUsuario?.persona?.perfil_completado ? 'check_circle' : 'pending' }}
-                    </span>
+                    </VIcon>
                     <span class="text-sm font-bold" :class="detallesUsuario?.persona?.perfil_completado ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'">
                       {{ detallesUsuario?.persona?.perfil_completado ? 'Completado' : 'Incompleto' }}
                     </span>
-                  </div>
+                  </VCard>
                 </div>
               </div>
             </div>
@@ -988,37 +996,45 @@ onMounted(() => { fetchUsuarios(); fetchPlantillas(); });
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Nombres *</label>
-                  <input v-model="editForm.nombres" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
+                  <input aria-label="Nombres *" v-model="editForm.nombres" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
                 </div>
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Primer Apellido *</label>
-                  <input v-model="editForm.primer_apellido" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
+                  <input aria-label="Primer Apellido *" v-model="editForm.primer_apellido" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
                 </div>
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Segundo Apellido</label>
-                  <input v-model="editForm.segundo_apellido" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
+                  <input aria-label="Segundo Apellido" v-model="editForm.segundo_apellido" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
                 </div>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="space-y-1">
-                  <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Documento de Identidad (CI)</label>
-                  <input v-model="editForm.documento_identidad" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
+                  <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Tipo de documento</label>
+                  <select aria-label="Tipo de documento" v-model="editForm.tipo_documento">
+                    <option value="">Sin tipo especificado</option>
+                    <option v-if="editForm.tipo_documento && !tiposDocumento.includes(editForm.tipo_documento)" :value="editForm.tipo_documento">{{ editForm.tipo_documento }}</option>
+                    <option v-for="tipo in tiposDocumento" :key="tipo" :value="tipo">{{ tipo }}</option>
+                  </select>
+                </div>
+                <div class="space-y-1">
+                  <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Número de documento</label>
+                  <input aria-label="Número de documento" v-model="editForm.documento_identidad" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
                 </div>
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Teléfono / Celular</label>
-                  <input v-model="editForm.celular" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
+                  <input aria-label="Teléfono / Celular" v-model="editForm.celular" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
                 </div>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Fecha de Nacimiento</label>
-                  <input v-model="editForm.fecha_nacimiento" type="date" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
+                  <input aria-label="Fecha de Nacimiento" v-model="editForm.fecha_nacimiento" type="date" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
                 </div>
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Género</label>
-                  <select v-model="editForm.genero" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50">
+                  <select aria-label="Género" v-model="editForm.genero" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50">
                     <option :value="0">Masculino</option>
                     <option :value="1">Femenino</option>
                     <option :value="2">Prefiero no decirlo</option>
@@ -1029,11 +1045,11 @@ onMounted(() => { fetchUsuarios(); fetchPlantillas(); });
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-slate-500 uppercase ml-2">País de Origen</label>
-                  <input v-model="editForm.pais_origen" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
+                  <input aria-label="País de Origen" v-model="editForm.pais_origen" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
                 </div>
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-slate-500 uppercase ml-2">País de Residencia</label>
-                  <input v-model="editForm.pais_residencia" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
+                  <input aria-label="País de Residencia" v-model="editForm.pais_residencia" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
                 </div>
               </div>
             </div>
@@ -1044,17 +1060,17 @@ onMounted(() => { fetchUsuarios(); fetchPlantillas(); });
               
               <div class="space-y-1">
                 <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Institución u Organización</label>
-                <input v-model="editForm.institucion" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
+                <input aria-label="Institución u Organización" v-model="editForm.institucion" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
               </div>
               
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Grado Académico (Abreviado)</label>
-                  <input v-model="editForm.grado_academico" type="text" placeholder="Ej: Lic. o MSc." class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
+                  <input aria-label="Grado Académico (Abreviado)" v-model="editForm.grado_academico" type="text" placeholder="Ej: Lic. o MSc." class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
                 </div>
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-slate-500 uppercase ml-2">Especialidad / Disciplina</label>
-                  <input v-model="editForm.especialidad" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
+                  <input aria-label="Especialidad / Disciplina" v-model="editForm.especialidad" type="text" class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm dark:text-white outline-none focus:border-emerald-500/50" />
                 </div>
               </div>
             </div>
@@ -1064,38 +1080,67 @@ onMounted(() => { fetchUsuarios(); fetchPlantillas(); });
               <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-white/5 pb-2">Seguridad</h3>
               <div class="flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-200 dark:border-amber-900/30">
                 <div class="flex items-center gap-3">
-                  <span class="material-symbols-outlined text-amber-500 text-[22px]">lock_reset</span>
+                  <VIcon class="material-symbols-outlined text-amber-500 text-[22px]">lock_reset</VIcon>
                   <div>
                     <p class="text-xs font-black text-slate-700 dark:text-white uppercase">Cambiar Contraseña</p>
                     <p class="text-[10px] text-slate-500 dark:text-slate-400">Restablecer la contraseña de acceso del usuario.</p>
                   </div>
                 </div>
-                <button @click="cambiarPasswordUsuario"
+                <VBtn @click="cambiarPasswordUsuario"
                         class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 shadow-md shadow-amber-500/20">
-                  <span class="material-symbols-outlined text-[16px]">lock_reset</span>
+                  <VIcon class="material-symbols-outlined text-[16px]">lock_reset</VIcon>
                   Cambiar
-                </button>
+                </VBtn>
               </div>
             </div>
 
           </div>
         </div>
 
-        <div class="p-6 border-t border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-[#13131f] flex items-center justify-end gap-3">
-          <button @click="isEditingModal = false" :disabled="isSavingDetails"
+        <div class="shrink-0 p-4 sm:p-6 border-t border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-[#13131f] flex flex-wrap items-center justify-end gap-3">
+          <VBtn @click="isEditingModal = false" :disabled="isSavingDetails"
                   class="px-6 py-3 rounded-xl border-2 border-slate-200 dark:border-gray-700 text-slate-500 font-bold text-xs uppercase hover:bg-slate-100 dark:hover:bg-gray-800 transition-all">
             Cancelar
-          </button>
-          <button @click="guardarDetalles" :disabled="isSavingDetails || isLoadingDetails"
+          </VBtn>
+          <VBtn @click="guardarDetalles" :disabled="isSavingDetails || isLoadingDetails"
                   class="px-8 py-3 rounded-xl bg-emerald-600 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-            <span v-if="isSavingDetails" class="material-symbols-outlined animate-spin text-[16px]">refresh</span>
-            <span v-else class="material-symbols-outlined text-[16px]">save</span>
+            <VIcon v-if="isSavingDetails" class="material-symbols-outlined animate-spin text-[16px]">refresh</VIcon>
+            <VIcon v-else class="material-symbols-outlined text-[16px]">save</VIcon>
             {{ isSavingDetails ? 'Guardando...' : 'Guardar Cambios' }}
-          </button>
+          </VBtn>
         </div>
 
       </div>
-    </div>
+    </VDialog>
 
   </div>
 </template>
+
+<style scoped>
+.user-controls {
+  --user-field-bg: #f8fafc;
+  --user-field-fg: #0f172a;
+  --user-field-border: #cbd5e1;
+}
+:global(.dark .user-controls) {
+  --user-field-bg: #1e293b;
+  --user-field-fg: #f1f5f9;
+  --user-field-border: #64748b;
+  color-scheme: dark;
+}
+.user-controls :deep(input:not([type='checkbox']):not([type='file'])),
+.user-controls :deep(select) {
+  display: block;
+  min-width: 0;
+  background: var(--user-field-bg);
+  color: var(--user-field-fg);
+  border: 1px solid var(--user-field-border);
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.user-controls :deep(.space-y-1 > select) { width: 100%; }
+.user-controls :deep(input:focus-visible),
+.user-controls :deep(select:focus-visible) { outline: 2px solid #38bdf8; outline-offset: 2px; }
+</style>

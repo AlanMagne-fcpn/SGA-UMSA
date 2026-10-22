@@ -24,25 +24,25 @@ const updateAttendance = (_id: number, _status: string) => {};
 <template>
   <div class="space-y-6">
     <!-- Header del Curso -->
-    <div class="bg-white shadow rounded-lg p-6 border-l-4 border-blue-600">
+    <VCard class="bg-white shadow rounded-lg p-6 border-l-4 border-blue-600">
       <h2 class="text-2xl font-bold text-gray-800">{{ curso.nombre }}</h2>
       <p class="text-gray-600 mt-2">{{ curso.descripcion }}</p>
-    </div>
+    </VCard>
 
     <!-- Tabla de Estudiantes -->
-    <div class="bg-white shadow rounded-lg overflow-hidden">
+    <VCard class="bg-white shadow rounded-lg overflow-hidden">
       <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
         <h3 class="text-lg font-medium text-gray-900">Estudiantes Inscritos</h3>
-        <button 
+        <VBtn
           @click="isEditing = !isEditing"
           class="text-sm text-blue-600 hover:text-blue-800 font-medium"
         >
           {{ isEditing ? 'Guardar Cambios' : 'Editar Notas' }}
-        </button>
+        </VBtn>
       </div>
 
       <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
+        <VTable class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
               <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
@@ -61,7 +61,7 @@ const updateAttendance = (_id: number, _status: string) => {};
                 {{ std.documento }}
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-center">
-                <select 
+                <UiSelect
                   v-if="isEditing" 
                   v-model="std.asistencia"
                   class="border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
@@ -69,7 +69,7 @@ const updateAttendance = (_id: number, _status: string) => {};
                   <option value="P">Presente</option>
                   <option value="F">Falta</option>
                   <option value="J">Justificado</option>
-                </select>
+                </UiSelect>
                 <span 
                   v-else 
                   class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
@@ -83,7 +83,7 @@ const updateAttendance = (_id: number, _status: string) => {};
                 </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-center">
-                 <input 
+                 <UiInput
                    v-if="isEditing" 
                    type="number" 
                    v-model="std.calificacion" 
@@ -107,8 +107,8 @@ const updateAttendance = (_id: number, _status: string) => {};
               </td>
             </tr>
           </tbody>
-        </table>
+        </VTable>
       </div>
-    </div>
+    </VCard>
   </div>
 </template>

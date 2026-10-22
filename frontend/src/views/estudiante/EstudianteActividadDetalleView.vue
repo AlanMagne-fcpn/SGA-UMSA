@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useCertificadosStore } from '@/stores/certificados';
 import api, { imagenActividad, resolveMediaUrl } from '@/services/api';
 import { certificadoDelPortal } from '@/utils/certificadoRol';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 import QrcodeVue from 'qrcode.vue';
 import { Html5QrcodeScanner, Html5QrcodeScanType } from 'html5-qrcode';
 
@@ -98,6 +98,23 @@ const myInscripcion = ref<any>(null); // Guardará la inscripción si existe
 const preinscripcionMenu = ref(false);
 const preinscribiendo = ref(false);
 const errorMensaje = ref('');
+const valoracionCurso = ref(5);
+const comentarioValoracion = ref('');
+const avisoValoracion = ref('');
+const enviandoValoracion = ref(false);
+
+const enviarValoracion = async () => {
+  enviandoValoracion.value = true;
+  avisoValoracion.value = '';
+  try {
+    await api.post(`/actividades-academicas/${actividadId}/valoraciones`, { puntuacion: valoracionCurso.value, comentario: comentarioValoracion.value });
+    avisoValoracion.value = 'Gracias por valorar este curso.';
+  } catch (error: any) {
+    avisoValoracion.value = error.response?.data?.message || 'No se pudo guardar la valoración.';
+  } finally {
+    enviandoValoracion.value = false;
+  }
+};
 
 const preinscripcionForm = ref({
   razon: '',
@@ -115,6 +132,7 @@ const actividad = ref({
   id: actividadId,
   nombre: 'Cargando...',
   tipo: 'Cargando',
+  modalidad: 'Presencial',
   fecha: '',
   estado: 'Cargando',
   progreso: 0,
@@ -175,6 +193,7 @@ const loadActividad = async () => {
       id: act.id,
       nombre: act.nombre,
       tipo: act.tipo || 'General',
+      modalidad: act.modalidad || act.modalidades?.[0]?.tipo || 'Presencial',
       fecha: act.fecha_inicio ? `${new Date(act.fecha_inicio).toLocaleDateString()} al ${new Date(act.fecha_fin).toLocaleDateString()}` : 'Por definir',
       estado: 'Disponible',
       progreso: 0,
@@ -279,6 +298,13 @@ const checkInscripcionStatus = async () => {
       else actividad.value.estado = 'Pre-Inscrito';
       
       actividad.value.progreso = found.estado === 1 ? 50 : (found.estado === 3 ? 100 : 0);
+      if ((found.estado === 1 || found.estado === 3) && /virtual|híbrido|hibrido/i.test(actividad.value.modalidad)) {
+        try {
+          const aula = await api.get(`/actividades-academicas/${actividadId}/aula`);
+          const lecciones = Array.isArray(aula.data) ? aula.data : [];
+          actividad.value.progreso = lecciones.length ? Math.round(100 * lecciones.filter((leccion: any) => !!leccion.completado_en).length / lecciones.length) : 0;
+        } catch { actividad.value.progreso = 0; }
+      }
       actividad.value.certificadoRequisitos.completado = (found.estado === 3);
 
       if (found.estado === 1 || found.estado === 3) {
@@ -291,8 +317,8 @@ const checkInscripcionStatus = async () => {
     }
     if (actividadCerrada.value) {
       actividad.value.estado = 'Finalizado';
-      actividad.value.progreso = 100;
-      actividad.value.certificadoRequisitos.completado = true;
+      if (!/virtual|híbrido|hibrido/i.test(actividad.value.modalidad)) actividad.value.progreso = 100;
+      actividad.value.certificadoRequisitos.completado = actividad.value.progreso === 100;
     }
   } catch (e) {
     console.error('Error checando pre-inscripcion', e);
@@ -548,14 +574,14 @@ const goBack = () => {
     
     <!-- Hero Header Integrado Tipo Netflix -->
     <div class="relative w-full h-[300px] md:h-[400px] rounded-[2rem] overflow-hidden shadow-2xl border border-slate-200/50 dark:border-gray-800 flex flex-col group/hero mb-6">
-      <img :src="actividad.imagen" alt="Banner" class="absolute inset-0 w-full h-full object-cover object-center group-hover/hero:scale-105 transition-transform duration-[2s] ease-out">
+      <img :src="actividad.imagen" data-course-image :alt="actividad.nombre" class="absolute inset-0 w-full h-full object-cover object-center group-hover/hero:scale-105 transition-transform duration-[2s] ease-out">
       <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-900/80 to-transparent"></div>
       
       <!-- Navegación y Badges Top -->
       <div class="absolute top-0 left-0 right-0 p-8 z-50 flex justify-between items-start">
-          <button @click="goBack" class="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 p-2.5 rounded-2xl transition-all hover:scale-105 flex items-center justify-center cursor-pointer pointer-events-auto">
-              <span class="material-symbols-outlined text-[20px]">arrow_back</span>
-          </button>
+          <VBtn @click="goBack" class="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 p-2.5 rounded-2xl transition-all hover:scale-105 flex items-center justify-center cursor-pointer pointer-events-auto">
+              <VIcon class="material-symbols-outlined text-[20px]">arrow_back</VIcon>
+          </VBtn>
           <span class="text-[10px] font-black uppercase px-4 py-1.5 rounded-full tracking-widest shadow-lg backdrop-blur-md border border-white/20 text-white" :class="getStatusColor(actividad.estado)">
             {{ actividad.estado }}
           </span>
@@ -570,6 +596,7 @@ const goBack = () => {
           </div>
           <h1 class="text-3xl md:text-5xl lg:text-6xl font-black text-white tracking-tighter leading-none mb-4 drop-shadow-lg">{{ actividad.nombre }}</h1>
           <p class="text-xs md:text-base font-medium text-gray-300 line-clamp-2 md:line-clamp-3 leading-relaxed drop-shadow-md max-w-2xl">{{ actividad.descripcion }}</p>
+          <RouterLink v-if="myInscripcion?.estado === 1 || myInscripcion?.estado === 3" :to="`/estudiante/actividades/${actividad.id}/aula`" class="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-[#003B71]"><VIcon size="20">play_circle</VIcon>Entrar al aula virtual</RouterLink>
         </div>
 
         <!-- Acciones o Metric -->
@@ -577,11 +604,11 @@ const goBack = () => {
           <template v-if="myInscripcion">
             <div :class="myInscripcion.estado === 1 ? 'bg-emerald-500' : (myInscripcion.estado === 2 ? 'bg-red-500' : (myInscripcion.estado === 3 ? 'bg-blue-500' : 'bg-amber-500'))"
                   class="backdrop-blur-xl border border-white/20 dark:border-gray-800 rounded-2xl p-6 flex flex-col items-center justify-center min-w-[180px] shadow-2xl transition-all">
-              <div v-if="actividadCerrada || myInscripcion.estado === 3" class="flex flex-col items-center"><span class="material-symbols-outlined text-white mb-2 text-3xl">event_available</span><span class="text-white text-base font-black uppercase text-center w-full block">Finalizado</span></div>
-              <div v-else-if="myInscripcion.estado === 1" class="flex flex-col items-center"><span class="material-symbols-outlined text-white mb-2 text-3xl">check_circle</span><span class="text-white text-base font-black uppercase text-center w-full block">Aprobado</span></div>
-              <div v-else-if="myInscripcion.estado === 2" class="flex flex-col items-center"><span class="material-symbols-outlined text-white mb-2 text-3xl">cancel</span><span class="text-white text-base font-black uppercase text-center w-full block">Rechazado</span></div>
-              <div v-else-if="myInscripcion.estado === 3" class="flex flex-col items-center"><span class="material-symbols-outlined text-white mb-2 text-3xl">school</span><span class="text-white text-base font-black uppercase text-center w-full block">Finalizado</span></div>
-              <div v-else class="flex flex-col items-center"><span class="material-symbols-outlined text-white mb-2 text-3xl">hourglass_empty</span><span class="text-white text-xs font-black uppercase text-center w-full block mt-1 tracking-tight">Pendiente de<br>Aprobación</span></div>
+              <div v-if="actividadCerrada || myInscripcion.estado === 3" class="flex flex-col items-center"><VIcon class="material-symbols-outlined text-white mb-2 text-3xl">event_available</VIcon><span class="text-white text-base font-black uppercase text-center w-full block">Finalizado</span></div>
+              <div v-else-if="myInscripcion.estado === 1" class="flex flex-col items-center"><VIcon class="material-symbols-outlined text-white mb-2 text-3xl">check_circle</VIcon><span class="text-white text-base font-black uppercase text-center w-full block">Aprobado</span></div>
+              <div v-else-if="myInscripcion.estado === 2" class="flex flex-col items-center"><VIcon class="material-symbols-outlined text-white mb-2 text-3xl">cancel</VIcon><span class="text-white text-base font-black uppercase text-center w-full block">Rechazado</span></div>
+              <div v-else-if="myInscripcion.estado === 3" class="flex flex-col items-center"><VIcon class="material-symbols-outlined text-white mb-2 text-3xl">school</VIcon><span class="text-white text-base font-black uppercase text-center w-full block">Finalizado</span></div>
+              <div v-else class="flex flex-col items-center"><VIcon class="material-symbols-outlined text-white mb-2 text-3xl">hourglass_empty</VIcon><span class="text-white text-xs font-black uppercase text-center w-full block mt-1 tracking-tight">Pendiente de<br>Aprobación</span></div>
               <span class="text-[10px] text-white/80 font-bold uppercase tracking-widest mt-2">Estado</span>
             </div>
             <div v-if="myInscripcion.estado === 0" class="text-xs font-bold text-amber-500 dark:text-amber-400 mt-2 text-center max-w-[200px]">Tu pre-inscripción fue enviada y está en revisión</div>
@@ -589,16 +616,16 @@ const goBack = () => {
           </template>
           <template v-else-if="actividadCerrada">
             <div class="bg-slate-800 backdrop-blur-xl border border-white/20 rounded-2xl p-6 flex flex-col items-center justify-center min-w-[180px] shadow-2xl">
-              <span class="material-symbols-outlined text-white mb-2 text-3xl">event_available</span>
+              <VIcon class="material-symbols-outlined text-white mb-2 text-3xl">event_available</VIcon>
               <span class="text-white text-base font-black uppercase text-center">Finalizado</span>
             </div>
             <span class="text-xs text-slate-300 font-bold text-center mt-2 max-w-[220px]">Esta actividad ya concluyó. Revisa el resumen, los documentos y tu certificado.</span>
           </template>
           <template v-else>
-            <button @click="preinscripcionMenu = true" class="bg-umsa-blue hover:bg-blue-600 text-white px-8 py-5 rounded-2xl font-black uppercase tracking-widest transition-all shadow-[0_0_40px_-5px_rgba(37,99,235,0.5)] flex items-center justify-center gap-3 min-w-[180px] border border-blue-400/50 hover:scale-105">
-               <span class="material-symbols-outlined text-[24px]">approval</span>
+            <VBtn @click="preinscripcionMenu = true" class="bg-umsa-blue hover:bg-blue-600 text-white px-8 py-5 rounded-2xl font-black uppercase tracking-widest transition-all shadow-[0_0_40px_-5px_rgba(37,99,235,0.5)] flex items-center justify-center gap-3 min-w-[180px] border border-blue-400/50 hover:scale-105">
+               <VIcon class="material-symbols-outlined text-[24px]">approval</VIcon>
                Pre-inscribirme
-            </button>
+            </VBtn>
             <span class="text-xs text-slate-500 dark:text-gray-400 font-bold text-center mt-2 max-w-[200px]">Inscríbete para acceder al material y asistencia.</span>
           </template>
         </div>
@@ -607,14 +634,14 @@ const goBack = () => {
 
     <!-- Tabs de Navegación -->
     <div class="flex overflow-x-auto gap-2 border-b border-slate-200 dark:border-gray-800 pb-1 snap-x scrollbar-hide">
-      <button v-for="tab in tabs" :key="tab.id" @click="switchTab(tab.id)"
+      <VBtn v-for="tab in tabs" :key="tab.id" @click="switchTab(tab.id)"
         class="flex items-center gap-2 px-6 py-4 text-xs font-black uppercase tracking-widest rounded-t-2xl transition-all whitespace-nowrap snap-start border-b-2"
         :class="activeTab === tab.id 
           ? 'text-primary-dark dark:text-emerald-400 border-primary-dark dark:border-emerald-400 bg-slate-50 dark:bg-gray-900/50' 
           : 'text-slate-500 dark:text-gray-500 border-transparent hover:bg-slate-50 dark:hover:bg-gray-800/50 hover:text-slate-700 dark:hover:text-gray-300'">
-        <span class="material-symbols-outlined text-[18px]">{{ tab.icon }}</span>
+        <VIcon class="material-symbols-outlined text-[18px]">{{ tab.icon }}</VIcon>
         {{ tab.label }}
-      </button>
+      </VBtn>
     </div>
 
     <!-- Contenido Principal -->
@@ -682,7 +709,7 @@ const goBack = () => {
               <div v-for="(doc, index) in documentosSubidos" :key="index" @click="doc.url && openMaterial(doc)" class="border border-slate-200 dark:border-gray-800 hover:border-umsa-blue rounded-2xl p-5 hover:shadow-lg transition-all group dark:bg-gray-950 flex flex-col justify-between min-h-[140px]" :class="doc.url ? 'cursor-pointer' : ''">
                   <div>
                       <div class="flex justify-between items-start mb-4">
-                          <span class="material-symbols-outlined text-3xl text-umsa-blue">description</span>
+                          <VIcon class="material-symbols-outlined text-3xl text-umsa-blue">description</VIcon>
                           <span class="text-[10px] bg-slate-100 dark:bg-gray-800 px-2 py-1 rounded font-bold uppercase tracking-widest text-slate-500 dark:text-gray-400">{{ doc.tipo }}</span>
                       </div>
                       <h4 class="font-bold text-slate-800 dark:text-white mb-1 line-clamp-2 group-hover:text-umsa-blue transition-colors">{{ doc.titulo }}</h4>
@@ -700,7 +727,7 @@ const goBack = () => {
               <div v-for="mat in actividad.materiales" :key="mat.id" @click="openMaterial(mat)" class="border border-slate-200 dark:border-gray-800 hover:border-umsa-blue rounded-2xl p-5 hover:shadow-lg transition-all group cursor-pointer dark:bg-gray-950 flex flex-col justify-between min-h-[140px]">
                   <div>
                       <div class="flex justify-between items-start mb-4">
-                          <span class="material-symbols-outlined text-3xl" :class="['PDF', 'Archivo'].includes(mat.tipo) ? 'text-red-500' : 'text-blue-500'">{{ ['PDF', 'Archivo'].includes(mat.tipo) ? 'picture_as_pdf' : 'link' }}</span>
+                          <VIcon class="material-symbols-outlined text-3xl" :class="['PDF', 'Archivo'].includes(mat.tipo) ? 'text-red-500' : 'text-blue-500'">{{ ['PDF', 'Archivo'].includes(mat.tipo) ? 'picture_as_pdf' : 'link' }}</VIcon>
                           <span class="text-[10px] bg-slate-100 dark:bg-gray-800 px-2 py-1 rounded font-bold uppercase tracking-widest text-slate-500 dark:text-gray-400">{{ mat.tamaño || mat.tipo }}</span>
                       </div>
                       <h4 class="font-bold text-slate-800 dark:text-white mb-1 line-clamp-2 group-hover:text-umsa-blue transition-colors">{{ mat.titulo }}</h4>
@@ -735,7 +762,7 @@ const goBack = () => {
                   <!-- Columna Izquierda: Opciones -->
                   <div class="flex-1 w-full lg:max-w-md">
                       <div class="flex items-center gap-3 mb-2">
-                          <span class="material-symbols-outlined text-emerald-500 text-3xl">fact_check</span>
+                          <VIcon class="material-symbols-outlined text-emerald-500 text-3xl">fact_check</VIcon>
                           <h3 class="text-2xl md:text-3xl font-black text-slate-800 dark:text-white uppercase italic tracking-tight">Registro de Asistencia</h3>
                       </div>
                       <p class="text-slate-500 dark:text-gray-400 text-sm leading-relaxed mb-8">Selecciona el método que prefieras para registrar tu presencia en la sesión de hoy.</p>
@@ -743,46 +770,46 @@ const goBack = () => {
                       <!-- Botones de Modo -->
                       <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3">
                           <!-- Botón Mostrar QR -->
-                          <button @click="switchQrMode('project')" 
+                          <VBtn @click="switchQrMode('project')"
                               :class="qrMode === 'project' 
                                   ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-600/20 scale-[1.02]' 
                                   : 'bg-white dark:bg-gray-800 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700'" 
                               class="flex items-center gap-3 p-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 group">
                               <div class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
                                   :class="qrMode === 'project' ? 'bg-white/20' : 'bg-slate-100 dark:bg-gray-700 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-900/30'">
-                                  <span class="material-symbols-outlined text-[18px]" :class="qrMode === 'project' ? 'text-white' : 'text-slate-500 dark:text-gray-400 group-hover:text-emerald-600'">qr_code_2</span>
+                                  <VIcon class="material-symbols-outlined text-[18px]" :class="qrMode === 'project' ? 'text-white' : 'text-slate-500 dark:text-gray-400 group-hover:text-emerald-600'">qr_code_2</VIcon>
                               </div>
                               <span class="flex-1 text-left">Mostrar Mi QR</span>
-                              <span class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity" :class="qrMode === 'project' ? 'text-white/70' : 'text-emerald-500'">arrow_forward</span>
-                          </button>
+                              <VIcon class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity" :class="qrMode === 'project' ? 'text-white/70' : 'text-emerald-500'">arrow_forward</VIcon>
+                          </VBtn>
 
                           <!-- Botón Escanear Clase -->
-                          <button @click="switchQrMode('scan')" 
+                          <VBtn @click="switchQrMode('scan')"
                               :class="qrMode === 'scan' 
                                   ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-600/20 scale-[1.02]' 
                                   : 'bg-white dark:bg-gray-800 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700'" 
                               class="flex items-center gap-3 p-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 group">
                               <div class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
                                   :class="qrMode === 'scan' ? 'bg-white/20' : 'bg-slate-100 dark:bg-gray-700 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-900/30'">
-                                  <span class="material-symbols-outlined text-[18px]" :class="qrMode === 'scan' ? 'text-white' : 'text-slate-500 dark:text-gray-400 group-hover:text-emerald-600'">qr_code_scanner</span>
+                                  <VIcon class="material-symbols-outlined text-[18px]" :class="qrMode === 'scan' ? 'text-white' : 'text-slate-500 dark:text-gray-400 group-hover:text-emerald-600'">qr_code_scanner</VIcon>
                               </div>
                               <span class="flex-1 text-left">Escanear Clase</span>
-                              <span class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity" :class="qrMode === 'scan' ? 'text-white/70' : 'text-emerald-500'">arrow_forward</span>
-                          </button>
+                              <VIcon class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity" :class="qrMode === 'scan' ? 'text-white/70' : 'text-emerald-500'">arrow_forward</VIcon>
+                          </VBtn>
 
                           <!-- Botón Ingresar PIN -->
-                          <button @click="switchQrMode('pin')" 
+                          <VBtn @click="switchQrMode('pin')"
                               :class="qrMode === 'pin' 
                                   ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-600/20 scale-[1.02]' 
                                   : 'bg-white dark:bg-gray-800 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700'" 
                               class="flex items-center gap-3 p-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 group">
                               <div class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
                                   :class="qrMode === 'pin' ? 'bg-white/20' : 'bg-slate-100 dark:bg-gray-700 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-900/30'">
-                                  <span class="material-symbols-outlined text-[18px]" :class="qrMode === 'pin' ? 'text-white' : 'text-slate-500 dark:text-gray-400 group-hover:text-emerald-600'">pin</span>
+                                  <VIcon class="material-symbols-outlined text-[18px]" :class="qrMode === 'pin' ? 'text-white' : 'text-slate-500 dark:text-gray-400 group-hover:text-emerald-600'">pin</VIcon>
                               </div>
                               <span class="flex-1 text-left">Ingresar PIN</span>
-                              <span class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity" :class="qrMode === 'pin' ? 'text-white/70' : 'text-emerald-500'">arrow_forward</span>
-                          </button>
+                              <VIcon class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity" :class="qrMode === 'pin' ? 'text-white/70' : 'text-emerald-500'">arrow_forward</VIcon>
+                          </VBtn>
                       </div>
                   </div>
 
@@ -790,9 +817,9 @@ const goBack = () => {
                   <div class="flex-1 flex justify-center items-center w-full min-h-[340px] mt-6 lg:mt-0 bg-slate-50/50 dark:bg-gray-800/30 rounded-2xl p-6 border border-slate-100 dark:border-gray-800">
                       
                       <!-- Proyectar Mi QR -->
-                      <div v-if="qrMode === 'project'" class="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-xl flex flex-col items-center justify-center w-full max-w-sm border border-slate-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-300">
+                      <VCard v-if="qrMode === 'project'" class="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-xl flex flex-col items-center justify-center w-full max-w-sm border border-slate-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-300">
                           <div v-if="!idInscripcionModalidad" class="text-center p-8 text-slate-400">
-                              <span class="material-symbols-outlined text-4xl animate-spin mb-2">autorenew</span>
+                              <VIcon class="material-symbols-outlined text-4xl animate-spin mb-2">autorenew</VIcon>
                               <p class="text-xs font-bold uppercase tracking-widest">Generando código...</p>
                           </div>
                           <template v-else>
@@ -802,10 +829,10 @@ const goBack = () => {
                               </div>
                           </template>
                           <div class="flex items-center gap-2 text-slate-500 dark:text-gray-400">
-                              <span class="material-symbols-outlined text-[16px]">info</span>
+                              <VIcon class="material-symbols-outlined text-[16px]">info</VIcon>
                               <p class="text-xs font-bold uppercase tracking-widest">Muestra este código al docente</p>
                           </div>
-                      </div>
+                      </VCard>
 
                       <!-- Escanear QR del Ponente -->
                       <div v-if="qrMode === 'scan'" class="w-full max-w-md bg-black rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-300">
@@ -816,20 +843,20 @@ const goBack = () => {
                       </div>
 
                       <!-- Ingresar PIN -->
-                      <div v-if="qrMode === 'pin'" class="w-full max-w-md bg-white dark:bg-gray-900 p-8 rounded-2xl border border-slate-200 dark:border-gray-800 shadow-xl flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-300">
+                      <VCard v-if="qrMode === 'pin'" class="w-full max-w-md bg-white dark:bg-gray-900 p-8 rounded-2xl border border-slate-200 dark:border-gray-800 shadow-xl flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-300">
                           <div class="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 rounded-full flex items-center justify-center mb-4">
-                              <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-3xl">lock</span>
+                              <VIcon class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-3xl">lock</VIcon>
                           </div>
                           <h4 class="text-sm font-black text-slate-700 dark:text-gray-200 mb-2 uppercase tracking-widest">PIN de Acceso</h4>
                           <p class="text-xs text-slate-500 dark:text-gray-400 text-center mb-6">Ingresa el código de 6 dígitos que proyecta el docente.</p>
                           
-                          <input v-model="pinInput" type="text" placeholder="······" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-4 text-center text-3xl font-black focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none mb-4 tracking-[0.5em]" maxlength="6" />
+                          <UiInput v-model="pinInput" type="text" placeholder="······" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-4 py-4 text-center text-3xl font-black focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none mb-4 tracking-[0.5em]" maxlength="6" />
                           
-                          <button @click="submitPin" class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-colors shadow-lg shadow-emerald-600/10 flex items-center justify-center gap-2">
-                              <span class="material-symbols-outlined text-[18px]">verified</span>
+                          <VBtn @click="submitPin" class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-colors shadow-lg shadow-emerald-600/10 flex items-center justify-center gap-2">
+                              <VIcon class="material-symbols-outlined text-[18px]">verified</VIcon>
                               Registrar Asistencia
-                          </button>
-                      </div>
+                          </VBtn>
+                      </VCard>
                   </div>
               </div>
           </div>
@@ -842,13 +869,13 @@ const goBack = () => {
               </div>
 
               <div v-if="!actividad.asistencia || actividad.asistencia.length === 0" class="text-sm font-bold text-slate-500 bg-slate-50 dark:bg-gray-800/50 p-10 rounded-2xl border-2 border-dashed border-slate-200 dark:border-gray-700 text-center flex flex-col items-center justify-center">
-                 <span class="material-symbols-outlined text-5xl mb-4 text-slate-400 dark:text-gray-600">event_busy</span>
+                 <VIcon class="material-symbols-outlined text-5xl mb-4 text-slate-400 dark:text-gray-600">event_busy</VIcon>
                  <p class="text-slate-600 dark:text-gray-300 text-base mb-1">Aún no hay registros de asistencia.</p>
                  <p class="text-xs text-slate-400 dark:text-gray-500">Tus asistencias marcadas aparecerán aquí.</p>
               </div>
               
               <div v-else class="space-y-3">
-                  <div v-for="(registro, index) in actividad.asistencia" :key="index" class="flex items-center justify-between bg-white dark:bg-gray-900 border border-slate-200/60 dark:border-gray-800 rounded-xl p-4 dark:bg-gray-950 relative overflow-hidden group hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-slate-100 dark:hover:shadow-black/20">
+                  <VCard v-for="(registro, index) in actividad.asistencia" :key="index" class="flex items-center justify-between bg-white dark:bg-gray-900 border border-slate-200/60 dark:border-gray-800 rounded-xl p-4 dark:bg-gray-950 relative overflow-hidden group hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-slate-100 dark:hover:shadow-black/20">
                       <!-- Barra de estado -->
                       <div class="absolute left-0 top-0 bottom-0 w-1.5 transition-all duration-300" 
                           :class="registro.estado === 'presente' ? 'bg-emerald-500 group-hover:w-2' : 'bg-rose-500 group-hover:w-2'"></div>
@@ -856,9 +883,9 @@ const goBack = () => {
                       <div class="flex items-center gap-4 pl-2">
                           <div class="h-10 w-10 rounded-lg flex items-center justify-center transition-colors"
                               :class="registro.estado === 'presente' ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20'">
-                              <span class="material-symbols-outlined text-[20px]" :class="registro.estado === 'presente' ? 'text-emerald-500' : 'text-rose-500'">
+                              <VIcon class="material-symbols-outlined text-[20px]" :class="registro.estado === 'presente' ? 'text-emerald-500' : 'text-rose-500'">
                                   {{ registro.estado === 'presente' ? 'check_circle' : 'cancel' }}
-                              </span>
+                              </VIcon>
                           </div>
                           <div>
                               <h4 class="font-bold text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{{ registro.fecha }}</h4>
@@ -872,7 +899,7 @@ const goBack = () => {
                               : 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'">
                         {{ registro.estado === 'presente' ? 'Presente' : 'Ausente' }}
                       </div>
-                  </div>
+                  </VCard>
               </div>
           </div>
       </div>
@@ -888,7 +915,7 @@ const goBack = () => {
               </div>
               <div class="flex-shrink-0">
                   <div class="w-24 h-24 rounded-full flex items-center justify-center border-4 shadow-lg bg-white dark:bg-gray-900" :class="(myInscripcion?.nota_principal ?? 0) >= (actividad.certificadoRequisitos?.notaMinima ?? 51) ? 'border-emerald-500 text-emerald-500' : (myInscripcion?.nota_principal !== null && myInscripcion?.nota_principal !== undefined ? 'border-red-500 text-red-500' : 'border-slate-300 text-slate-400')">
-                     <span class="material-symbols-outlined text-4xl">{{ (myInscripcion?.nota_principal ?? 0) >= (actividad.certificadoRequisitos?.notaMinima ?? 51) ? 'verified' : (myInscripcion?.nota_principal !== null && myInscripcion?.nota_principal !== undefined ? 'cancel' : 'pending') }}</span>
+                     <VIcon class="material-symbols-outlined text-4xl">{{ (myInscripcion?.nota_principal ?? 0) >= (actividad.certificadoRequisitos?.notaMinima ?? 51) ? 'verified' : (myInscripcion?.nota_principal !== null && myInscripcion?.nota_principal !== undefined ? 'cancel' : 'pending') }}</VIcon>
                   </div>
               </div>
           </div>
@@ -900,7 +927,7 @@ const goBack = () => {
             <div class="relative w-24 h-24 mb-6 group">
               <div class="absolute inset-0 bg-umsa-gold/20 dark:bg-yellow-500/10 rounded-full blur-xl"></div>
               <div class="w-full h-full bg-gradient-to-br from-umsa-gold to-yellow-600 rounded-full flex items-center justify-center shadow-2xl border-4 border-white dark:border-gray-900 relative z-10">
-                 <span class="material-symbols-outlined text-white text-4xl">workspace_premium</span>
+                 <VIcon class="material-symbols-outlined text-white text-4xl">workspace_premium</VIcon>
               </div>
             </div>
             <h3 class="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight mb-2 text-balance">¡Felicidades por completar el {{ actividad.tipo.toLowerCase() }}!</h3>
@@ -909,10 +936,10 @@ const goBack = () => {
               <div v-for="pdf in vistaCertificados" :key="pdf.id" class="space-y-3">
                 <div class="flex items-center justify-between gap-3">
                   <p class="text-sm font-black uppercase tracking-widest text-slate-700 dark:text-white">{{ pdf.titulo }}</p>
-                  <button @click="certificadosStore.descargarCertificado(pdf.id)" class="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 transition-all flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[16px]">download</span>
+                  <VBtn @click="certificadosStore.descargarCertificado(pdf.id)" class="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 transition-all flex items-center gap-2">
+                    <VIcon class="material-symbols-outlined text-[16px]">download</VIcon>
                     Descargar
-                  </button>
+                  </VBtn>
                 </div>
                 <iframe :src="pdf.url" class="w-full h-[720px] rounded-2xl border border-slate-200 dark:border-gray-700 bg-white" title="Certificado"></iframe>
               </div>
@@ -922,13 +949,13 @@ const goBack = () => {
             <div class="relative w-32 h-32 mb-8 group">
               <div class="absolute inset-0 bg-umsa-gold/20 dark:bg-yellow-500/10 rounded-full blur-xl group-hover:blur-2xl transition-all duration-500"></div>
               <div class="w-full h-full bg-gradient-to-br from-umsa-gold to-yellow-600 rounded-full flex items-center justify-center shadow-2xl border-4 border-white dark:border-gray-900 relative z-10 transform group-hover:scale-105 transition-transform">
-                 <span class="material-symbols-outlined text-white text-5xl">workspace_premium</span>
+                 <VIcon class="material-symbols-outlined text-white text-5xl">workspace_premium</VIcon>
               </div>
             </div>
             <h3 class="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight mb-4 text-balance">¡Felicidades por completar el {{ actividad.tipo.toLowerCase() }}!</h3>
-            <p class="text-slate-500 dark:text-gray-400 leading-relaxed mb-4">Has aprobado satisfactoriamente la actividad académica.</p>
+            <p class="text-slate-500 dark:text-gray-400 leading-relaxed mb-4">{{ myInscripcion?.nota_principal == null ? 'Tu calificación aún no está disponible; la organización determinará el tipo de certificado.' : myInscripcion.nota_principal >= (actividad.certificadoRequisitos?.notaMinima ?? 51) ? 'Cumples la nota mínima para un certificado de aprobación.' : 'Te corresponde un certificado de participación al completar la actividad.' }}</p>
             <div class="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/50 p-6 rounded-2xl max-w-md flex items-start gap-3 text-left">
-                <span class="material-symbols-outlined text-amber-500 mt-0.5">info</span>
+                <VIcon class="material-symbols-outlined text-amber-500 mt-0.5">info</VIcon>
                 <div>
                     <h4 class="text-xs font-black text-amber-800 dark:text-amber-400 uppercase tracking-wider mb-1">Certificado en Proceso</h4>
                     <p class="text-xs font-medium text-amber-700 dark:text-amber-500 leading-relaxed">Tu certificado está siendo firmado digitalmente por los coordinadores y ponentes asignados. Estará disponible para descarga en esta pestaña muy pronto.</p>
@@ -938,23 +965,30 @@ const goBack = () => {
         <template v-else>
             <div class="relative w-24 h-24 mb-6 opacity-60 grayscale">
               <div class="w-full h-full bg-slate-200 dark:bg-gray-800 rounded-full flex items-center justify-center border-4 border-white dark:border-gray-900 relative z-10">
-                 <span class="material-symbols-outlined text-slate-400 text-4xl block">workspace_premium</span>
+                 <VIcon class="material-symbols-outlined text-slate-400 text-4xl block">workspace_premium</VIcon>
               </div>
             </div>
             <h3 class="text-xl font-black text-slate-500 dark:text-gray-400 uppercase tracking-tight mb-2">Certificado no disponible aún</h3>
-            <p class="text-slate-400 dark:text-gray-500 text-sm">El certificado estará disponible al finalizar el {{ actividad.tipo.toLowerCase() || 'curso' }} y cumplir los requisitos de aprobación.</p>
+            <p class="text-slate-400 dark:text-gray-500 text-sm">Al completar el {{ actividad.tipo.toLowerCase() || 'curso' }}, la nota define el tipo de certificado: aprobación si alcanzas el mínimo y participación si no lo alcanzas. La organización emitirá el certificado correspondiente.</p>
         </template>
+        <form v-if="myInscripcion?.estado === 3 && !/virtual|híbrido|hibrido/i.test(actividad.modalidad)" class="mt-8 w-full max-w-md space-y-3 rounded-2xl border border-slate-200 bg-white p-5 text-left dark:border-slate-700 dark:bg-slate-900" @submit.prevent="enviarValoracion">
+          <h4 class="font-bold">Valora esta actividad</h4>
+          <label class="block text-sm">Puntuación<select v-model.number="valoracionCurso" class="mt-1 w-full rounded-lg border p-2 text-slate-900"><option v-for="n in 5" :key="n" :value="n">{{ n }} de 5</option></select></label>
+          <label class="block text-sm">Comentario (opcional)<textarea v-model="comentarioValoracion" maxlength="1000" rows="2" class="mt-1 w-full rounded-lg border p-2 text-slate-900" /></label>
+          <button type="submit" :disabled="enviandoValoracion" class="rounded-lg bg-[#0070BB] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Enviar valoración</button>
+          <p v-if="avisoValoracion" role="status" class="text-sm">{{ avisoValoracion }}</p>
+        </form>
       </div>
 
     </div>
   </div>
 
   <!-- Modal Pre-inscripción -->
-  <div v-if="preinscripcionMenu && !actividadCerrada" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-gray-900 rounded-[2rem] p-8 max-w-md w-full shadow-2xl relative border border-slate-200/50 dark:border-gray-800">
-        <button @click="preinscripcionMenu = false" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:hover:text-white transition-colors">
-            <span class="material-symbols-outlined">close</span>
-        </button>
+  <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" v-if="preinscripcionMenu && !actividadCerrada" >
+    <VCard class="bg-white dark:bg-gray-900 rounded-[2rem] p-8 max-w-md w-full shadow-2xl relative border border-slate-200/50 dark:border-gray-800">
+        <VBtn @click="preinscripcionMenu = false" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:hover:text-white transition-colors">
+            <VIcon class="material-symbols-outlined">close</VIcon>
+        </VBtn>
         <h3 class="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight mb-4">Pre-inscripción</h3>
         <p class="text-slate-600 dark:text-gray-400 mb-6 text-sm">Por favor, llene los siguientes datos para solicitar su inscripción.</p>
         
@@ -970,19 +1004,19 @@ const goBack = () => {
                             </label>
                             
                             <!-- Si es Documento Identidad y está bloqueado -->
-                            <input v-if="key === 'documento_identidad' && perfilOriginal[key]"
+                            <UiInput v-if="key === 'documento_identidad' && perfilOriginal[key]"
                                    :value="datosPerfilEdit[key]?.includes(':') ? (datosPerfilEdit[key].split(':')[1] || '').trim() : datosPerfilEdit[key]" 
                                    readonly
-                                   class="w-full px-4 py-2 text-xs font-bold bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl outline-none text-slate-500 dark:text-gray-400 cursor-not-allowed transition-all">
+                                   class="w-full px-4 py-2 text-xs font-bold bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl outline-none text-slate-500 dark:text-gray-400 cursor-not-allowed transition-all" />
                             
                             <!-- Para cualquier otro campo bloqueado -->
-                            <input v-else-if="perfilOriginal[key]"
+                            <UiInput v-else-if="perfilOriginal[key]"
                                    :value="datosPerfilEdit[key]" 
                                    readonly
-                                   class="w-full px-4 py-2 text-xs font-bold bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl outline-none text-slate-500 dark:text-gray-400 cursor-not-allowed transition-all">
+                                   class="w-full px-4 py-2 text-xs font-bold bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl outline-none text-slate-500 dark:text-gray-400 cursor-not-allowed transition-all" />
                             
                             <!-- Si es Género, mostrar select -->
-                            <select v-else-if="key === 'genero'"
+                            <UiSelect v-else-if="key === 'genero'"
                                     v-model="datosPerfilEdit[key]"
                                     required
                                     class="w-full px-4 py-2 text-xs font-bold bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl outline-none focus:border-blue-500 text-slate-800 dark:text-white transition-all">
@@ -990,14 +1024,14 @@ const goBack = () => {
                                 <option :value="0">Masculino</option>
                                 <option :value="1">Femenino</option>
                                 <option :value="2">Otro / No especifica</option>
-                            </select>
+                            </UiSelect>
 
                             <!-- Para campos vacíos que deben poder llenarse -->
-                            <input v-else
+                            <UiInput v-else
                                    v-model="datosPerfilEdit[key]" 
                                    required
                                    :placeholder="'Ingresa tu ' + key.toString().replace(/_/g, ' ')"
-                                   class="w-full px-4 py-2 text-xs font-bold bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl outline-none focus:border-blue-500 text-slate-800 dark:text-white transition-all">
+                                   class="w-full px-4 py-2 text-xs font-bold bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl outline-none focus:border-blue-500 text-slate-800 dark:text-white transition-all" />
                         </div>
                     </template>
                 </div>
@@ -1011,18 +1045,18 @@ const goBack = () => {
                         <label class="text-[9px] font-black text-blue-500 uppercase mb-1">{{ req.label }}</label>
                         
                         <!-- Input tipo Texto -->
-                        <input v-if="req.type === 'text' || req.type === 'number'" 
+                        <UiInput v-if="req.type === 'text' || req.type === 'number'"
                                v-model="respuestasDinamicas[req.label]" 
                                :type="req.type" 
-                               class="w-full px-4 py-2 text-xs font-bold bg-white dark:bg-gray-950 border border-blue-100 dark:border-blue-800/50 rounded-xl outline-none focus:border-blue-500 transition-all">
+                               class="w-full px-4 py-2 text-xs font-bold bg-white dark:bg-gray-950 border border-blue-100 dark:border-blue-800/50 rounded-xl outline-none focus:border-blue-500 transition-all" />
                         
                         <!-- Input tipo Select -->
-                        <select v-else-if="req.type === 'select'" 
+                        <UiSelect v-else-if="req.type === 'select'"
                                 v-model="respuestasDinamicas[req.label]" 
                                 class="w-full px-4 py-2 text-xs font-bold bg-white dark:bg-gray-950 border border-blue-100 dark:border-blue-800/50 rounded-xl outline-none focus:border-blue-500 transition-all">
                             <option value="">Seleccione una opción</option>
                             <option v-for="opt in req.options" :key="opt" :value="opt">{{ opt }}</option>
-                        </select>
+                        </UiSelect>
 
                         <!-- Input tipo Archivo -->
                         <div v-else-if="req.type === 'file'" class="relative group">
@@ -1031,7 +1065,7 @@ const goBack = () => {
                                    class="hidden" 
                                    :id="'file-' + idx">
                             <label :for="'file-' + idx" class="w-full px-4 py-3 bg-white dark:bg-gray-950 border-2 border-dashed border-blue-100 dark:border-blue-800/50 rounded-xl flex items-center gap-3 cursor-pointer hover:border-blue-500 hover:bg-blue-50/30 transition-all">
-                                <span class="material-symbols-outlined text-blue-500">{{ respuestasDinamicas[req.label] ? 'check_circle' : 'upload_file' }}</span>
+                                <VIcon class="material-symbols-outlined text-blue-500">{{ respuestasDinamicas[req.label] ? 'check_circle' : 'upload_file' }}</VIcon>
                                 <span class="text-[10px] font-bold text-slate-500 truncate">
                                     {{ respuestasDinamicas[req.label] ? respuestasDinamicas[req.label].name : 'Subir ' + req.label }}
                                 </span>
@@ -1045,7 +1079,7 @@ const goBack = () => {
             <div class="space-y-4">
                 <div>
                     <label class="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">¿Por qué deseas participar? (Motivación)</label>
-                    <textarea v-model="preinscripcionForm.razon" class="w-full border border-slate-200 dark:border-gray-800 rounded-xl p-3 bg-slate-50 dark:bg-gray-950 text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:border-blue-500 transition-colors" rows="2" placeholder="Describe brevemente tu interés..."></textarea>
+                    <VTextarea v-model="preinscripcionForm.razon" class="w-full border border-slate-200 dark:border-gray-800 rounded-xl p-3 bg-slate-50 dark:bg-gray-950 text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:border-blue-500 transition-colors" rows="2" placeholder="Describe brevemente tu interés..."></VTextarea>
                 </div>
                 <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-gray-800/50 rounded-xl border border-slate-100 dark:border-gray-800">
                     <span class="text-[10px] font-black text-slate-500 dark:text-gray-400 uppercase tracking-widest">¿Eres miembro de la red TYAN?</span>
@@ -1062,14 +1096,14 @@ const goBack = () => {
         </div>
         
         <div class="flex gap-3 mt-8">
-            <button @click="preinscripcionMenu = false" class="flex-1 bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-200 dark:hover:bg-gray-700 transition-all">
+            <VBtn @click="preinscripcionMenu = false" class="flex-1 bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-200 dark:hover:bg-gray-700 transition-all">
                 Cancelar
-            </button>
-            <button @click="submitPreinscripcion" :disabled="preinscribiendo" class="flex-[2] bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-4 rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg flex justify-center items-center gap-2">
-                <span v-if="preinscribiendo" class="material-symbols-outlined animate-spin text-white">autorenew</span>
+            </VBtn>
+            <VBtn @click="submitPreinscripcion" :disabled="preinscribiendo" class="flex-[2] bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-4 rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg flex justify-center items-center gap-2">
+                <VIcon v-if="preinscribiendo" class="material-symbols-outlined animate-spin text-white">autorenew</VIcon>
                 <span>{{ preinscribiendo ? 'Enviando...' : 'Enviar Solicitud' }}</span>
-            </button>
+            </VBtn>
         </div>
-    </div>
-  </div>
+    </VCard>
+  </VDialog>
 </template>

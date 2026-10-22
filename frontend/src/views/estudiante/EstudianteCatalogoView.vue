@@ -103,7 +103,7 @@ const getStatusColor = (status: string) => {
         </div>
     </div>
       
-    <div v-for="evento in eventosPublicados" :key="evento.id" class="w-full bg-white dark:bg-gray-900 rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 dark:border-gray-800 mb-12 flex flex-col group/card">
+    <VCard v-for="evento in eventosPublicados" :key="evento.id" class="w-full bg-white dark:bg-gray-900 rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 dark:border-gray-800 mb-12 flex flex-col group/card">
       
       <!-- Header Evento Banner (Estilo Netflix) -->
       <div class="relative w-full h-[240px] md:h-[320px] overflow-hidden">
@@ -123,10 +123,10 @@ const getStatusColor = (status: string) => {
               <p class="text-[11px] md:text-sm font-medium text-gray-300 max-w-2xl line-clamp-2 leading-relaxed">{{ evento.descripcion }}</p>
             </div>
 
-            <button @click="toggleActividades(evento)" class="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 px-6 py-3 rounded-xl transition-all shadow-lg flex items-center gap-2 group/btn cursor-pointer z-30 relative">
+            <VBtn @click="toggleActividades(evento)" class="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 px-6 py-3 rounded-xl transition-all shadow-lg flex items-center gap-2 group/btn cursor-pointer z-30 relative">
               <span class="text-xs font-bold uppercase tracking-widest">{{ evento.mostrarActividades ? 'Ocultar' : 'Ver' }} Actividades</span>
-              <span class="material-symbols-outlined text-[16px] transition-transform duration-300" :class="evento.mostrarActividades ? 'rotate-180' : ''">expand_more</span>
-            </button>
+              <VIcon class="material-symbols-outlined text-[16px] transition-transform duration-300" :class="evento.mostrarActividades ? 'rotate-180' : ''">expand_more</VIcon>
+            </VBtn>
           </div>
         </div>
       </div>
@@ -140,9 +140,9 @@ const getStatusColor = (status: string) => {
               <h3 class="text-xl md:text-2xl font-black text-primary-dark dark:text-white uppercase tracking-tighter">{{ categoria }}</h3>
               <p class="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-widest mt-1">Explorar {{ acts.length }} disponibles en esta categoría</p>
             </div>
-            <button class="text-[10px] font-black uppercase tracking-widest bg-white dark:bg-gray-800 hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-700 px-4 py-2 rounded-xl transition-all flex items-center gap-2 relative z-20 cursor-pointer shadow-sm hover:shadow-md">
-              <span class="material-symbols-outlined text-[14px]">visibility</span> Ver todos
-            </button>
+            <VBtn class="text-[10px] font-black uppercase tracking-widest bg-white dark:bg-gray-800 hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-700 px-4 py-2 rounded-xl transition-all flex items-center gap-2 relative z-20 cursor-pointer shadow-sm hover:shadow-md">
+              <VIcon class="material-symbols-outlined text-[14px]">visibility</VIcon> Ver todos
+            </VBtn>
           </div>
 
           <div class="flex overflow-x-auto gap-6 px-8 pb-8 pt-2 snap-x snap-mandatory flex-nowrap" style="scrollbar-width: none; -ms-overflow-style: none;">
@@ -151,7 +151,7 @@ const getStatusColor = (status: string) => {
               
               <div class="relative h-48 w-full overflow-hidden shrink-0">
                 <div class="absolute inset-0 bg-primary-dark/10 group-hover:bg-transparent transition-colors z-10"></div>
-                <img :src="act.image" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" :alt="act.title">   
+                <img :src="act.image" data-course-image class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" :alt="act.title">
                 <span class="absolute top-3 right-3 z-20 text-[8px] font-black uppercase px-2 py-1 rounded-md tracking-widest shadow-sm " :class="getStatusColor(act.status)">
                   {{ act.status }}
                 </span>
@@ -166,10 +166,10 @@ const getStatusColor = (status: string) => {
                     <span class="text-[9px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-widest border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 px-2 py-0.5 rounded-md">{{ act.date }}</span>
                   </div>
                   <div class="flex justify-between items-center text-slate-500 dark:text-gray-400">
-                    <button @click.prevent="verDetalle(act.id)" class="flex items-center text-emerald-600 font-bold hover:translate-x-1 transition-transform group-hover:translate-x-1">   
+                    <VBtn @click.prevent="verDetalle(act.id)" class="flex items-center text-emerald-600 font-bold hover:translate-x-1 transition-transform group-hover:translate-x-1">
                       <span class="text-[10px] uppercase">Ver Actividad</span>
-                      <span class="material-symbols-outlined text-[16px] ml-1">arrow_forward</span>    
-                    </button>
+                      <VIcon class="material-symbols-outlined text-[16px] ml-1">arrow_forward</VIcon>
+                    </VBtn>
                   </div>
                 </div>
               </div>
@@ -182,6 +182,6 @@ const getStatusColor = (status: string) => {
           <p class="text-sm font-bold text-gray-500 uppercase tracking-widest">No hay actividades publicadas para esta categoría.</p>
         </div>
       </div>
-    </div>
+    </VCard>
   </div>
 </template>

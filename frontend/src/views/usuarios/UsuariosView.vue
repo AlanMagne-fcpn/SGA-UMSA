@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 import type { Usuario } from '@/types/admin';
 
 const usuarios = ref<Usuario[]>([]);
@@ -37,7 +37,7 @@ const parseName = (p: any) => `${p?.primer_apellido || ''} ${p?.segundo_apellido
 </script>
 
 <template>
-    <div class="relative bg-white dark:bg-slate-800 rounded-[2.5rem] p-8 md:p-12 overflow-hidden shadow-sm border border-sky-100 dark:border-slate-700 group mb-10">
+    <VCard class="relative bg-white dark:bg-slate-800 rounded-[2.5rem] p-8 md:p-12 overflow-hidden shadow-sm border border-sky-100 dark:border-slate-700 group mb-10">
       <!-- Decoración sutil -->
       <div class="absolute top-0 left-0 w-80 h-80 bg-sky-50 dark:bg-sky-900/10 rounded-full -ml-20 -mt-20 blur-3xl"></div>
       <div class="absolute inset-0 bg-gradient-to-br from-indigo-50/30 to-transparent dark:from-indigo-900/5 pointer-events-none"></div>
@@ -45,7 +45,7 @@ const parseName = (p: any) => `${p?.primer_apellido || ''} ${p?.segundo_apellido
       <div class="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8">
         <div class="flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
           <div class="w-20 h-20 bg-sky-100 dark:bg-sky-900/30 rounded-3xl flex items-center justify-center shadow-sm border border-sky-200 dark:border-sky-800 transition-transform duration-500">
-            <span class="material-symbols-outlined text-4xl text-sky-600 dark:text-sky-400">manage_accounts</span>
+            <VIcon class="material-symbols-outlined text-4xl text-sky-600 dark:text-sky-400">manage_accounts</VIcon>
           </div>
           <div>
             <h2 class="text-4xl md:text-5xl font-black text-sky-950 dark:text-white italic uppercase tracking-tighter leading-none">
@@ -62,9 +62,9 @@ const parseName = (p: any) => `${p?.primer_apellido || ''} ${p?.segundo_apellido
             <label class="absolute -top-2.5 left-5 px-2 bg-white dark:bg-slate-800 text-[9px] font-black text-sky-600 dark:text-sky-400 uppercase tracking-widest z-10">Búsqueda rápida</label>
             <div class="relative">
               <span class="absolute inset-y-0 left-4 flex items-center text-sky-400">
-                <span class="material-symbols-outlined text-[20px]">search</span>
+                <VIcon class="material-symbols-outlined text-[20px]">search</VIcon>
               </span>
-              <input v-model="searchQuery" class="w-full pl-12 pr-6 py-4 bg-slate-50 dark:bg-slate-900/50 border border-sky-100 dark:border-slate-700 text-sky-900 dark:text-white rounded-2xl text-xs font-bold outline-none focus:border-sky-400 transition-all placeholder:text-slate-400" placeholder="Nombre o correo electrónico...">
+              <UiInput v-model="searchQuery" class="w-full pl-12 pr-6 py-4 bg-slate-50 dark:bg-slate-900/50 border border-sky-100 dark:border-slate-700 text-sky-900 dark:text-white rounded-2xl text-xs font-bold outline-none focus:border-sky-400 transition-all placeholder:text-slate-400" placeholder="Nombre o correo electrónico..." />
             </div>
           </div>
           
@@ -74,12 +74,12 @@ const parseName = (p: any) => `${p?.primer_apellido || ''} ${p?.segundo_apellido
           </div>
         </div>
       </div>
-    </div>
+    </VCard>
 
     <!-- Tabla con Scroll -->
-    <div class="bg-white dark:bg-gray-900 rounded-3xl md:rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-800 overflow-hidden">
+    <VCard class="bg-white dark:bg-gray-900 rounded-3xl md:rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-800 overflow-hidden">
         <div class="overflow-x-auto custom-scrollbar">
-            <table class="w-full text-left min-w-[700px]">
+            <VTable class="w-full text-left min-w-[700px]">
                 <thead class="bg-slate-50 dark:bg-gray-800/50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-200 dark:border-gray-800">
                     <tr>
                         <th class="px-6 md:px-8 py-5">Nombre Completo</th>
@@ -109,7 +109,7 @@ const parseName = (p: any) => `${p?.primer_apellido || ''} ${p?.segundo_apellido
                     </td>
                 </tr>
             </tbody>
-        </table>
+        </VTable>
     </div>
-  </div>
+  </VCard>
 </template>

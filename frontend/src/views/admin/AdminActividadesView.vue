@@ -2,7 +2,7 @@
 import { onMounted, ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 const router = useRouter();
 const actividades = ref<any[]>([]);
@@ -82,7 +82,7 @@ onMounted(fetchDatos);
       <div>
         <div class="flex items-center gap-3 mb-2">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-700 flex items-center justify-center shadow-lg shadow-amber-900/40">
-            <span class="material-symbols-outlined text-white text-[22px]">school</span>
+            <VIcon class="material-symbols-outlined text-white text-[22px]">school</VIcon>
           </div>
           <div>
             <p class="text-[10px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest leading-none">Académico</p>
@@ -91,39 +91,39 @@ onMounted(fetchDatos);
         </div>
         <p class="text-slate-500 text-sm ml-1">Cursos, talleres y conferencias de todos los eventos</p>
       </div>
-      <button @click="abrirCrearActividad"
+      <VBtn @click="abrirCrearActividad"
               class="flex items-center gap-2 px-6 py-3 bg-amber-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20">
-        <span class="material-symbols-outlined text-[18px]">add_circle</span>
+        <VIcon class="material-symbols-outlined text-[18px]">add_circle</VIcon>
         Nueva Actividad
-      </button>
+      </VBtn>
     </div>
 
     <!-- FILTROS -->
-    <div class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm">
+    <VCard class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm">
       <div class="flex flex-wrap items-center gap-4">
         <div class="flex-1 min-w-[250px] relative">
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400">search</span>
-          <input v-model="filtroTexto" type="text" placeholder="Buscar por nombre..."
+          <VIcon class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400">search</VIcon>
+          <UiInput v-model="filtroTexto" type="text" placeholder="Buscar por nombre..."
                  class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm outline-none focus:border-amber-500/50 transition-all" />
         </div>
-        <select v-model="filtroEvento" class="px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold uppercase outline-none focus:border-amber-500/50">
+        <UiSelect v-model="filtroEvento" class="px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold uppercase outline-none focus:border-amber-500/50">
           <option value="">Todos los eventos</option>
           <option v-for="ev in eventos" :key="ev.id" :value="ev.id">{{ ev.nombre }}</option>
-        </select>
+        </UiSelect>
       </div>
-    </div>
+    </VCard>
 
     <!-- TABLA -->
-    <div class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2rem] overflow-hidden shadow-sm">
+    <VCard class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2rem] overflow-hidden shadow-sm">
       <div v-if="isLoading" class="flex justify-center items-center py-20">
         <div class="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
       <div v-else-if="actividadesFiltradas.length === 0" class="flex flex-col items-center py-20 text-slate-400">
-        <span class="material-symbols-outlined text-6xl opacity-20 mb-2">inventory_2</span>
+        <VIcon class="material-symbols-outlined text-6xl opacity-20 mb-2">inventory_2</VIcon>
         <p class="text-xs font-black uppercase tracking-widest">No se encontraron actividades</p>
       </div>
       <div v-else class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
+        <VTable class="w-full text-left border-collapse">
           <thead>
             <tr class="bg-slate-50 dark:bg-white/5 text-[10px] font-black text-slate-500 uppercase tracking-widest">
               <th class="px-6 py-4">Actividad / Tipo</th>
@@ -138,7 +138,7 @@ onMounted(fetchDatos);
               <td class="px-6 py-4">
                 <div class="flex items-center gap-3">
                   <div class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 flex items-center justify-center font-black">
-                    <span class="material-symbols-outlined text-[20px]">menu_book</span>
+                    <VIcon class="material-symbols-outlined text-[20px]">menu_book</VIcon>
                   </div>
                   <div>
                     <p class="text-sm font-black text-slate-800 dark:text-white leading-tight">{{ act.nombre }}</p>
@@ -159,20 +159,21 @@ onMounted(fetchDatos);
               </td>
               <td class="px-6 py-4">
                 <div class="flex items-center justify-end gap-2">
-                  <button @click="irADetalle(act)" title="Gestionar Estudiantes"
+                  <RouterLink v-if="/virtual|híbrido|hibrido/i.test(act.modalidad || '')" :to="`/admin/cursos/${act.id}/aula`" class="rounded-xl bg-sky-50 p-2.5 text-[#0070BB] hover:bg-sky-100" title="Editar aula virtual" aria-label="Editar aula virtual"><VIcon size="18">video_library</VIcon></RouterLink>
+                  <VBtn @click="irADetalle(act)" title="Gestionar Estudiantes"
                           class="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm">
-                    <span class="material-symbols-outlined text-[18px]">groups</span>
-                  </button>
-                  <button @click="abrirEditar(act)" title="Editar"
+                    <VIcon class="material-symbols-outlined text-[18px]">groups</VIcon>
+                  </VBtn>
+                  <VBtn @click="abrirEditar(act)" title="Editar"
                           class="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm">
-                    <span class="material-symbols-outlined text-[18px]">edit</span>
-                  </button>
+                    <VIcon class="material-symbols-outlined text-[18px]">edit</VIcon>
+                  </VBtn>
                 </div>
               </td>
             </tr>
           </tbody>
-        </table>
+        </VTable>
       </div>
-    </div>
+    </VCard>
   </div>
 </template>

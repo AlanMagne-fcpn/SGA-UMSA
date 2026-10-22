@@ -30,7 +30,7 @@ const themeBorder = authStore.esSuperUsuario ? 'border-sky-100 dark:border-sky-9
 </script>
 
 <template>
-  <aside :class="[
+  <VSheet tag="aside" :class="[
     uiStore.isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
     'w-72 bg-white dark:bg-[#0d0d14] text-slate-600 dark:text-slate-300 flex flex-col px-4 py-8 fixed left-0 bottom-0 top-[72px] z-[45] border-r border-slate-200 dark:border-white/5 overflow-y-auto transition-all duration-300 ease-in-out'
   ]">
@@ -40,9 +40,9 @@ const themeBorder = authStore.esSuperUsuario ? 'border-sky-100 dark:border-sky-9
          class="mb-8 p-4 rounded-2xl border transition-colors duration-500">
       <div class="flex items-center gap-3 mb-2">
         <div :class="themeColor" class="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-colors">
-          <span class="material-symbols-outlined text-white text-[20px]">
+          <VIcon class="material-symbols-outlined text-white text-[20px]">
             {{ authStore.esSuperUsuario ? 'shield_person' : 'manage_accounts' }}
-          </span>
+          </VIcon>
         </div>
         <div>
           <p :class="themeText" class="text-[9px] font-black uppercase tracking-widest leading-none mb-1">
@@ -62,135 +62,135 @@ const themeBorder = authStore.esSuperUsuario ? 'border-sky-100 dark:border-sky-9
     </div>
 
     <!-- Navegación Inteligente -->
-    <nav class="space-y-1.5 flex-1">
+    <VSheet tag="nav" class="space-y-1.5 flex-1">
       
       <!-- SECCIÓN: GENERAL -->
       <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 pl-2">General</p>
 
-      <button @click="navigate('admin-dashboard')"
+      <VBtn @click="navigate('admin-dashboard')"
         :class="[isActive('admin-dashboard') ? `${themeColor} text-white shadow-md` : `text-slate-600 dark:text-slate-400 ${themeHover}`]"
         class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group font-bold">
         <div class="flex items-center gap-3">
-          <span class="material-symbols-outlined text-[20px]">monitoring</span>
+          <VIcon class="material-symbols-outlined text-[20px]">monitoring</VIcon>
           <span class="text-[11px] uppercase tracking-wider">Dashboard</span>
         </div>
-        <span class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</span>
-      </button>
+        <VIcon class="material-symbols-outlined text-[16px] opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</VIcon>
+      </VBtn>
 
       <!-- HISTORIAL (Solo Superadmin) -->
-      <button v-if="authStore.esSuperUsuario" @click="navigate('admin-historial')"
+      <VBtn v-if="authStore.esSuperUsuario" @click="navigate('admin-historial')"
         :class="[isActive('admin-historial') ? 'bg-umsa-blue text-white shadow-md' : 'text-slate-600 dark:text-slate-400 hover:bg-sky-50 dark:hover:bg-sky-900/20']"
         class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group font-bold">
         <div class="flex items-center gap-3">
-          <span class="material-symbols-outlined text-[20px]">history</span>
+          <VIcon class="material-symbols-outlined text-[20px]">history</VIcon>
           <span class="text-[11px] uppercase tracking-wider">Historial Sistema</span>
         </div>
-      </button>
+      </VBtn>
 
       <!-- SECCIÓN: GESTIÓN (Específica por Rol) -->
       <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 mt-6 pl-2">Gestión Académica</p>
 
       <template v-if="authStore.esSuperUsuario">
-        <button @click="navigate('admin-gestion')"
+        <VBtn @click="navigate('admin-gestion')"
           :class="[isActive('admin-gestion') ? 'bg-umsa-blue text-white shadow-md' : 'text-slate-600 dark:text-slate-400 hover:bg-sky-50 dark:hover:bg-sky-900/20']"
           class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group font-bold">
           <div class="flex items-center gap-3">
-            <span class="material-symbols-outlined text-[20px]">settings_suggest</span>
+            <VIcon class="material-symbols-outlined text-[20px]">settings_suggest</VIcon>
             <span class="text-[11px] uppercase tracking-wider">Gestión General</span>
           </div>
-        </button>
+        </VBtn>
 
-        <button @click="navigate('admin-certificados-envio')"
+        <VBtn @click="navigate('admin-certificados-envio')"
           :class="[isActive('admin-certificados-envio') ? 'bg-umsa-blue text-white shadow-md' : 'text-slate-600 dark:text-slate-400 hover:bg-sky-50 dark:hover:bg-sky-900/20']"
           class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group font-bold">
           <div class="flex items-center gap-3">
-            <span class="material-symbols-outlined text-[20px]">workspace_premium</span>
+            <VIcon class="material-symbols-outlined text-[20px]">workspace_premium</VIcon>
             <span class="text-[11px] uppercase tracking-wider">Certificados</span>
           </div>
-        </button>
+        </VBtn>
       </template>
 
       <template v-else>
         <!-- Vista Coordinador: Accesos Directos (Tus herramientas de siempre) -->
-        <button @click="navigate('admin-eventos')"
+        <VBtn @click="navigate('admin-eventos')"
           :class="[isActive('admin-eventos') ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/10']"
           class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group font-bold">
           <div class="flex items-center gap-3">
-            <span class="material-symbols-outlined text-[20px]">corporate_fare</span>
+            <VIcon class="material-symbols-outlined text-[20px]">corporate_fare</VIcon>
             <span class="text-[11px] uppercase tracking-wider">Eventos</span>
           </div>
-        </button>
+        </VBtn>
 
 
 
-        <button @click="navigate('admin-solicitudes')"
+        <VBtn @click="navigate('admin-solicitudes')"
           :class="[isActive('admin-solicitudes') ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/10']"
           class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group font-bold">
           <div class="flex items-center gap-3">
-            <span class="material-symbols-outlined text-[20px]">how_to_reg</span>
+            <VIcon class="material-symbols-outlined text-[20px]">how_to_reg</VIcon>
             <span class="text-[11px] uppercase tracking-wider">Solicitudes</span>
           </div>
-        </button>
+        </VBtn>
 
-        <button @click="navigate('admin-certificados-envio')"
+        <VBtn @click="navigate('admin-certificados-envio')"
           :class="[isActive('admin-certificados-envio') ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/10']"
           class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group font-bold">
           <div class="flex items-center gap-3">
-            <span class="material-symbols-outlined text-[20px]">workspace_premium</span>
+            <VIcon class="material-symbols-outlined text-[20px]">workspace_premium</VIcon>
             <span class="text-[11px] uppercase tracking-wider">Certificados</span>
           </div>
-        </button>
+        </VBtn>
       </template>
 
       <!-- SECCIÓN: USUARIOS (Solo Superadmin) -->
       <template v-if="authStore.esSuperUsuario">
         <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 mt-6 pl-2">Sistema</p>
 
-        <button @click="navigate('admin-usuarios')"
+        <VBtn @click="navigate('admin-usuarios')"
           :class="[isActive('admin-usuarios') ? `bg-umsa-blue text-white shadow-md` : `text-slate-600 dark:text-slate-400 hover:bg-sky-50 dark:hover:bg-sky-900/20`]"
           class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group font-bold">
           <div class="flex items-center gap-3">
-            <span class="material-symbols-outlined text-[20px]">manage_accounts</span>
+            <VIcon class="material-symbols-outlined text-[20px]">manage_accounts</VIcon>
             <span class="text-[11px] uppercase tracking-wider">Directorio Usuarios</span>
           </div>
-        </button>
+        </VBtn>
 
-        <button @click="navigate('admin-grados-administrativos')"
+        <VBtn @click="navigate('admin-grados-administrativos')"
           :class="[isActive('admin-grados-administrativos') ? `bg-umsa-blue text-white shadow-md` : `text-slate-600 dark:text-slate-400 hover:bg-sky-50 dark:hover:bg-sky-900/20`]"
           class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group font-bold">
           <div class="flex items-center gap-3">
-            <span class="material-symbols-outlined text-[20px]">badge</span>
+            <VIcon class="material-symbols-outlined text-[20px]">badge</VIcon>
             <span class="text-[11px] uppercase tracking-wider">Grados Administrativos</span>
           </div>
-        </button>
+        </VBtn>
 
-        <button @click="navigate('admin-inscripciones-excel')"
+        <VBtn @click="navigate('admin-inscripciones-excel')"
           :class="[isActive('admin-inscripciones-excel') ? `bg-umsa-blue text-white shadow-md` : `text-slate-600 dark:text-slate-400 hover:bg-sky-50 dark:hover:bg-sky-900/20`]"
           class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group font-bold">
           <div class="flex items-center gap-3">
-            <span class="material-symbols-outlined text-[20px]">upload_file</span>
+            <VIcon class="material-symbols-outlined text-[20px]">upload_file</VIcon>
             <span class="text-[11px] uppercase tracking-wider">Carga Masiva (Excel)</span>
           </div>
-        </button>
+        </VBtn>
 
-        <button @click="navigate('admin-mail-templates')"
+        <VBtn @click="navigate('admin-mail-templates')"
           :class="[isActive('admin-mail-templates') ? `bg-umsa-blue text-white shadow-md` : `text-slate-600 dark:text-slate-400 hover:bg-sky-50 dark:hover:bg-sky-900/20`]"
           class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group font-bold">
           <div class="flex items-center gap-3">
-            <span class="material-symbols-outlined text-[20px]">mail</span>
+            <VIcon class="material-symbols-outlined text-[20px]">mail</VIcon>
             <span class="text-[11px] uppercase tracking-wider">Correos y Auditoría</span>
           </div>
-        </button>
+        </VBtn>
       </template>
 
-    </nav>
+    </VSheet>
 
     <!-- Logout -->
-    <button @click="logout()" 
+    <VBtn @click="logout()"
       class="mt-8 flex items-center gap-3 px-4 py-3 text-red-600 font-black uppercase text-[10px] tracking-widest hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all">
-      <span class="material-symbols-outlined text-[20px]">logout</span>
+      <VIcon class="material-symbols-outlined text-[20px]">logout</VIcon>
       <span>Cerrar Sesión</span>
-    </button>
-  </aside>
+    </VBtn>
+  </VSheet>
 </template>
 

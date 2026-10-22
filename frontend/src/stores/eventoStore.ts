@@ -1,10 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import api from '@/services/api'
+import api, { logoEvento } from '@/services/api'
 
 export const useEventoStore = defineStore('eventoGlobal', () => {
 
   const eventosAplanados = ref<any[]>([])
+  const eventosPorCurso = ref<Record<number, number>>({})
+
+  const registrarEventoDeCurso = (cursoId: number, eventoId: number) => {
+    eventosPorCurso.value[cursoId] = eventoId
+  }
 
   const getEstadoStr = (fase: number) => {
       switch(fase) {
@@ -31,14 +36,15 @@ export const useEventoStore = defineStore('eventoGlobal', () => {
         edicion: ev.version ? `${ev.version}` : `Versión ${ev.gestion}`, 
         fase: ev.fase,
         estadoStr: getEstadoStr(ev.fase),
-        logo: ev.imagen_portada,
+        logo: logoEvento(ev),
         sigla: ev.sigla,
         color_principal: ev.color_principal || '#0070b4',
         telefono: ev.telefono,
         email: ev.email,
         direccion: ev.direccion,
         ubicacion: ev.ubicacion,
-        organizadores: ev.organizadores
+        organizadores: ev.organizadores,
+        secciones: ev.secciones_visibles || {},
       }));
 
       // Seleccionar el primero o el que esté en Inscripciones (2) o Ejecución (3) si no hay nada
@@ -96,6 +102,8 @@ export const useEventoStore = defineStore('eventoGlobal', () => {
 
   return {
     eventosAplanados,
+    eventosPorCurso,
+    registrarEventoDeCurso,
     selectedEventoNombre,
     selectedEstado,
     selectedEventoId,

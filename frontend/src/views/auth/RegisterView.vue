@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { authService } from '@/services/auth.service';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 const router = useRouter();
 
@@ -112,7 +112,7 @@ const handleRegister = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-gray-950 p-4 sm:p-6 lg:p-8 transition-colors duration-300">
+  <div class="min-h-[100svh] flex items-center justify-center bg-slate-50 dark:bg-gray-950 px-4 pb-8 pt-24 sm:px-6 md:pt-28 lg:px-8 transition-colors duration-300">
     <div class="w-full max-w-4xl p-8 md:p-12 space-y-8 bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-2xl border-t-8 border-sky-600 dark:border-sky-500">
       
       <div class="text-center">

@@ -161,45 +161,45 @@ const getStatusColor = (status: string) => {
         <p class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mt-1">Gestiona tu progreso, material y certificados desde tu plataforma académica</p>
       </div>
       <div>
-        <button @click="$router.push({ name: 'estudiante-catalogo' })" class="bg-umsa-blue hover:bg-blue-800 text-white px-5 py-2 rounded-xl font-bold shadow-lg shadow-umsa-blue/30 transition-all flex items-center space-x-2 text-sm uppercase tracking-widest">
-          <span class="material-symbols-outlined text-[18px]">travel_explore</span>
+        <VBtn @click="$router.push({ name: 'estudiante-catalogo' })" class="bg-umsa-blue hover:bg-blue-800 text-white px-5 py-2 rounded-xl font-bold shadow-lg shadow-umsa-blue/30 transition-all flex items-center space-x-2 text-sm uppercase tracking-widest">
+          <VIcon class="material-symbols-outlined text-[18px]">travel_explore</VIcon>
           <span>Explorar Más Cursos</span>
-        </button>
+        </VBtn>
       </div>
     </div>
 
     <!-- Mini Dashboard Stats -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-        <div class="bg-white dark:bg-gray-900 rounded-[1.5rem] p-6 shadow-sm border border-slate-100 dark:border-gray-800 flex items-center justify-between">
+        <VCard class="bg-white dark:bg-gray-900 rounded-[1.5rem] p-6 shadow-sm border border-slate-100 dark:border-gray-800 flex items-center justify-between">
             <div>
                 <p class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mb-1">Cursos en Progreso</p>
                 <h3 class="text-3xl font-black text-umsa-blue dark:text-blue-400">{{ userStats.inscritos }}</h3>
             </div>
             <div class="w-14 h-14 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-500">
-                <span class="material-symbols-outlined text-2xl">auto_stories</span>
+                <VIcon class="material-symbols-outlined text-2xl">auto_stories</VIcon>
             </div>
-        </div>
-        <div class="bg-white dark:bg-gray-900 rounded-[1.5rem] p-6 shadow-sm border border-slate-100 dark:border-gray-800 flex items-center justify-between">
+        </VCard>
+        <VCard class="bg-white dark:bg-gray-900 rounded-[1.5rem] p-6 shadow-sm border border-slate-100 dark:border-gray-800 flex items-center justify-between">
             <div>
                 <p class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mb-1">Cursos Finalizados</p>
                 <h3 class="text-3xl font-black text-emerald-500">{{ userStats.finalizados }}</h3>
             </div>
             <div class="w-14 h-14 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500">
-                <span class="material-symbols-outlined text-2xl">check_circle</span>
+                <VIcon class="material-symbols-outlined text-2xl">check_circle</VIcon>
             </div>
-        </div>
-        <div class="bg-white dark:bg-gray-900 rounded-[1.5rem] p-6 shadow-sm border border-slate-100 dark:border-gray-800 flex items-center justify-between">
+        </VCard>
+        <VCard class="bg-white dark:bg-gray-900 rounded-[1.5rem] p-6 shadow-sm border border-slate-100 dark:border-gray-800 flex items-center justify-between">
             <div>
                 <p class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mb-1">Certificados Disponibles</p>
                 <h3 class="text-3xl font-black text-umsa-gold">{{ userStats.certificados }}</h3>
             </div>
             <div class="w-14 h-14 rounded-full bg-yellow-50 dark:bg-yellow-900/20 flex items-center justify-center text-yellow-500">
-                <span class="material-symbols-outlined text-2xl">workspace_premium</span>
+                <VIcon class="material-symbols-outlined text-2xl">workspace_premium</VIcon>
             </div>
-        </div>
+        </VCard>
     </div>
 
-    <div class="w-full bg-white dark:bg-gray-900 rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 dark:border-gray-800 flex flex-col group/card mb-12">
+    <VCard class="w-full bg-white dark:bg-gray-900 rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 dark:border-gray-800 flex flex-col group/card mb-12">
         
         <!-- Header Evento Banner (Estilo Netflix) -->
         <div class="relative w-full h-[320px] overflow-hidden">
@@ -222,11 +222,11 @@ const getStatusColor = (status: string) => {
           </div>
         </div>
 
-      </div>
+      </VCard>
 
-      <div v-if="eventosInscritos.length === 0" class="rounded-[2rem] border border-slate-100 bg-white px-8 py-12 text-center dark:border-gray-800 dark:bg-gray-900">
+      <VCard v-if="eventosInscritos.length === 0" class="rounded-[2rem] border border-slate-100 bg-white px-8 py-12 text-center dark:border-gray-800 dark:bg-gray-900">
         <p class="text-sm font-bold uppercase tracking-widest text-gray-500">No tienes actividades inscritas.</p>
-      </div>
+      </VCard>
 
       <article
         v-for="(evento, indice) in eventosInscritos"
@@ -255,37 +255,37 @@ const getStatusColor = (status: string) => {
             <p v-if="evento.descripcion" class="mt-2 max-w-3xl text-sm leading-relaxed text-white/85 line-clamp-2">{{ evento.descripcion }}</p>
             <div class="mt-3 flex flex-wrap gap-4 text-[11px] font-bold uppercase tracking-widest text-white/80">
               <span v-if="evento.ubicacion" class="inline-flex items-center gap-1">
-                <span class="material-symbols-outlined text-[16px]">location_on</span>{{ evento.ubicacion }}
+                <VIcon class="material-symbols-outlined text-[16px]">location_on</VIcon>{{ evento.ubicacion }}
               </span>
               <span v-if="evento.fechas" class="inline-flex items-center gap-1">
-                <span class="material-symbols-outlined text-[16px]">calendar_month</span>{{ evento.fechas }}
+                <VIcon class="material-symbols-outlined text-[16px]">calendar_month</VIcon>{{ evento.fechas }}
               </span>
               <span class="inline-flex items-center gap-1">
-                <span class="material-symbols-outlined text-[16px]">school</span>{{ evento.cursos.length }} curso(s) inscrito(s)
+                <VIcon class="material-symbols-outlined text-[16px]">school</VIcon>{{ evento.cursos.length }} curso(s) inscrito(s)
               </span>
             </div>
           </div>
         </div>
 
         <div class="grid gap-6 bg-slate-50 p-6 dark:bg-gray-950/40 md:grid-cols-2 xl:grid-cols-3">
-          <div
+          <VCard
             v-for="act in evento.cursos"
             :key="act.id"
             class="group flex cursor-pointer flex-col overflow-hidden rounded-[1.5rem] border border-slate-200/60 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all hover:-translate-y-1 hover:border-emerald-500/50 dark:border-gray-800 dark:bg-gray-900"
             @click="router.push({ name: 'estudiante-actividades-detalle', params: { id: act.id } })"
           >
             <div class="relative h-44 w-full overflow-hidden">
-              <img :src="act.image" class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110" :alt="act.title">
+              <img :src="act.image" data-course-image class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110" :alt="act.title">
               <span class="absolute right-3 top-3 z-20 rounded-md px-2 py-1 text-[8px] font-black uppercase tracking-widest shadow-sm" :class="getStatusColor(act.status)">
                 {{ act.status }}
               </span>
               <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
-                <button
+                <VBtn
                   class="flex items-center gap-2 rounded-xl bg-umsa-gold px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white"
                   @click.stop="router.push({ name: 'estudiante-actividades-detalle', params: { id: act.id }, query: { tab: 'certificados' } })"
                 >
-                  <span class="material-symbols-outlined text-[16px]">workspace_premium</span> Ver Certificado
-                </button>
+                  <VIcon class="material-symbols-outlined text-[16px]">workspace_premium</VIcon> Ver Certificado
+                </VBtn>
               </div>
             </div>
             <div class="flex flex-1 flex-col bg-white p-5 dark:bg-gray-900">
@@ -301,7 +301,7 @@ const getStatusColor = (status: string) => {
                 </div>
               </div>
             </div>
-          </div>
+          </VCard>
         </div>
       </article>
   </div>

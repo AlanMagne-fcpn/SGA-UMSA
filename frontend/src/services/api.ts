@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 import { useUIStore } from '@/stores/ui';
-import { SIN_IMAGEN } from '@/utils/imageFallback';
+import { SIN_IMAGEN, portadaCurso } from '@/utils/imageFallback';
 
 export const getApiBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL as string | undefined;
@@ -53,6 +53,11 @@ const urlGuardada = (valor: string | null | undefined, carpeta: string) => {
   return getImageUrl(carpeta, valor, '');
 };
 
+/** Logo guardado para este evento; no sustituirlo por la identidad del sistema. */
+export const logoEvento = (evento: any): string => {
+  return urlGuardada(evento?.logo, 'logo') || urlGuardada(evento?.imagen_portada, 'eventos');
+};
+
 /** Imagen del evento: el fondo guardado y, si no hay, el logo. */
 export const imagenEvento = (evento: any): string => {
   if (!evento) return SIN_IMAGEN;
@@ -61,12 +66,22 @@ export const imagenEvento = (evento: any): string => {
     || SIN_IMAGEN;
 };
 
-/** Imagen de la actividad y, si no tiene, la del evento al que pertenece. */
+/** Una portada propia por curso; evita repetir el banner del evento. */
 export const imagenActividad = (actividad: any): string => {
-  if (!actividad) return SIN_IMAGEN;
+  if (!actividad) return portadaCurso('Curso académico');
   const propia = urlGuardada(actividad.imagen, 'cursos');
-  if (propia) return propia;
-  return imagenEvento(actividad.evento);
+  if (propia) {
+    if (propia.startsWith('https://images.unsplash.com/')) {
+      try {
+        const url = new URL(propia);
+        if (Number(url.searchParams.get('w') || 0) < 1600) url.searchParams.set('w', '1600');
+        url.searchParams.set('q', '85');
+        return url.toString();
+      } catch { /* Conserva la URL original si está mal formada. */ }
+    }
+    return propia;
+  }
+  return portadaCurso(actividad.nombre || actividad.tipo || 'Curso académico');
 };
 
 const api = axios.create({

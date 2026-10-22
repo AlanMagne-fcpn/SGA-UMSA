@@ -45,7 +45,7 @@ export class InfoCertificado {
   @Column({ type: 'integer', nullable: true })
   tipo: number;
 
-  /** Flag para distinguir si es certificado de Excelencia Académica (1) o Participación Regular (0) */
+  /** Identificador histórico: 1 = plantilla de aprobación; 0 = plantilla de participación. */
   @Column({ type: 'integer', default: 0 })
   es_excelencia: number;
 

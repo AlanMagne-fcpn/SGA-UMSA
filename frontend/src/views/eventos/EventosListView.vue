@@ -21,7 +21,7 @@
               <h4 class="font-semibold text-sm mb-4">Gestión</h4>
               <div class="space-y-3">
                 <label class="flex items-center gap-2 cursor-pointer">
-                  <input
+                  <UiInput
                     type="checkbox"
                     v-model="filters.years"
                     value="2026"
@@ -30,7 +30,7 @@
                   <span class="text-sm text-gray-600">2026</span>
                 </label>
                  <label class="flex items-center gap-2 cursor-pointer">
-                  <input
+                  <UiInput
                     type="checkbox"
                     v-model="filters.years"
                     value="2025"
@@ -41,12 +41,12 @@
               </div>
             </div>
 
-            <button 
+            <VBtn
                 class="w-full btn btn-ghost text-sm border border-gray-200"
                 @click="resetFilters"
             >
                 Limpiar Filtros
-            </button>
+            </VBtn>
           </div>
         </aside>
 

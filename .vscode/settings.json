@@ -28,5 +28,7 @@
         "Git Bash": {
             "path": "C:\\Program Files\\Git\\bin\\bash.exe"
         }
-    }
+    },
+    "typescript.tsdk": "frontend/node_modules/typescript/lib",
+    "typescript.enablePromptUseWorkspaceTsdk": true
 }

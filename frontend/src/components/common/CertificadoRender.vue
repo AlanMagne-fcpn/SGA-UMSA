@@ -109,7 +109,7 @@ const canvasH = computed(() => props.height || 724);
                  
                  <!-- Tipo: QR -->
                  <div v-else-if="el.tipo === 'qr'" class="bg-white flex items-center justify-center shrink-0 overflow-hidden" :style="{ width: el.width ? `${el.width}px` : '100px', height: el.height ? `${el.height}px` : (el.width ? `${el.width}px` : '100px') }">
-                    <span class="material-symbols-outlined text-slate-800 select-none" :style="{ fontSize: el.width ? `${el.width}px` : '100px' }">qr_code_2</span>
+                    <VIcon class="material-symbols-outlined text-slate-800 select-none" :style="{ fontSize: el.width ? `${el.width}px` : '100px' }">qr_code_2</VIcon>
                  </div>
                  
                  <!-- Tipo: Firma (Bloque) -->

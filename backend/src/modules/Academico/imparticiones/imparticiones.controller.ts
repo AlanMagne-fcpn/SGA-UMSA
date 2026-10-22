@@ -38,6 +38,18 @@ export class ImparticionesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('Coordinador', 'Super Usuario')
   @ApiBearerAuth()
+  @Post('evento/:eventoId/asignar')
+  @ApiOperation({ summary: 'Asignar un ponente a todas las actividades activas de un evento' })
+  asignarAEvento(
+    @Param('eventoId', ParseIntPipe) eventoId: number,
+    @Body() body: { id_usuario: number },
+  ) {
+    return this.service.asignarAEvento(eventoId, Number(body.id_usuario));
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Coordinador', 'Super Usuario')
+  @ApiBearerAuth()
   @Post('asignar-ponente')
   @ApiOperation({ summary: 'Vincular/Crear un ponente a una actividad (Coordinador)' })
   asignarPonente(@Body() dto: AsignarPonenteDto) {
@@ -89,6 +101,15 @@ export class ImparticionesController {
   // ══════════════════════════════════════════════════════════
   //  PONENTE — Vista personal
   // ══════════════════════════════════════════════════════════
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Ponente', 'Coordinador', 'Super Usuario')
+  @ApiBearerAuth()
+  @Get('mis-eventos')
+  @ApiOperation({ summary: 'Mis eventos y actividades asignadas' })
+  misEventos(@Request() req: any) {
+    return this.service.findMisEventos(req.user.id);
+  }
 
   /**
    * GET /imparticiones/mis-actividades

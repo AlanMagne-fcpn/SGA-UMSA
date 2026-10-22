@@ -41,23 +41,23 @@ const navigate = (path: string) => {
       </div>
 
       <div class="flex items-center gap-4">
-        <button 
+        <VBtn
           @click="handleLogout"
           class="hidden sm:block px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm transition-colors"
         >
           Cerrar Sesión
-        </button>
+        </VBtn>
         <!-- Logo Derecho (Placeholder) -->
          <div class="h-12 w-12 bg-red-100 flex items-center justify-center rounded-full text-red-800 text-xs font-bold">
             UMSA
          </div>
          <!-- Mobile menu button -->
-         <button @click="sidebarOpen = !sidebarOpen" class="sm:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500">
+         <VBtn @click="sidebarOpen = !sidebarOpen" class="sm:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500">
             <span class="sr-only">Open sidebar</span>
             <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
-         </button>
+         </VBtn>
       </div>
     </header>
 
@@ -87,20 +87,20 @@ const navigate = (path: string) => {
           </p>
           
           <nav class="w-full space-y-1">
-            <button
+            <VBtn
               v-for="item in menuItems" 
               :key="item.name" 
               @click="navigate(item.path)"
               class="w-full text-left group flex items-center px-3 py-2.5 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-100 transition-colors focus:outline-none"
             >
               <span class="truncate">{{ item.name }}</span>
-            </button>
-             <button 
+            </VBtn>
+             <VBtn
                 @click="handleLogout"
                 class="w-full text-left sm:hidden mt-4 px-3 py-2.5 text-sm font-medium text-red-600 rounded-md hover:bg-red-50 transition-colors"
               >
                 Cerrar Sesión
-              </button>
+              </VBtn>
           </nav>
         </div>
       </aside>

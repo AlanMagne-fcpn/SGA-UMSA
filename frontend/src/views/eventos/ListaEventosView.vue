@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 import { useEventoStore } from '@/stores/eventoStore';
 import { useAuthStore } from '@/stores/auth';
 
@@ -297,7 +297,7 @@ const inhabilitarEvento = async (gestion: any) => {
         cancelButtonColor: '#94a3b8',
         confirmButtonText: 'Sí, Inhabilitar',
         cancelButtonText: 'Cancelar',
-        inputValidator: (value) => {
+        inputValidator: (value: string) => {
           if (!value) {
             return '¡Debes escribir un motivo!'
           }
@@ -552,19 +552,19 @@ const editarGestion = (gestion: any) => {
         <h2 class="text-3xl font-black text-primary-dark dark:text-white uppercase italic">Catálogo Histórico de Eventos</h2>
         <p class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mt-1">Listado detallado de todas las aperturas y gestiones pasadas.</p>
       </div>
-      <button v-if="!isCreating && authStore.puedeCrearEventos" @click="isCreating = true; isEditing = false; editId = null" class="bg-primary-dark dark:bg-blue-600 hover:bg-blue-900 dark:hover:bg-blue-700 text-white font-black px-6 py-3.5 rounded-xl text-[11px] uppercase tracking-widest shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2">
-        <span class="material-symbols-outlined text-[18px]">add_business</span> Crear Nuevo Evento
-      </button>
-      <button v-else @click="isCreating = false; isEditing = false; editId = null" class="bg-slate-200 dark:bg-gray-800 hover:bg-slate-300 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 font-black px-6 py-3.5 rounded-xl text-[11px] uppercase tracking-widest shadow-sm hover:-translate-y-0.5 transition-all flex items-center gap-2">
-        <span class="material-symbols-outlined text-[18px]">close</span> Cancelar
-      </button>
+      <VBtn v-if="!isCreating && authStore.puedeCrearEventos" @click="isCreating = true; isEditing = false; editId = null" class="bg-primary-dark dark:bg-blue-600 hover:bg-blue-900 dark:hover:bg-blue-700 text-white font-black px-6 py-3.5 rounded-xl text-[11px] uppercase tracking-widest shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2">
+        <VIcon class="material-symbols-outlined text-[18px]">add_business</VIcon> Crear Nuevo Evento
+      </VBtn>
+      <VBtn v-else @click="isCreating = false; isEditing = false; editId = null" class="bg-slate-200 dark:bg-gray-800 hover:bg-slate-300 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 font-black px-6 py-3.5 rounded-xl text-[11px] uppercase tracking-widest shadow-sm hover:-translate-y-0.5 transition-all flex items-center gap-2">
+        <VIcon class="material-symbols-outlined text-[18px]">close</VIcon> Cancelar
+      </VBtn>
     </div>
 
     <!-- Reutilizamos el Wizard del componente padre por si se necesita crear desde aquí -->
-    <div v-if="isCreating || isEditing" class="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl border border-blue-100 dark:border-gray-800 animate-in slide-in-from-top-4 duration-500 overflow-hidden relative">
+    <VCard v-if="isCreating || isEditing" class="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl border border-blue-100 dark:border-gray-800 animate-in slide-in-from-top-4 duration-500 overflow-hidden relative">
         <div class="bg-gradient-to-r from-umsa-blue to-emerald-500 p-8 pb-10">
             <h3 class="text-2xl font-black text-white uppercase italic flex items-center gap-3">
-                <span class="material-symbols-outlined text-3xl">{{ isEditing ? 'edit_calendar' : 'add_circle' }}</span>
+                <VIcon class="material-symbols-outlined text-3xl">{{ isEditing ? 'edit_calendar' : 'add_circle' }}</VIcon>
                 {{ isEditing ? 'Editar Gestión de Evento' : 'Crear Nueva Gestión de Evento' }}
             </h3>
         </div>
@@ -574,31 +574,31 @@ const editarGestion = (gestion: any) => {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Nombre del Evento</label>
-                    <input v-model="nuevoEvento.nombre" type="text" required class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-5 py-3 text-sm font-bold" />
+                    <UiInput v-model="nuevoEvento.nombre" type="text" required class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-5 py-3 text-sm font-bold" />
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sigla</label>
-                        <input v-model="nuevoEvento.sigla" type="text" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-5 py-3 text-sm font-black uppercase" />
+                        <UiInput v-model="nuevoEvento.sigla" type="text" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-5 py-3 text-sm font-black uppercase" />
                     </div>
                     <div>
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Gestión</label>
-                        <input v-model="nuevoEvento.gestion" type="text" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-5 py-3 text-sm font-bold" />
+                        <UiInput v-model="nuevoEvento.gestion" type="text" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl px-5 py-3 text-sm font-bold" />
                     </div>
                 </div>
             </div>
             
             <div class="flex justify-end pt-4">
-                <button type="submit" class="bg-emerald-600 text-white px-10 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">
+                <VBtn type="submit" class="bg-emerald-600 text-white px-10 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">
                     {{ isEditing ? 'Guardar Cambios' : 'Crear Evento' }}
-                </button>
+                </VBtn>
             </div>
         </form>
-    </div>
+    </VCard>
 
     <!-- Lista de eventos agrupados -->
     <div v-show="!isCreating && !isEditing" class="grid grid-cols-1 gap-8 mt-4">
-      <div v-for="(evento, index) in eventosAgrupados" :key="index" class="bg-white dark:bg-gray-900 rounded-[2rem] shadow-sm border border-slate-100 dark:border-gray-800 transition-all overflow-hidden relative group/evento">
+      <VCard v-for="(evento, index) in eventosAgrupados" :key="index" class="bg-white dark:bg-gray-900 rounded-[2rem] shadow-sm border border-slate-100 dark:border-gray-800 transition-all overflow-hidden relative group/evento">
         
         <div class="h-24 w-full bg-gradient-to-r from-slate-100 to-slate-200 dark:from-gray-800 dark:to-gray-900"></div>
 
@@ -606,10 +606,10 @@ const editarGestion = (gestion: any) => {
             <div class="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-6">
               <div class="flex-1">
                 <div class="flex items-center gap-5 mb-4">
-                  <div class="w-20 h-20 rounded-2xl bg-white dark:bg-gray-800 shadow-xl overflow-hidden flex items-center justify-center border-4 border-white dark:border-gray-900 shrink-0">
+                  <VCard class="w-20 h-20 rounded-2xl bg-white dark:bg-gray-800 shadow-xl overflow-hidden flex items-center justify-center border-4 border-white dark:border-gray-900 shrink-0">
                     <img v-if="evento.logo_img" :src="evento.logo_img" class="w-full h-full object-contain p-2">
-                    <span v-else class="material-symbols-outlined text-3xl text-slate-200">image</span>
-                  </div>
+                    <VIcon v-else class="material-symbols-outlined text-3xl text-slate-200">image</VIcon>
+                  </VCard>
                   <div>
                     <h3 class="text-2xl font-black text-primary-dark dark:text-white uppercase tracking-tighter italic">{{ evento.nombre }}</h3>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 italic">{{ evento.gestiones.length }} Gestiones registradas</p>
@@ -632,18 +632,18 @@ const editarGestion = (gestion: any) => {
                     {{ gestion.estadoStr }}
                   </span>
                   <div class="flex gap-1">
-                    <button @click.stop="editarGestion(gestion)" class="w-7 h-7 rounded-lg bg-slate-50 dark:bg-gray-800 text-slate-400 hover:text-umsa-blue flex items-center justify-center">
-                        <span class="material-symbols-outlined text-sm">edit</span>
-                    </button>
-                    <button v-if="gestion.estado !== -1" @click.stop="inhabilitarEvento(gestion)" class="w-7 h-7 rounded-lg bg-slate-50 dark:bg-gray-800 text-slate-400 hover:text-rose-500 flex items-center justify-center">
-                        <span class="material-symbols-outlined text-sm">block</span>
-                    </button>
+                    <VBtn @click.stop="editarGestion(gestion)" class="w-7 h-7 rounded-lg bg-slate-50 dark:bg-gray-800 text-slate-400 hover:text-umsa-blue flex items-center justify-center">
+                        <VIcon class="material-symbols-outlined text-sm">edit</VIcon>
+                    </VBtn>
+                    <VBtn v-if="gestion.estado !== -1" @click.stop="inhabilitarEvento(gestion)" class="w-7 h-7 rounded-lg bg-slate-50 dark:bg-gray-800 text-slate-400 hover:text-rose-500 flex items-center justify-center">
+                        <VIcon class="material-symbols-outlined text-sm">block</VIcon>
+                    </VBtn>
                   </div>
                 </div>
               </div>
             </div>
         </div>
-      </div>
+      </VCard>
     </div>
   </div>
 </template>

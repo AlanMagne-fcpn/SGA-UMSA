@@ -198,10 +198,10 @@ onMounted(cargarDatos);
         </p>
       </div>
       <div class="flex items-center gap-3 flex-wrap">
-        <button @click="abrirModal('general')"
+        <VBtn @click="abrirModal('general')"
           class="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-sm hover:shadow-md hover:border-sky-400 transition-all">
-          <span class="material-symbols-outlined text-[17px]">summarize</span> Reporte General
-        </button>
+          <VIcon class="material-symbols-outlined text-[17px]">summarize</VIcon> Reporte General
+        </VBtn>
       </div>
     </div>
 
@@ -215,11 +215,11 @@ onMounted(cargarDatos);
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
       <!-- Gráfico de barras: inscritos por actividad -->
-      <div class="lg:col-span-2 bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-gray-800 shadow-sm relative overflow-hidden">
+      <VCard class="lg:col-span-2 bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-gray-800 shadow-sm relative overflow-hidden">
         <!-- Ícono decorativo -->
-        <span class="material-symbols-outlined absolute -right-6 -top-6 text-[130px] text-slate-50 dark:text-gray-800/20 select-none pointer-events-none">
+        <VIcon class="material-symbols-outlined absolute -right-6 -top-6 text-[130px] text-slate-50 dark:text-gray-800/20 select-none pointer-events-none">
           bar_chart
-        </span>
+        </VIcon>
 
         <!-- Cabecera sección -->
         <div class="flex items-start justify-between mb-8 relative z-10">
@@ -231,10 +231,10 @@ onMounted(cargarDatos);
               Actividades con más inscritos
             </p>
           </div>
-          <button @click="abrirModal('actividades')"
+          <VBtn @click="abrirModal('actividades')"
             class="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-100 transition-colors">
-            <span class="material-symbols-outlined text-[13px]">download</span> Exportar
-          </button>
+            <VIcon class="material-symbols-outlined text-[13px]">download</VIcon> Exportar
+          </VBtn>
         </div>
 
         <!-- Barras -->
@@ -244,7 +244,7 @@ onMounted(cargarDatos);
         
         <div v-else-if="actividadesGrafico.length === 0" class="flex flex-col items-center justify-center h-64 text-center">
           <div class="w-16 h-16 bg-slate-50 dark:bg-gray-800 rounded-full flex items-center justify-center mb-3">
-              <span class="material-symbols-outlined text-slate-300 text-3xl">inbox</span>
+              <VIcon class="material-symbols-outlined text-slate-300 text-3xl">inbox</VIcon>
           </div>
           <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">No hay actividades registradas</p>
           <p class="text-[10px] text-slate-300 mt-1">Crea actividades en la gestión de eventos para ver estadísticas.</p>
@@ -277,19 +277,19 @@ onMounted(cargarDatos);
             </div>
           </div>
         </div>
-      </div>
+      </VCard>
 
       <!-- Panel de estado académico -->
-      <div class="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-gray-800 shadow-sm flex flex-col gap-6">
+      <VCard class="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-gray-800 shadow-sm flex flex-col gap-6">
         <div class="flex items-center justify-between border-b border-slate-50 dark:border-gray-800 pb-4">
           <h3 class="text-sm font-black text-sky-600 dark:text-sky-400 uppercase italic tracking-widest">
             Estado Académico
           </h3>
-          <button @click="abrirModal('eventos')"
+          <VBtn @click="abrirModal('eventos')"
             class="p-1.5 rounded-xl text-slate-400 hover:text-sky-500 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition-colors"
             title="Exportar reporte de eventos">
-            <span class="material-symbols-outlined text-[19px]">download</span>
-          </button>
+            <VIcon class="material-symbols-outlined text-[19px]">download</VIcon>
+          </VBtn>
         </div>
 
         <!-- Anillo decorativo -->
@@ -319,66 +319,66 @@ onMounted(cargarDatos);
             <span class="text-[11px] font-black text-sky-800 dark:text-white">{{ statsComputed[2]?.value || '0' }}</span>
           </div>
         </div>
-      </div>
+      </VCard>
     </div>
 
     <!-- ══════════════════ ACCESOS RÁPIDOS ══════════════════ -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
       <!-- 1. Eventos -->
-      <button @click="router.push({ name: 'coordinador-gestion-eventos' })"
+      <VBtn @click="router.push({ name: 'coordinador-gestion-eventos' })"
         class="p-6 bg-white dark:bg-gray-900 rounded-[2rem] border border-slate-100 dark:border-gray-800 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all flex items-center gap-4 group text-left">
         <div class="w-12 h-12 p-3 rounded-2xl bg-sky-50 dark:bg-sky-900/20 text-sky-500 group-hover:bg-sky-500 group-hover:text-white transition-colors shrink-0">
-          <span class="material-symbols-outlined text-2xl">event_available</span>
+          <VIcon class="material-symbols-outlined text-2xl">event_available</VIcon>
         </div>
         <div>
           <p class="text-xs font-black text-sky-700 dark:text-sky-300 uppercase tracking-tight italic">Gestión de Eventos</p>
           <p class="text-[10px] text-slate-400 mt-0.5">Administrar eventos asignados</p>
         </div>
-      </button>
+      </VBtn>
  
       <!-- 2. Solicitudes -->
-      <button @click="router.push({ name: 'coordinador-solicitudes' })"
+      <VBtn @click="router.push({ name: 'coordinador-solicitudes' })"
         class="p-6 bg-white dark:bg-gray-900 rounded-[2rem] border border-slate-100 dark:border-gray-800 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all flex items-center gap-4 group text-left">
         <div class="w-12 h-12 p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors shrink-0">
-          <span class="material-symbols-outlined text-2xl">how_to_reg</span>
+          <VIcon class="material-symbols-outlined text-2xl">how_to_reg</VIcon>
         </div>
         <div>
           <p class="text-xs font-black text-emerald-700 dark:text-emerald-300 uppercase tracking-tight italic">Revisar Solicitudes</p>
           <p class="text-[10px] text-slate-400 mt-0.5">Aprobación de inscripciones</p>
         </div>
-      </button>
+      </VBtn>
  
       <!-- 3. Certificados -->
-      <button @click="router.push({ name: 'coordinador-certificados' })"
+      <VBtn @click="router.push({ name: 'coordinador-certificados' })"
         class="p-6 bg-white dark:bg-gray-900 rounded-[2rem] border border-slate-100 dark:border-gray-800 shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all flex items-center gap-4 group text-left">
         <div class="w-12 h-12 p-3 rounded-2xl bg-amber-50 dark:bg-amber-900/20 text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-colors shrink-0">
-          <span class="material-symbols-outlined text-2xl">workspace_premium</span>
+          <VIcon class="material-symbols-outlined text-2xl">workspace_premium</VIcon>
         </div>
         <div>
           <p class="text-xs font-black text-amber-600 dark:text-gray-300 uppercase tracking-tight italic">Certificados</p>
           <p class="text-[10px] text-slate-400 mt-0.5">Gestión de acreditaciones</p>
         </div>
-      </button>
+      </VBtn>
     </div>
 
     <!-- ══════════════════ MODAL DE REPORTES ══════════════════ -->
     <Teleport to="body">
       <Transition name="fadein">
-        <div v-if="modal" class="fixed inset-0 z-[9000] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+        <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" @click:outside="modal = false" v-if="modal"  role="dialog" aria-modal="true">
           <!-- Backdrop -->
-          <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="modal = false"></div>
+
 
           <!-- Tarjeta del modal -->
-          <div class="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100 dark:border-gray-800">
+          <VCard class="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100 dark:border-gray-800">
 
             <!-- Paso 1: tipo de reporte seleccionado (cabecera) -->
             <div class="bg-gradient-to-br from-sky-600 to-emerald-500 p-8">
-              <button @click="modal = false" class="absolute top-5 right-5 text-white/60 hover:text-white transition-colors">
-                <span class="material-symbols-outlined text-2xl">close</span>
-              </button>
+              <VBtn @click="modal = false" class="absolute top-5 right-5 text-white/60 hover:text-white transition-colors">
+                <VIcon class="material-symbols-outlined text-2xl">close</VIcon>
+              </VBtn>
               <div class="flex items-center gap-4">
                 <div class="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
-                  <span class="material-symbols-outlined text-white text-2xl">{{ INFO_REPORTE[tipoActivo].icono }}</span>
+                  <VIcon class="material-symbols-outlined text-white text-2xl">{{ INFO_REPORTE[tipoActivo].icono }}</VIcon>
                 </div>
                 <div>
                   <p class="text-[10px] font-black text-sky-100 uppercase tracking-widest">Generar Reporte</p>
@@ -392,18 +392,18 @@ onMounted(cargarDatos);
             <div class="px-8 pt-6">
               <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Tipo de reporte</p>
               <div class="grid grid-cols-3 gap-2">
-                <button v-for="(info, key) in INFO_REPORTE" :key="key" @click="tipoActivo = key as TipoReporte"
+                <VBtn v-for="(info, key) in INFO_REPORTE" :key="key" @click="tipoActivo = key as TipoReporte"
                   :class="[
                     'flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 text-center transition-all',
                     tipoActivo === key
                       ? 'border-sky-400 bg-sky-50 dark:bg-sky-900/20 text-sky-600'
                       : 'border-slate-100 dark:border-gray-800 text-slate-400 hover:border-sky-200'
                   ]">
-                  <span class="material-symbols-outlined text-xl">{{ info.icono }}</span>
+                  <VIcon class="material-symbols-outlined text-xl">{{ info.icono }}</VIcon>
                   <span class="text-[9px] font-black uppercase tracking-wide leading-tight">
                     {{ key === 'general' ? 'General' : key === 'eventos' ? 'Eventos' : 'Actividades' }}
                   </span>
-                </button>
+                </VBtn>
               </div>
             </div>
 
@@ -412,30 +412,30 @@ onMounted(cargarDatos);
               <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Formato de descarga</p>
 
               <!-- PDF -->
-              <button @click="descargar('pdf')" :disabled="generando"
+              <VBtn @click="descargar('pdf')" :disabled="generando"
                 class="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-red-100 dark:border-red-900/30 hover:border-red-400 bg-red-50/40 dark:bg-red-900/10 hover:bg-red-50 transition-all group/pdf disabled:opacity-50 disabled:cursor-not-allowed">
                 <div class="w-11 h-11 rounded-xl bg-red-500 text-white flex items-center justify-center shadow-md shadow-red-400/20 group-hover/pdf:scale-105 transition-transform shrink-0">
-                  <span class="material-symbols-outlined text-xl">picture_as_pdf</span>
+                  <VIcon class="material-symbols-outlined text-xl">picture_as_pdf</VIcon>
                 </div>
                 <div class="text-left">
                   <p class="text-sm font-black text-red-700 dark:text-red-400">Descargar PDF</p>
                   <p class="text-[10px] text-slate-400 mt-0.5">Documento con portada, tablas formateadas y pie de página institucional</p>
                 </div>
-                <span class="material-symbols-outlined text-slate-300 ml-auto">chevron_right</span>
-              </button>
+                <VIcon class="material-symbols-outlined text-slate-300 ml-auto">chevron_right</VIcon>
+              </VBtn>
 
               <!-- Excel -->
-              <button @click="descargar('excel')" :disabled="generando"
+              <VBtn @click="descargar('excel')" :disabled="generando"
                 class="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-emerald-100 dark:border-emerald-900/30 hover:border-emerald-400 bg-emerald-50/40 dark:bg-emerald-900/10 hover:bg-emerald-50 transition-all group/xls disabled:opacity-50 disabled:cursor-not-allowed">
                 <div class="w-11 h-11 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-400/20 group-hover/xls:scale-105 transition-transform shrink-0">
-                  <span class="material-symbols-outlined text-xl">table_view</span>
+                  <VIcon class="material-symbols-outlined text-xl">table_view</VIcon>
                 </div>
                 <div class="text-left">
                   <p class="text-sm font-black text-emerald-700 dark:text-emerald-400">Descargar Excel (.xlsx)</p>
                   <p class="text-[10px] text-slate-400 mt-0.5">Hojas separadas por sección, columnas ajustadas, listo para analizar</p>
                 </div>
-                <span class="material-symbols-outlined text-slate-300 ml-auto">chevron_right</span>
-              </button>
+                <VIcon class="material-symbols-outlined text-slate-300 ml-auto">chevron_right</VIcon>
+              </VBtn>
 
               <!-- Spinner de carga -->
               <div v-if="generando" class="flex items-center justify-center gap-3 pt-2 text-sky-600">
@@ -443,8 +443,8 @@ onMounted(cargarDatos);
                 <span class="text-sm font-bold">Generando archivo…</span>
               </div>
             </div>
-          </div>
-        </div>
+          </VCard>
+        </VDialog>
       </Transition>
     </Teleport>
 

@@ -51,7 +51,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="bg-white dark:bg-gray-900 p-6 rounded-2xl border border-slate-200 dark:border-gray-800 shadow-sm flex flex-col items-center text-center">
+  <VCard class="bg-white dark:bg-gray-900 p-6 rounded-2xl border border-slate-200 dark:border-gray-800 shadow-sm flex flex-col items-center text-center">
     <h3 class="text-sm font-black uppercase text-slate-700 dark:text-gray-200 mb-4 tracking-widest">Mi QR de Asistencia</h3>
     
     <div class="relative p-4 bg-white rounded-xl border border-slate-100 shadow-inner mb-4">
@@ -60,7 +60,7 @@ onUnmounted(() => {
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-umsa-blue"></div>
       </div>
       <div v-else class="w-[200px] h-[200px] flex items-center justify-center bg-slate-50 dark:bg-gray-800 rounded-lg text-slate-400">
-        <span class="material-symbols-outlined text-4xl">qr_code_2</span>
+        <VIcon class="material-symbols-outlined text-4xl">qr_code_2</VIcon>
       </div>
     </div>
 
@@ -74,9 +74,9 @@ onUnmounted(() => {
       Expira en: <span class="font-bold text-umsa-blue dark:text-blue-400">{{ formatTime(timeLeft) }}</span>
     </p>
 
-    <button @click="fetchQR" :disabled="loading" class="mt-4 text-[10px] px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 font-bold rounded-lg transition-colors border border-slate-200 dark:border-gray-700 uppercase tracking-wider disabled:opacity-50 flex items-center gap-2">
-      <span class="material-symbols-outlined text-xs">refresh</span>
+    <VBtn @click="fetchQR" :disabled="loading" class="mt-4 text-[10px] px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 font-bold rounded-lg transition-colors border border-slate-200 dark:border-gray-700 uppercase tracking-wider disabled:opacity-50 flex items-center gap-2">
+      <VIcon class="material-symbols-outlined text-xs">refresh</VIcon>
       Actualizar Ahora
-    </button>
-  </div>
+    </VBtn>
+  </VCard>
 </template>

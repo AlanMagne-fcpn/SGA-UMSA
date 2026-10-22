@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import api, { imagenActividad, imagenEvento } from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 export const useCertificadosStore = defineStore('certificados', () => {
   const misCertificados = ref<any[]>([]);

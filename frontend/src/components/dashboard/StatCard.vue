@@ -61,9 +61,9 @@ const iconColor = computed(() => {
 <template>
   <div :class="wrapperClass">
     <div class="absolute -right-2 -top-2 opacity-10 group-hover:opacity-20 transition-opacity">
-        <span class="material-symbols-outlined text-6xl" :class="iconColor">
+        <VIcon class="material-symbols-outlined text-6xl" :class="iconColor">
             {{ icon }}
-        </span>
+        </VIcon>
     </div>
 
     <div class="relative z-10">
@@ -75,9 +75,9 @@ const iconColor = computed(() => {
                 {{ value }}
             </h2>
             <div class="w-10 h-10 rounded-xl flex items-center justify-center transition-colors" :class="iconClass">
-                <span class="material-symbols-outlined text-[22px]" :class="iconColor">
+                <VIcon class="material-symbols-outlined text-[22px]" :class="iconColor">
                     {{ icon }}
-                </span>
+                </VIcon>
             </div>
         </div>
     </div>

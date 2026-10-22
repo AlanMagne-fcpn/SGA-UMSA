@@ -51,6 +51,12 @@ const imageStorage = diskStorage({
 export class EventosAdminController {
   constructor(private readonly eventosService: EventosService) {}
 
+  @Get(':id/usuarios')
+  @ApiOperation({ summary: 'Usuarios vinculados al evento por rol' })
+  getUsuariosEvento(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    return this.eventosService.getUsuariosEventoAdmin(id, req.user);
+  }
+
   @Get(':id/actividades-academicas')
   @ApiOperation({ summary: 'Actividades académicas de un evento (Coordinador)' })
   getActividades(@Param('id', ParseIntPipe) id: number) {

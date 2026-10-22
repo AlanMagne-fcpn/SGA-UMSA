@@ -11,9 +11,9 @@
     <!-- Hero Section -->
     <section class="bg-gradient-to-r from-[#0052a3] to-[#1976d2] text-white py-12">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <button @click="$router.back()" class="mb-4 text-blue-100 hover:text-white flex items-center gap-2">
+        <VBtn @click="$router.back()" class="mb-4 text-blue-100 hover:text-white flex items-center gap-2">
           ← Volver
-        </button>
+        </VBtn>
         <h1 class="text-4xl font-bold mb-4">{{ event.descripcion }}</h1>
         <div class="flex flex-wrap items-center gap-6 text-blue-100">
           <div class="flex items-center gap-2">
@@ -54,9 +54,9 @@
                      <p><strong>Estado:</strong> {{ event.descripcion ? 'Inscripciones Abiertas' : 'Próximamente' }}</p>
                 </div>
                 
-                <button class="w-full btn btn-primary mb-4">
+                <VBtn class="w-full btn btn-primary mb-4">
                     Pre-Inscribirse
-                </button>
+                </VBtn>
                 
                 <p class="text-xs text-center text-gray-500">
                     * La inscripción está sujeta a cupos disponibles.

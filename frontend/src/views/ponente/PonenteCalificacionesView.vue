@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 const route = useRoute();
 const router = useRouter();
@@ -46,29 +46,20 @@ const fetchEstudiantes = async () => {
         actividadInfo.value.min_nota = actRes.data.min_nota ?? 51;
 
         // Cargar estudiantes
-        const response = await api.get(`/inscripciones/ponente/${actividadId.value}`);
+        const response = await api.get(`/ponente/inscripciones/actividad/${actividadId.value}`);
         estudiantes.value = response.data.map((ins: any) => ({
             id: ins.id,
-            nombre: `${ins.usuario.persona.nombres} ${ins.usuario.persona.primer_apellido}`,
-            correo: ins.usuario.email,
-            nota: ins.note_principal || 0,
-            originalNota: ins.note_principal || 0,
+            nombre: [ins.usuario?.persona?.nombres, ins.usuario?.persona?.primer_apellido].filter(Boolean).join(' ') || 'Sin nombre',
+            correo: ins.usuario?.email || '',
+            nota: Number(ins.nota_principal ?? 0),
+            originalNota: Number(ins.nota_principal ?? 0),
             guardado: true
         }));
         
-        if (response.data.length > 0) {
-            actividadInfo.value.nombre = response.data[0].actividadAcademica.nombre;
-            actividadInfo.value.evento = response.data[0].actividadAcademica.evento?.nombre || 'Evento';
-        }
     } catch (error: any) {
         console.error('Error al cargar estudiantes:', error);
-        // Datos mock para desarrollo si el endpoint no existe
-        estudiantes.value = [
-            { id: 1, nombre: 'Ana Gómez', correo: 'ana@umsa.bo', nota: 85, originalNota: 85, guardado: true },
-            { id: 2, nombre: 'Luis Martínez', correo: 'luis@umsa.bo', nota: 60, originalNota: 60, guardado: true },
-            { id: 3, nombre: 'María Vargas', correo: 'maria@umsa.bo', nota: 0, originalNota: 0, guardado: true }
-        ];
-        actividadInfo.value.nombre = 'Actividad de Prueba';
+        estudiantes.value = [];
+        Swal.fire('Error', error.response?.data?.message || 'No se pudieron cargar los estudiantes y sus notas.', 'error');
     } finally {
         loading.value = false;
     }
@@ -79,7 +70,7 @@ const guardarNotas = async () => {
     const modificados = estudiantes.value.filter(e => e.nota !== e.originalNota);
     
     for (const est of modificados) {
-        if (est.nota === undefined || est.nota === null || est.nota < 0 || est.nota > 100) {
+        if (typeof est.nota !== 'number' || !Number.isFinite(est.nota) || est.nota < 0 || est.nota > 100) {
             Swal.fire('Error', 'La calificación debe estar entre 0 y 100.', 'error');
             saving.value = false;
             return;
@@ -93,10 +84,8 @@ const guardarNotas = async () => {
     }
 
     try {
-        // En un escenario real, podríamos enviar uno por uno o un bulk
-        // Tu compañero definirá: PATCH /inscripciones/ponente/:actividadId/:inscripcionId/nota
         for (const est of modificados) {
-            await api.patch(`/inscripciones/ponente/${actividadId.value}/${est.id}/nota`, {
+            await api.patch(`/ponente/inscripciones/actividad/${actividadId.value}/${est.id}/nota`, {
                 nota: est.nota
             });
             est.originalNota = est.nota;
@@ -110,7 +99,7 @@ const guardarNotas = async () => {
             confirmButtonColor: '#005a96'
         });
     } catch (error) {
-        Swal.fire('Error', 'Hubo un problema al guardar las notas. El backend podría no estar listo.', 'error');
+        Swal.fire('Error', 'Hubo un problema al guardar las notas. Intenta nuevamente.', 'error');
     } finally {
         saving.value = false;
     }
@@ -141,24 +130,24 @@ const getNotaClass = (nota: number) => {
   <div class="animate-in fade-in duration-500 space-y-6">
     <!-- Header de Navegación -->
     <div class="flex items-center justify-between">
-        <button @click="router.back()" class="flex items-center gap-2 text-slate-500 hover:text-umsa-blue transition-colors font-black text-[11px] uppercase tracking-widest">
-            <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+        <VBtn @click="router.back()" class="flex items-center gap-2 text-slate-500 hover:text-umsa-blue transition-colors font-black text-[11px] uppercase tracking-widest">
+            <VIcon class="material-symbols-outlined text-[16px]">arrow_back</VIcon>
             Volver al Detalle
-        </button>
+        </VBtn>
         
         <div class="flex items-center gap-3">
-             <button @click="fetchEstudiantes" class="p-2.5 text-slate-400 hover:text-umsa-blue hover:bg-blue-50 rounded-xl transition-all" title="Recargar lista">
-                <span class="material-symbols-outlined" :class="{'animate-spin': loading}">refresh</span>
-            </button>
-            <button @click="guardarNotas" :disabled="saving" class="bg-umsa-blue hover:bg-blue-700 disabled:opacity-50 text-white font-black px-6 py-3 rounded-2xl uppercase tracking-widest text-[11px] transition-all flex items-center gap-2 shadow-xl shadow-umsa-blue/20">
-                <span class="material-symbols-outlined text-[18px]">{{ saving ? 'sync' : 'save_as' }}</span>
+             <VBtn @click="fetchEstudiantes" class="p-2.5 text-slate-400 hover:text-umsa-blue hover:bg-blue-50 rounded-xl transition-all" title="Recargar lista">
+                <VIcon class="material-symbols-outlined" :class="{'animate-spin': loading}">refresh</VIcon>
+            </VBtn>
+            <VBtn @click="guardarNotas" :disabled="saving || loading" class="bg-umsa-blue hover:bg-blue-700 disabled:opacity-50 text-white font-black px-6 py-3 rounded-2xl uppercase tracking-widest text-[11px] transition-all flex items-center gap-2 shadow-xl shadow-umsa-blue/20">
+                <VIcon class="material-symbols-outlined text-[18px]">{{ saving ? 'sync' : 'save_as' }}</VIcon>
                 {{ saving ? 'Guardando...' : 'Publicar Calificaciones' }}
-            </button>
+            </VBtn>
         </div>
     </div>
 
     <!-- Banner Info -->
-    <div class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2rem] p-8 shadow-sm">
+    <VCard class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2rem] p-8 shadow-sm">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
                 <div class="flex items-center gap-2 mb-2">
@@ -183,34 +172,34 @@ const getNotaClass = (nota: number) => {
                 </div>
             </div>
         </div>
-    </div>
+    </VCard>
 
     <!-- Controles de Tabla -->
     <div class="flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-100/50 dark:bg-gray-900/50 p-4 rounded-3xl border border-slate-200 dark:border-gray-800">
         <div class="relative w-full md:w-96">
-            <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-            <input v-model="searchQuery" type="text" placeholder="Nombre o correo del estudiante..." class="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-umsa-blue/20">
+            <VIcon class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</VIcon>
+            <UiInput v-model="searchQuery" type="text" placeholder="Nombre o correo del estudiante..." class="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-umsa-blue/20" />
         </div>
         
         <div class="flex items-center gap-2 w-full md:w-auto">
             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2 ml-4">Filtrar:</span>
-            <button v-for="st in ['todos', 'aprobados', 'reprobados', 'pendientes']" :key="st" 
+            <VBtn v-for="st in ['todos', 'aprobados', 'reprobados', 'pendientes']" :key="st"
                 @click="filterStatus = st"
                 :class="[filterStatus === st ? 'bg-umsa-blue text-white shadow-lg shadow-umsa-blue/20' : 'bg-white dark:bg-gray-900 text-slate-500 hover:bg-slate-50']"
                 class="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-gray-800">
                 {{ st }}
-            </button>
+            </VBtn>
         </div>
     </div>
 
     <!-- Tabla de Calificaciones -->
-    <div class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2rem] overflow-hidden shadow-sm">
+    <VCard class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2rem] overflow-hidden shadow-sm">
         <div v-if="loading" class="p-20 flex flex-col items-center justify-center gap-4 text-slate-400">
-            <span class="material-symbols-outlined animate-spin text-4xl">sync</span>
+            <VIcon class="material-symbols-outlined animate-spin text-4xl">sync</VIcon>
             <p class="text-xs font-black uppercase tracking-widest">Sincronizando nómina...</p>
         </div>
         
-        <table v-else class="w-full text-left">
+        <VTable v-else class="w-full text-left">
             <thead>
                 <tr class="bg-slate-50/50 dark:bg-black/20 border-b border-slate-100 dark:border-gray-800">
                     <th class="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Estudiante</th>
@@ -229,16 +218,16 @@ const getNotaClass = (nota: number) => {
                             <div>
                                 <div class="text-sm font-black text-slate-700 dark:text-white mb-0.5">{{ est.nombre }}</div>
                                 <div class="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-[12px]">mail</span> {{ est.correo }}
+                                    <VIcon class="material-symbols-outlined text-[12px]">mail</VIcon> {{ est.correo }}
                                 </div>
                             </div>
                         </div>
                     </td>
                     <td class="px-8 py-6 w-56">
                         <div class="relative">
-                            <input type="number" v-model="est.nota" min="0" max="100"
+                            <UiInput type="number" v-model="est.nota" min="0" max="100"
                                 class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-800 rounded-2xl px-5 py-3 text-lg font-black focus:outline-none focus:border-umsa-blue transition-all"
-                                :class="getNotaClass(est.nota)">
+                                :class="getNotaClass(est.nota)" />
                             <div v-if="est.nota !== est.originalNota" class="absolute -right-2 -top-2 flex h-5 w-5 animate-bounce items-center justify-center rounded-full bg-umsa-gold text-[10px] text-white shadow-lg">
                                 !
                             </div>
@@ -257,22 +246,22 @@ const getNotaClass = (nota: number) => {
                             Sin guardar
                         </div>
                         <div v-else-if="est.nota > 0" class="flex items-center justify-end gap-1 text-emerald-500 font-bold text-[9px] uppercase tracking-widest">
-                            <span class="material-symbols-outlined text-[14px]">check_circle</span> Sincronizado
+                            <VIcon class="material-symbols-outlined text-[14px]">check_circle</VIcon> Sincronizado
                         </div>
                     </td>
                 </tr>
             </tbody>
-        </table>
+        </VTable>
 
         <!-- Estado Vacío -->
         <div v-if="filteredEstudiantes.length === 0 && !loading" class="p-20 text-center space-y-4">
             <div class="w-20 h-20 bg-slate-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span class="material-symbols-outlined text-4xl text-slate-300">person_off</span>
+                <VIcon class="material-symbols-outlined text-4xl text-slate-300">person_off</VIcon>
             </div>
             <h3 class="text-xl font-black text-slate-600 dark:text-gray-400 uppercase tracking-tighter">No se encontraron estudiantes</h3>
             <p class="text-xs text-slate-400 max-w-xs mx-auto font-medium">Prueba ajustando tu búsqueda o los filtros de estado académico.</p>
         </div>
-    </div>
+    </VCard>
 
     <!-- Footer de Información -->
     <div class="flex flex-col md:flex-row items-center gap-6 justify-between text-slate-400">

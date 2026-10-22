@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api, { getImageUrl } from '@/services/api'
-import Swal from 'sweetalert2'
+import Swal from '@/services/dialogs'
 import CertificadoRender from '@/components/common/CertificadoRender.vue'
 
 const route = useRoute()
@@ -540,9 +540,9 @@ const guardarDiseno = async () => {
     <!-- Topbar (Fullscreen Mode) -->
     <header class="h-16 bg-white dark:bg-gray-900 border-b border-slate-200 dark:border-gray-800 flex items-center justify-between px-6 shrink-0 z-10 shadow-sm relative">
       <div class="flex items-center gap-4">
-        <button @click="goBack" class="w-10 h-10 rounded-full bg-slate-50 dark:bg-gray-800 flex items-center justify-center text-slate-500 hover:text-primary-dark dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors shadow-inner border border-slate-200 dark:border-gray-700 hover:border-umsa-blue">
-          <span class="material-symbols-outlined text-lg">arrow_back</span>
-        </button>
+        <VBtn @click="goBack" class="w-10 h-10 rounded-full bg-slate-50 dark:bg-gray-800 flex items-center justify-center text-slate-500 hover:text-primary-dark dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors shadow-inner border border-slate-200 dark:border-gray-700 hover:border-umsa-blue">
+          <VIcon class="material-symbols-outlined text-lg">arrow_back</VIcon>
+        </VBtn>
         <div>
           <h1 class="text-sm font-black text-primary-dark dark:text-white uppercase tracking-tight">Workplace del Certificado</h1>
           <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Edición en Lienzo - Evento #{{ eventoId }}</p>
@@ -552,40 +552,40 @@ const guardarDiseno = async () => {
       <!-- Selector dinámico de Rol y Excelencia (Centro del Topbar) -->
       <div class="hidden md:flex items-center gap-3 bg-slate-50 dark:bg-gray-800 px-4 py-1.5 rounded-2xl border border-slate-200 dark:border-gray-700">
         <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Plantilla:</span>
-        <select v-model="tipoCertificado" class="bg-white dark:bg-gray-950 border border-slate-200 dark:border-gray-750 rounded-lg py-1 px-3 font-bold text-xs text-primary-dark dark:text-white focus:ring-2 focus:ring-umsa-gold outline-none cursor-pointer">
+        <UiSelect v-model="tipoCertificado" class="bg-white dark:bg-gray-950 border border-slate-200 dark:border-gray-750 rounded-lg py-1 px-3 font-bold text-xs text-primary-dark dark:text-white focus:ring-2 focus:ring-umsa-gold outline-none cursor-pointer">
             <option :value="1">Logística</option>
             <option :value="2">Expositor</option>
             <option :value="3">Organizador</option>
             <option :value="4">Asistente</option>
-        </select>
+        </UiSelect>
         
         <div v-if="Number(tipoCertificado) === 4" class="flex gap-1 p-0.5 bg-slate-200 dark:bg-gray-950 rounded-lg border border-slate-350 dark:border-gray-900">
-            <button 
+            <VBtn
                 @click.prevent="esExcelencia = 0"
                 :class="Number(esExcelencia) === 0 ? 'bg-primary-dark text-white shadow-sm font-black' : 'text-slate-500 hover:bg-slate-300 dark:hover:bg-gray-850 font-bold'"
                 class="py-1 px-2.5 rounded-md text-[8px] uppercase tracking-wider transition-all flex items-center gap-1"
             >
-                <span class="material-symbols-outlined text-[12px]">military_tech</span>
+                <VIcon class="material-symbols-outlined text-[12px]">military_tech</VIcon>
                 Participación
-            </button>
-            <button 
+            </VBtn>
+            <VBtn
                 @click.prevent="esExcelencia = 1"
                 :class="Number(esExcelencia) === 1 ? 'bg-umsa-gold text-white shadow-sm font-black' : 'text-slate-500 hover:bg-slate-300 dark:hover:bg-gray-850 font-bold'"
                 class="py-1 px-2.5 rounded-md text-[8px] uppercase tracking-wider transition-all flex items-center gap-1"
             >
-                <span class="material-symbols-outlined text-[12px]">workspace_premium</span>
-                Excelencia
-            </button>
+                <VIcon class="material-symbols-outlined text-[12px]">workspace_premium</VIcon>
+                Aprobación
+            </VBtn>
         </div>
       </div>
 
       <div class="flex items-center gap-3">
-        <button @click="showPreviewModal = true" class="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-500 dark:text-gray-300 text-[10px] font-black uppercase tracking-widest hover:border-umsa-gold shadow-sm transition-all flex items-center gap-2">
-            <span class="material-symbols-outlined text-[14px]">visibility</span> Previsualizar
-        </button>
-        <button @click="guardarDiseno" class="px-6 py-2.5 rounded-xl bg-primary-dark text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 shadow-lg hover:shadow-emerald-500/20 transition-all flex items-center gap-2">
-            <span class="material-symbols-outlined text-[14px]">save</span> Guardar Diseño
-        </button>
+        <VBtn @click="showPreviewModal = true" class="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-500 dark:text-gray-300 text-[10px] font-black uppercase tracking-widest hover:border-umsa-gold shadow-sm transition-all flex items-center gap-2">
+            <VIcon class="material-symbols-outlined text-[14px]">visibility</VIcon> Previsualizar
+        </VBtn>
+        <VBtn @click="guardarDiseno" class="px-6 py-2.5 rounded-xl bg-primary-dark text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 shadow-lg hover:shadow-emerald-500/20 transition-all flex items-center gap-2">
+            <VIcon class="material-symbols-outlined text-[14px]">save</VIcon> Guardar Diseño
+        </VBtn>
       </div>
     </header>
 
@@ -596,7 +596,7 @@ const guardarDiseno = async () => {
         <aside class="w-72 bg-white dark:bg-gray-900 border-r border-slate-200 dark:border-gray-800 flex flex-col h-full shrink-0 z-10 shadow-lg">
             <div class="p-6 border-b border-slate-100 dark:border-gray-800">
                 <h2 class="text-xs font-black text-umsa-gold uppercase tracking-widest flex items-center gap-2">
-                   <span class="material-symbols-outlined text-sm">build</span> Herramientas
+                   <VIcon class="material-symbols-outlined text-sm">build</VIcon> Herramientas
                 </h2>
             </div>
             
@@ -606,12 +606,12 @@ const guardarDiseno = async () => {
                     <h3 class="text-[10px] font-black text-slate-500 dark:text-gray-400 uppercase tracking-widest mb-3">Imágenes</h3>
                     <div class="space-y-2">
                         <input type="file" ref="fileInput" class="hidden" accept="image/*" @change="onFileChange" />
-                        <button @click="triggerUpload" class="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-umsa-blue transition-colors group">
+                        <VBtn @click="triggerUpload" class="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-umsa-blue transition-colors group">
                             <div class="w-8 h-8 rounded-lg bg-white dark:bg-gray-900 flex items-center justify-center shadow-sm">
-                                <span class="material-symbols-outlined text-slate-400 text-[16px] group-hover:text-umsa-blue transition-colors">image</span>
+                                <VIcon class="material-symbols-outlined text-slate-400 text-[16px] group-hover:text-umsa-blue transition-colors">image</VIcon>
                             </div>
                             <span class="text-xs font-bold text-primary-dark dark:text-white">Fondo Base</span>
-                        </button>
+                        </VBtn>
                     </div>
                 </div>
 
@@ -620,100 +620,100 @@ const guardarDiseno = async () => {
                     <h3 class="text-[10px] font-black text-slate-500 dark:text-gray-400 uppercase tracking-widest mb-3">Bloques Dinámicos</h3>
                     <div class="space-y-2">
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'cabecera', 'Cabecera del Certificado')" class="flex items-center gap-3 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 hover:border-blue-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-blue-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-blue-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black text-blue-700 dark:text-blue-300 flex-1 uppercase">Bloque: Cabecera</span>
-                            <span class="material-symbols-outlined text-xs text-blue-400">title</span>
+                            <VIcon class="material-symbols-outlined text-xs text-blue-400">title</VIcon>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'tenor', 'Tenor del Certificado')" class="flex items-center gap-3 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 hover:border-blue-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-blue-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-blue-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black text-blue-700 dark:text-blue-300 flex-1 uppercase">Bloque: Tenor</span>
-                            <span class="material-symbols-outlined text-xs text-blue-400">notes</span>
+                            <VIcon class="material-symbols-outlined text-xs text-blue-400">notes</VIcon>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{NOMBRE}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group mt-4">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} NOMBRE {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">person</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">person</VIcon>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{NOMBRE_COMPLETO_1}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} NOMBRE_COMPLETO_1 {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">person</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">person</VIcon>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{NOMBRE_COMPLETO_2}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} NOMBRE_COMPLETO_2 {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">person</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">person</VIcon>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{NOMBRES_APELLIDOS_SIN_GRADO}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} NOMBRES_APELLIDOS_SIN_GRADO {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">person</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">person</VIcon>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{APELLIDOS_NOMBRES_SIN_GRADO}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} APELLIDOS_NOMBRES_SIN_GRADO {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">person</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">person</VIcon>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{PRIMER_APELLIDO}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} PRIMER_APELLIDO {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">badge</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">badge</VIcon>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{SEGUNDO_APELLIDO}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} SEGUNDO_APELLIDO {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">badge</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">badge</VIcon>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{EVENTO}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} EVENTO {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">calendar_today</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">calendar_today</VIcon>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{ACTIVIDAD}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} ACTIVIDAD {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">local_activity</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">local_activity</VIcon>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{GESTION}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} GESTION {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">history</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">history</VIcon>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{ROL}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} ROL {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">assignment_ind</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">assignment_ind</VIcon>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{CI_USUARIO}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} CI_USUARIO {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">fingerprint</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">fingerprint</VIcon>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{AREA_TEMATICA}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} AREA_TEMATICA {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">school</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">school</VIcon>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{DISCIPLINA}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} DISCIPLINA {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">subject</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">subject</VIcon>
                         </div>
                         <div v-if="Number(tipoCertificado) === 2" draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{TEMATICA}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} TEMATICA {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">psychology</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">psychology</VIcon>
                         </div>
 
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{FECHA_EMISION}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} FECHA_EMISION {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">today</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">today</VIcon>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'texto', '{CODIGO_CERTIFICADO}')" class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-slate-300 text-[14px]">drag_indicator</VIcon>
                             <span class="text-[10px] font-black font-mono text-primary-dark dark:text-white flex-1">{{ '{' }} CODIGO_CERTIFICADO {{ '}' }}</span>
-                            <span class="material-symbols-outlined text-xs text-slate-400">123</span>
+                            <VIcon class="material-symbols-outlined text-xs text-slate-400">123</VIcon>
                         </div>
                     </div>
                 </div>
@@ -723,11 +723,11 @@ const guardarDiseno = async () => {
                     <h3 class="text-[10px] font-black text-slate-500 dark:text-gray-400 uppercase tracking-widest mb-3">Trazabilidad</h3>
                     <div class="grid grid-cols-2 gap-2">
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'qr', 'QR')" class="aspect-square rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-umsa-gold transition-colors flex flex-col items-center justify-center gap-2 cursor-move">
-                            <span class="material-symbols-outlined text-[24px] text-slate-400">qr_code_2</span>
+                            <VIcon class="material-symbols-outlined text-[24px] text-slate-400">qr_code_2</VIcon>
                             <span class="text-[9px] font-black uppercase text-slate-500">QR Code</span>
                         </div>
                         <div draggable="true" @dragstart="e => onDragStartPalette(e, 'firma', 'Bloque de Firmas')" class="col-span-2 rounded-xl bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:border-emerald-500 transition-colors flex items-center justify-center gap-3 cursor-move p-3">
-                            <span class="material-symbols-outlined text-[20px] text-slate-400">signature</span>
+                            <VIcon class="material-symbols-outlined text-[20px] text-slate-400">signature</VIcon>
                             <span class="text-[9px] font-black uppercase text-slate-500 text-center">Bloque de Firmas<br>(Dinámico)</span>
                         </div>
                     </div>
@@ -741,12 +741,12 @@ const guardarDiseno = async () => {
                              draggable="true" 
                              @dragstart="e => onDragStartAutoridad(e, f)" 
                              class="flex items-center gap-3 p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 hover:border-emerald-500 transition-colors cursor-move group">
-                            <span class="material-symbols-outlined text-emerald-300 text-[14px]">drag_indicator</span>
+                            <VIcon class="material-symbols-outlined text-emerald-300 text-[14px]">drag_indicator</VIcon>
                             <div class="flex-1 min-w-0">
                                 <p class="text-[10px] font-black text-emerald-700 dark:text-emerald-300 uppercase truncate leading-tight">{{ f.grado || '' }} {{ f.nombre }}</p>
                                 <p class="text-[8px] font-bold text-slate-500 dark:text-gray-400 truncate leading-none mt-0.5">{{ f.rol || 'Autoridad' }}</p>
                             </div>
-                            <span class="material-symbols-outlined text-xs text-emerald-400">signature</span>
+                            <VIcon class="material-symbols-outlined text-xs text-emerald-400">signature</VIcon>
                         </div>
                     </div>
                 </div>
@@ -758,15 +758,15 @@ const guardarDiseno = async () => {
             
             <!-- Controls Overlay (Zoom, etc) -->
             <div class="absolute bottom-8 right-8 flex gap-2 z-20">
-                <button @click="zoomOut" class="w-10 h-10 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-500 hover:text-umsa-blue hover:-translate-y-0.5 transition-all">
-                    <span class="material-symbols-outlined text-[18px]">zoom_out</span>
-                </button>
+                <VBtn @click="zoomOut" class="w-10 h-10 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-500 hover:text-umsa-blue hover:-translate-y-0.5 transition-all">
+                    <VIcon class="material-symbols-outlined text-[18px]">zoom_out</VIcon>
+                </VBtn>
                 <div class="h-10 px-4 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-slate-200 dark:border-gray-700 flex items-center justify-center text-xs font-black text-primary-dark dark:text-white">
                     {{ Math.round(zoomLevel * 100) }}%
                 </div>
-                <button @click="zoomIn" class="w-10 h-10 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-500 hover:text-umsa-blue hover:-translate-y-0.5 transition-all">
-                    <span class="material-symbols-outlined text-[18px]">zoom_in</span>
-                </button>
+                <VBtn @click="zoomIn" class="w-10 h-10 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-slate-200 dark:border-gray-700 flex items-center justify-center text-slate-500 hover:text-umsa-blue hover:-translate-y-0.5 transition-all">
+                    <VIcon class="material-symbols-outlined text-[18px]">zoom_in</VIcon>
+                </VBtn>
             </div>
 
             <!-- The Document Canvas Scroll Wrapper -->
@@ -787,7 +787,7 @@ const guardarDiseno = async () => {
                          }">
                 <!-- Placeholder when empty -->
                 <div v-if="!infoCertificado?.fondo_url" class="text-center absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-50 dark:opacity-20">
-                    <span class="material-symbols-outlined text-[80px] text-slate-300 dark:text-gray-600 mb-4">aspect_ratio</span>
+                    <VIcon class="material-symbols-outlined text-[80px] text-slate-300 dark:text-gray-600 mb-4">aspect_ratio</VIcon>
                     <h3 class="text-2xl font-black text-slate-400 dark:text-gray-500 uppercase tracking-tight">Formato A4 Horizontal</h3>
                     <p class="text-xs text-slate-400 font-bold mt-2 font-mono">1123 x 794 px</p>
                 </div>
@@ -818,13 +818,13 @@ const guardarDiseno = async () => {
                         <span class="font-bold leading-relaxed break-words whitespace-pre-wrap">{{ el.valor }}</span>
                     </div>
  
-                    <span v-if="el.tipo === 'qr'" class="material-symbols-outlined flex items-center justify-center" :style="{ fontSize: `${el.width || 100}px` }">qr_code_2</span>
+                    <VIcon v-if="el.tipo === 'qr'" class="material-symbols-outlined flex items-center justify-center" :style="{ fontSize: `${el.width || 100}px` }">qr_code_2</VIcon>
                     
                     <div v-if="el.tipo === 'firma'" class="flex flex-col items-center justify-center w-full h-full relative" :class="{ 'opacity-60': firmantes.length === 0 }">
                         <div v-if="firmantes.length > 0" class="flex items-end justify-center w-full px-4 gap-8">
                             <div v-for="f in firmantes" :key="f.id_usuario" class="flex flex-col items-center justify-end w-48 shrink-0">
                                 <img v-if="f.firma_url" :src="getFirmaFullUrl(f.firma_url)" @error="handleImageError" class="h-16 object-contain mb-1 drop-shadow-sm mix-blend-multiply" />
-                                <span v-else class="material-symbols-outlined text-[24px] mb-2 opacity-50">draw</span>
+                                <VIcon v-else class="material-symbols-outlined text-[24px] mb-2 opacity-50">draw</VIcon>
                                 
                                 <div class="w-full border-t border-black pt-1 flex flex-col items-center text-center">
                                     <p class="text-[10px] font-bold text-black uppercase leading-tight">{{ f.grado || f.grado_abreviacion || '' }} {{ f.nombre || `${f.nombres || ''} ${f.apellidos || ''}` }}</p>
@@ -833,9 +833,9 @@ const guardarDiseno = async () => {
                             </div>
                         </div>
                         <div v-else class="flex items-center justify-between w-full px-8 gap-4">
-                            <div class="flex flex-col items-center flex-1"><span class="material-symbols-outlined text-[24px] mb-2">draw</span><div class="w-full border-t-2 border-dashed border-current pt-1 text-[8px] font-black uppercase text-center">Firma 1</div></div>
-                            <div class="flex flex-col items-center flex-1"><span class="material-symbols-outlined text-[24px] mb-2">draw</span><div class="w-full border-t-2 border-dashed border-current pt-1 text-[8px] font-black uppercase text-center">Firma 2</div></div>
-                            <div class="flex flex-col items-center flex-1"><span class="material-symbols-outlined text-[24px] mb-2">draw</span><div class="w-full border-t-2 border-dashed border-current pt-1 text-[8px] font-black uppercase text-center">Firma 3</div></div>
+                            <div class="flex flex-col items-center flex-1"><VIcon class="material-symbols-outlined text-[24px] mb-2">draw</VIcon><div class="w-full border-t-2 border-dashed border-current pt-1 text-[8px] font-black uppercase text-center">Firma 1</div></div>
+                            <div class="flex flex-col items-center flex-1"><VIcon class="material-symbols-outlined text-[24px] mb-2">draw</VIcon><div class="w-full border-t-2 border-dashed border-current pt-1 text-[8px] font-black uppercase text-center">Firma 2</div></div>
+                            <div class="flex flex-col items-center flex-1"><VIcon class="material-symbols-outlined text-[24px] mb-2">draw</VIcon><div class="w-full border-t-2 border-dashed border-current pt-1 text-[8px] font-black uppercase text-center">Firma 3</div></div>
                         </div>
                         <span v-if="firmantes.length === 0" class="absolute top-2 left-3 text-[10px] uppercase font-black opacity-50 bg-black/5 rounded px-2 py-0.5">Contenedor de Firmas Dinámico</span>
                     </div>
@@ -847,7 +847,7 @@ const guardarDiseno = async () => {
                                      :src="getFirmaFullUrl(getFirmanteData(el.id_usuario).firma_url)" 
                                      @error="handleImageError" 
                                      class="h-16 object-contain mb-1 drop-shadow-sm mix-blend-multiply" />
-                                <span v-else class="material-symbols-outlined text-[24px] mb-2 opacity-50">draw</span>
+                                <VIcon v-else class="material-symbols-outlined text-[24px] mb-2 opacity-50">draw</VIcon>
                                 
                                 <div class="w-full border-t border-black pt-1 flex flex-col items-center text-center">
                                     <p class="text-[9px] font-bold text-black uppercase leading-tight">
@@ -859,7 +859,7 @@ const guardarDiseno = async () => {
                                 </div>
                             </template>
                             <template v-else>
-                                <span class="material-symbols-outlined text-[24px] mb-2 opacity-50">draw</span>
+                                <VIcon class="material-symbols-outlined text-[24px] mb-2 opacity-50">draw</VIcon>
                                 <div class="w-full border-t border-black pt-1 flex flex-col items-center text-center">
                                     <p class="text-[9px] font-bold text-black uppercase leading-tight">{{ el.valor }}</p>
                                     <p class="text-[7px] font-black text-black uppercase leading-tight tracking-wider opacity-80">Autoridad</p>
@@ -868,7 +868,7 @@ const guardarDiseno = async () => {
                         </div>
                     </div>
  
-                    <span @click.stop="deleteElement(el.id)" class="material-symbols-outlined text-[12px] absolute -top-3 -right-3 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/el:opacity-100 transition-opacity z-10 hover:bg-red-600 cursor-pointer shadow-lg">close</span>
+                    <VIcon @click.stop="deleteElement(el.id)" class="material-symbols-outlined text-[12px] absolute -top-3 -right-3 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/el:opacity-100 transition-opacity z-10 hover:bg-red-600 cursor-pointer shadow-lg">close</VIcon>
  
                     <!-- Resize Handles -->
                     <!-- Right Handle (Width) -->
@@ -900,12 +900,12 @@ const guardarDiseno = async () => {
         <aside class="w-64 bg-white dark:bg-gray-900 border-l border-slate-200 dark:border-gray-800 flex flex-col h-full shrink-0 z-10 shadow-lg">
              <div class="p-6 border-b border-slate-100 dark:border-gray-800">
                 <h2 class="text-xs font-black text-primary-dark dark:text-white uppercase tracking-widest flex items-center gap-2">
-                   <span class="material-symbols-outlined text-sm">tune</span> Propiedades
+                   <VIcon class="material-symbols-outlined text-sm">tune</VIcon> Propiedades
                 </h2>
             </div>
             
             <div v-if="!selectedElementData" class="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center text-center opacity-60">
-                <span class="material-symbols-outlined text-4xl text-slate-300 dark:text-gray-600 mb-3">touch_app</span>
+                <VIcon class="material-symbols-outlined text-4xl text-slate-300 dark:text-gray-600 mb-3">touch_app</VIcon>
                 <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">Selecciona un elemento<br>en el lienzo para editar</p>
             </div>
             
@@ -917,7 +917,7 @@ const guardarDiseno = async () => {
                 
                 <div v-if="selectedElementData.tipo === 'texto'">
                     <label class="text-[10px] font-black text-slate-500 dark:text-gray-400 uppercase tracking-widest mb-1.5 block">Valor (Variable)</label>
-                    <input v-model="selectedElementData.valor" type="text" class="w-full bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl py-2.5 px-3 font-bold text-xs text-primary-dark dark:text-white focus:border-umsa-gold outline-none transition-all">
+                    <UiInput v-model="selectedElementData.valor" type="text" class="w-full bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl py-2.5 px-3 font-bold text-xs text-primary-dark dark:text-white focus:border-umsa-gold outline-none transition-all" />
                 </div>
 
                 <div v-if="selectedElementData.tipo !== 'qr'">
@@ -925,93 +925,93 @@ const guardarDiseno = async () => {
                     <div class="flex gap-2">
                         <div class="flex-1">
                             <span class="text-[9px] text-slate-400 block mb-1 text-center">Ancho</span>
-                            <input v-model.number="selectedElementData.width" type="number" min="50" max="1000" class="w-full bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg py-2 px-2 font-bold text-xs text-primary-dark dark:text-white focus:border-umsa-gold outline-none text-center">
+                            <UiInput v-model.number="selectedElementData.width" type="number" min="50" max="1000" class="w-full bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg py-2 px-2 font-bold text-xs text-primary-dark dark:text-white focus:border-umsa-gold outline-none text-center" />
                         </div>
                         <div class="flex-1">
                             <span class="text-[9px] text-slate-400 block mb-1 text-center">Alto</span>
-                            <input v-model.number="selectedElementData.height" type="number" min="20" max="1000" class="w-full bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg py-2 px-2 font-bold text-xs text-primary-dark dark:text-white focus:border-umsa-gold outline-none text-center">
+                            <UiInput v-model.number="selectedElementData.height" type="number" min="20" max="1000" class="w-full bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg py-2 px-2 font-bold text-xs text-primary-dark dark:text-white focus:border-umsa-gold outline-none text-center" />
                         </div>
                     </div>
                 </div>
 
                 <div>
                     <label class="text-[10px] font-black text-slate-500 dark:text-gray-400 uppercase tracking-widest mb-1.5 block">Tamaño (px)</label>
-                    <input v-model.number="selectedElementData.fontSize" type="number" min="8" max="120" class="w-full bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl py-2.5 px-3 font-bold text-xs text-primary-dark dark:text-white focus:border-umsa-gold outline-none transition-all">
+                    <UiInput v-model.number="selectedElementData.fontSize" type="number" min="8" max="120" class="w-full bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl py-2.5 px-3 font-bold text-xs text-primary-dark dark:text-white focus:border-umsa-gold outline-none transition-all" />
                 </div>
 
                 <div>
                     <label class="text-[10px] font-black text-slate-500 dark:text-gray-400 uppercase tracking-widest mb-1.5 block">Color</label>
                     <div class="flex items-center gap-3">
                         <input v-model="selectedElementData.color" type="color" class="w-10 h-10 rounded cursor-pointer border-0 p-0 bg-transparent">
-                        <input v-model="selectedElementData.color" type="text" class="flex-1 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl py-2.5 px-3 font-mono text-xs text-primary-dark dark:text-white focus:border-umsa-gold outline-none transition-all">
+                        <UiInput v-model="selectedElementData.color" type="text" class="flex-1 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl py-2.5 px-3 font-mono text-xs text-primary-dark dark:text-white focus:border-umsa-gold outline-none transition-all" />
                     </div>
                 </div>
                 
                 <div>
                     <label class="text-[10px] font-black text-slate-500 dark:text-gray-400 uppercase tracking-widest mb-1.5 block">Tipografía</label>
-                    <select v-model="selectedElementData.fontFamily" class="w-full bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl py-2.5 px-3 font-bold text-xs text-primary-dark dark:text-white focus:border-umsa-gold outline-none transition-all">
+                    <UiSelect v-model="selectedElementData.fontFamily" class="w-full bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl py-2.5 px-3 font-bold text-xs text-primary-dark dark:text-white focus:border-umsa-gold outline-none transition-all">
                         <option value="Arial">Arial</option>
                         <option value="Times New Roman">Times New Roman</option>
                         <option value="Courier New">Courier New</option>
                         <option value="Georgia">Georgia</option>
                         <option value="Verdana">Verdana</option>
-                    </select>
+                    </UiSelect>
                 </div>
 
                 <div v-if="['texto', 'cabecera', 'tenor'].includes(selectedElementData.tipo)">
                     <label class="text-[10px] font-black text-slate-500 dark:text-gray-400 uppercase tracking-widest mb-1.5 block">Alineación</label>
                     <div class="flex bg-slate-50 dark:bg-gray-800 p-1 rounded-xl border border-slate-200 dark:border-gray-700">
-                        <button @click="selectedElementData.alineacion = 'left'" :class="selectedElementData.alineacion === 'left' ? 'bg-white shadow-sm text-umsa-gold font-bold' : 'text-slate-400 hover:text-slate-600'" class="flex-1 py-2 rounded-lg flex items-center justify-center transition-all">
-                            <span class="material-symbols-outlined text-[18px]">format_align_left</span>
-                        </button>
-                        <button @click="selectedElementData.alineacion = 'center'" :class="(!selectedElementData.alineacion || selectedElementData.alineacion === 'center') ? 'bg-white shadow-sm text-umsa-gold font-bold' : 'text-slate-400 hover:text-slate-600'" class="flex-1 py-2 rounded-lg flex items-center justify-center transition-all">
-                            <span class="material-symbols-outlined text-[18px]">format_align_center</span>
-                        </button>
-                        <button @click="selectedElementData.alineacion = 'right'" :class="selectedElementData.alineacion === 'right' ? 'bg-white shadow-sm text-umsa-gold font-bold' : 'text-slate-400 hover:text-slate-600'" class="flex-1 py-2 rounded-lg flex items-center justify-center transition-all">
-                            <span class="material-symbols-outlined text-[18px]">format_align_right</span>
-                        </button>
+                        <VBtn @click="selectedElementData.alineacion = 'left'" :class="selectedElementData.alineacion === 'left' ? 'bg-white shadow-sm text-umsa-gold font-bold' : 'text-slate-400 hover:text-slate-600'" class="flex-1 py-2 rounded-lg flex items-center justify-center transition-all">
+                            <VIcon class="material-symbols-outlined text-[18px]">format_align_left</VIcon>
+                        </VBtn>
+                        <VBtn @click="selectedElementData.alineacion = 'center'" :class="(!selectedElementData.alineacion || selectedElementData.alineacion === 'center') ? 'bg-white shadow-sm text-umsa-gold font-bold' : 'text-slate-400 hover:text-slate-600'" class="flex-1 py-2 rounded-lg flex items-center justify-center transition-all">
+                            <VIcon class="material-symbols-outlined text-[18px]">format_align_center</VIcon>
+                        </VBtn>
+                        <VBtn @click="selectedElementData.alineacion = 'right'" :class="selectedElementData.alineacion === 'right' ? 'bg-white shadow-sm text-umsa-gold font-bold' : 'text-slate-400 hover:text-slate-600'" class="flex-1 py-2 rounded-lg flex items-center justify-center transition-all">
+                            <VIcon class="material-symbols-outlined text-[18px]">format_align_right</VIcon>
+                        </VBtn>
                     </div>
                 </div>
 
                 <div v-if="selectedElementData.tipo === 'texto'">
                     <label class="text-[10px] font-black text-slate-500 dark:text-gray-400 uppercase tracking-widest mb-1.5 block">Transformación de texto</label>
-                    <select v-model="selectedElementData.textTransform" class="w-full bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl py-2.5 px-3 font-bold text-xs text-primary-dark dark:text-white focus:border-umsa-gold outline-none transition-all">
+                    <UiSelect v-model="selectedElementData.textTransform" class="w-full bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl py-2.5 px-3 font-bold text-xs text-primary-dark dark:text-white focus:border-umsa-gold outline-none transition-all">
                         <option value="">Ninguno (Por defecto)</option>
                         <option value="uppercase">MAYÚSCULAS</option>
                         <option value="lowercase">minúsculas</option>
                         <option value="capitalize">Capitalizado</option>
-                    </select>
+                    </UiSelect>
                 </div>
             </div>
         </aside>
     </div>
 
     <!-- Modal de Previsualización -->
-    <div v-if="showPreviewModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-200">
+    <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" v-if="showPreviewModal" >
         <div class="bg-white dark:bg-gray-900 rounded-[2.5rem] w-full max-w-[1080px] p-8 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-slate-100 dark:border-gray-800 animate-in zoom-in-95 duration-300">
             <div class="flex justify-between items-center mb-6 shrink-0">
                 <div>
                     <h3 class="text-xl font-black text-primary-dark dark:text-white uppercase italic tracking-tighter flex items-center gap-2">
-                      <span class="material-symbols-outlined text-umsa-gold text-2xl">workspace_premium</span>
+                      <VIcon class="material-symbols-outlined text-umsa-gold text-2xl">workspace_premium</VIcon>
                       Previsualización de Alta Fidelidad
                     </h3>
                     <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Simulación real del certificado generado en PDF</p>
                 </div>
                 <div class="flex items-center gap-3">
                     <!-- Zoom Controls -->
-                    <button @click="previewZoom = Math.max(0.5, previewZoom - 0.1)" class="w-8 h-8 rounded-full bg-slate-50 dark:bg-gray-800 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-colors">
-                        <span class="material-symbols-outlined text-sm">zoom_out</span>
-                    </button>
+                    <VBtn @click="previewZoom = Math.max(0.5, previewZoom - 0.1)" class="w-8 h-8 rounded-full bg-slate-50 dark:bg-gray-800 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-colors">
+                        <VIcon class="material-symbols-outlined text-sm">zoom_out</VIcon>
+                    </VBtn>
                     <div class="text-[10px] font-black font-mono text-slate-600 dark:text-gray-300 w-12 text-center">
                         {{ Math.round(previewZoom * 100) }}%
                     </div>
-                    <button @click="previewZoom = Math.min(2.0, previewZoom + 0.1)" class="w-8 h-8 rounded-full bg-slate-50 dark:bg-gray-800 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-colors">
-                        <span class="material-symbols-outlined text-sm">zoom_in</span>
-                    </button>
+                    <VBtn @click="previewZoom = Math.min(2.0, previewZoom + 0.1)" class="w-8 h-8 rounded-full bg-slate-50 dark:bg-gray-800 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-colors">
+                        <VIcon class="material-symbols-outlined text-sm">zoom_in</VIcon>
+                    </VBtn>
                     
-                    <button @click="showPreviewModal = false" class="w-10 h-10 rounded-full bg-slate-50 dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-950/20 text-slate-400 hover:text-red-500 flex items-center justify-center transition-colors">
-                        <span class="material-symbols-outlined">close</span>
-                    </button>
+                    <VBtn @click="showPreviewModal = false" class="w-10 h-10 rounded-full bg-slate-50 dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-950/20 text-slate-400 hover:text-red-500 flex items-center justify-center transition-colors">
+                        <VIcon class="material-symbols-outlined">close</VIcon>
+                    </VBtn>
                 </div>
             </div>
             
@@ -1040,12 +1040,12 @@ const guardarDiseno = async () => {
             </div>
             
             <div class="mt-6 flex justify-end shrink-0">
-                <button @click="showPreviewModal = false" class="px-6 py-3 bg-primary-dark hover:bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95 cursor-pointer">
+                <VBtn @click="showPreviewModal = false" class="px-6 py-3 bg-primary-dark hover:bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95 cursor-pointer">
                     Cerrar Vista Previa
-                </button>
+                </VBtn>
             </div>
         </div>
-    </div>
+    </VDialog>
 
   </div>
 </template>

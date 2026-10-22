@@ -45,6 +45,7 @@ tmp/
 *.pid.lock
 
 # Uploads (Archivos subidos localmente)
+private/
 uploads/cursos/*
 !uploads/cursos/.gitkeep
 uploads/eventos/*

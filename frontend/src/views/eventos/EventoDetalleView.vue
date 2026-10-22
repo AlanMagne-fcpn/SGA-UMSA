@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 const route = useRoute();
 const router = useRouter();
@@ -126,14 +126,14 @@ onMounted(fetchData);
     <div v-if="evento" class="animate-in fade-in duration-500 max-w-7xl mx-auto p-4 md:p-8 space-y-8">
         
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <button @click="router.push('/coordinador/eventos')" class="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase hover:text-blue-600 transition-colors">
-                <span class="material-symbols-outlined text-sm">arrow_back</span> Volver al Listado
-            </button>
+            <VBtn @click="router.push('/coordinador/eventos')" class="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase hover:text-blue-600 transition-colors">
+                <VIcon class="material-symbols-outlined text-sm">arrow_back</VIcon> Volver al Listado
+            </VBtn>
             <div class="flex gap-3">
-                <button @click="eliminarEvento" class="px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all">Eliminar Evento</button>
-                <button @click="guardarCambios" :disabled="isLoading" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
+                <VBtn @click="eliminarEvento" class="px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all">Eliminar Evento</VBtn>
+                <VBtn @click="guardarCambios" :disabled="isLoading" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
                     {{ isLoading ? 'Guardando...' : 'Guardar Cambios' }}
-                </button>
+                </VBtn>
             </div>
         </div>
 
@@ -144,7 +144,7 @@ onMounted(fetchData);
             <div class="lg:col-span-7 space-y-8">
                 
                 <!-- Identidad -->
-                <div class="bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-gray-800 shadow-sm space-y-6">
+                <VCard class="bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-gray-800 shadow-sm space-y-6">
                     <h3 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2 mb-4">
                         <span class="w-2 h-2 bg-blue-600 rounded-full"></span>
                         Identidad del Evento
@@ -153,21 +153,21 @@ onMounted(fetchData);
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="md:col-span-2">
                             <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">Nombre Oficial</label>
-                            <input v-model="form.nombre" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-50 dark:border-gray-700 rounded-2xl px-5 py-3.5 text-sm font-bold focus:border-blue-500 outline-none transition-all">
+                            <UiInput v-model="form.nombre" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-50 dark:border-gray-700 rounded-2xl px-5 py-3.5 text-sm font-bold focus:border-blue-500 outline-none transition-all" />
                         </div>
                         <div>
                             <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">Versión / Slogan</label>
-                            <input v-model="form.version" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-50 dark:border-gray-700 rounded-2xl px-5 py-3.5 text-sm font-bold focus:border-blue-500 outline-none transition-all">
+                            <UiInput v-model="form.version" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-50 dark:border-gray-700 rounded-2xl px-5 py-3.5 text-sm font-bold focus:border-blue-500 outline-none transition-all" />
                         </div>
                         <div>
                             <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">Ubicación / Sede</label>
-                            <input v-model="form.ubicacion" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-50 dark:border-gray-700 rounded-2xl px-5 py-3.5 text-sm font-bold focus:border-blue-500 outline-none transition-all">
+                            <UiInput v-model="form.ubicacion" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-50 dark:border-gray-700 rounded-2xl px-5 py-3.5 text-sm font-bold focus:border-blue-500 outline-none transition-all" />
                         </div>
                     </div>
-                </div>
+                </VCard>
 
                 <!-- Branding Visual -->
-                <div class="bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-gray-800 shadow-sm space-y-6">
+                <VCard class="bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-gray-800 shadow-sm space-y-6">
                     <h3 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2 mb-4">
                         <span class="w-2 h-2 bg-emerald-500 rounded-full"></span>
                         Multimedia y Branding
@@ -194,12 +194,12 @@ onMounted(fetchData);
 
                     <div class="pt-4">
                         <label class="text-[9px] font-black text-slate-400 uppercase mb-2 block ml-1">Frase Destacada del Evento</label>
-                        <textarea v-model="form.frase_destacada" rows="3" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-50 dark:border-gray-700 rounded-2xl px-5 py-4 text-lg font-black italic text-blue-800 dark:text-blue-300 focus:border-blue-500 outline-none transition-all"></textarea>
+                        <VTextarea v-model="form.frase_destacada" rows="3" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-50 dark:border-gray-700 rounded-2xl px-5 py-4 text-lg font-black italic text-blue-800 dark:text-blue-300 focus:border-blue-500 outline-none transition-all"></VTextarea>
                     </div>
-                </div>
+                </VCard>
 
                 <!-- Contenido Detallado -->
-                <div class="bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-gray-800 shadow-sm space-y-6">
+                <VCard class="bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 border border-slate-100 dark:border-gray-800 shadow-sm space-y-6">
                     <h3 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2 mb-4">
                         <span class="w-2 h-2 bg-amber-500 rounded-full"></span>
                         Contenido del Sitio Web
@@ -207,14 +207,14 @@ onMounted(fetchData);
                     <div class="space-y-6">
                         <div>
                             <label class="text-[9px] font-black text-slate-400 uppercase mb-2 block ml-1">Descripción del Evento (Párrafo 1)</label>
-                            <textarea v-model="form.sobre_evento_1" rows="5" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-50 dark:border-gray-700 rounded-2xl px-5 py-4 text-sm font-medium focus:border-blue-500 outline-none transition-all"></textarea>
+                            <VTextarea v-model="form.sobre_evento_1" rows="5" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-50 dark:border-gray-700 rounded-2xl px-5 py-4 text-sm font-medium focus:border-blue-500 outline-none transition-all"></VTextarea>
                         </div>
                         <div>
                             <label class="text-[9px] font-black text-slate-400 uppercase mb-2 block ml-1">Descripción del Evento (Párrafo 2)</label>
-                            <textarea v-model="form.sobre_evento_2" rows="5" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-50 dark:border-gray-700 rounded-2xl px-5 py-4 text-sm font-medium focus:border-blue-500 outline-none transition-all"></textarea>
+                            <VTextarea v-model="form.sobre_evento_2" rows="5" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-50 dark:border-gray-700 rounded-2xl px-5 py-4 text-sm font-medium focus:border-blue-500 outline-none transition-all"></VTextarea>
                         </div>
                     </div>
-                </div>
+                </VCard>
             </div>
 
             <!-- PREVIEW STICKY -->
@@ -226,7 +226,7 @@ onMounted(fetchData);
                     </div>
 
                     <!-- Card Preview -->
-                    <div class="bg-white dark:bg-gray-800 rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 dark:border-gray-700 transition-all">
+                    <VCard class="bg-white dark:bg-gray-800 rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 dark:border-gray-700 transition-all">
                         <div class="relative h-48 bg-slate-100 overflow-hidden">
                             <img v-if="fondoPreview" :src="fondoPreview" class="w-full h-full object-cover">
                             <div class="absolute top-4 left-4 w-12 h-12 bg-white rounded-xl shadow-lg p-2 flex items-center justify-center">
@@ -251,20 +251,20 @@ onMounted(fetchData);
 
                             <div class="space-y-2 pt-2">
                                 <div class="flex items-center gap-2">
-                                    <span class="material-symbols-outlined text-[14px] text-slate-400">location_on</span>
+                                    <VIcon class="material-symbols-outlined text-[14px] text-slate-400">location_on</VIcon>
                                     <span class="text-[9px] font-bold text-slate-600 uppercase">{{ form.ubicacion }}</span>
                                 </div>
                             </div>
 
-                            <button class="w-full py-3 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest mt-2 opacity-50 cursor-not-allowed">
+                            <VBtn class="w-full py-3 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest mt-2 opacity-50 cursor-not-allowed">
                                 Ver Actividades
-                            </button>
+                            </VBtn>
                         </div>
-                    </div>
+                    </VCard>
 
                     <div class="bg-amber-50 border border-amber-100 rounded-2xl p-4">
                         <p class="text-[9px] text-amber-700 font-bold leading-relaxed">
-                            <span class="material-symbols-outlined text-[14px] align-middle mr-1">warning</span>
+                            <VIcon class="material-symbols-outlined text-[14px] align-middle mr-1">warning</VIcon>
                             Los cambios en las imágenes son permanentes. Al guardar, el servidor reemplazará los archivos anteriores para ahorrar espacio.
                         </p>
                     </div>

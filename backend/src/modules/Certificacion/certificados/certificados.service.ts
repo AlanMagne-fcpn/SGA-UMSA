@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository, In } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,6 +13,7 @@ import { CoordinacionEvento } from '../../Academico/coordinaciones/entities/coor
 import { MailLog } from '../../Comun/mail/entities/mail-log.entity';
 import { MailQueue } from '../../Comun/mail/entities/mail-queue.entity';
 import * as crypto from 'crypto';
+import { requisitosCertificadoAula } from '../../Academico/actividades-academicas/certificacion-aula';
 
 @Injectable()
 export class CertificadosService {
@@ -54,6 +55,17 @@ export class CertificadosService {
         throw new NotFoundException(`Info de Certificado ${id_info_certificado} no existe.`);
       }
 
+      const actividad: any = await queryRunner.manager.findOne('ActividadAcademica', {
+        where: { id: id_actividad_academica }, relations: ['evento', 'modalidades'],
+      });
+      const modalidad = actividad?.modalidades?.[0];
+      const minNota = Number(modalidad?.min_nota ?? 51);
+      const minAsistencia = Number(modalidad?.min_asistencia ?? 0);
+      const esVirtual = /^virtual$/i.test(modalidad?.tipo || '');
+      const plantillas = actividad?.evento?.id ? await queryRunner.manager.find(InfoCertificado, {
+        where: { evento: { id: actividad.evento.id }, tipo: infoCert.tipo },
+      }) : [];
+
       const certificadosCreados: Certificado[] = [];
 
       // 2. Iterar sobre usuarios
@@ -62,9 +74,24 @@ export class CertificadosService {
         const uuidArchivo = uuidv4();
         const codigoCertificado = crypto.randomBytes(8).toString('hex').toUpperCase();
 
+        const ins: any = await queryRunner.manager.findOne('Inscripcion', {
+          where: { usuario: { id: idUsuario }, actividadAcademica: { id: id_actividad_academica } },
+          relations: ['modalidades'],
+        });
+        if (!ins) throw new BadRequestException('El participante no está inscrito en la actividad.');
+        const aula = await requisitosCertificadoAula(queryRunner.manager, id_actividad_academica, idUsuario, modalidad);
+        const nota = aula ? aula.nota : ins?.nota_principal != null ? Number(ins.nota_principal)
+          : Math.max(...(ins?.modalidades || []).map((item: any) => Number(item.nota ?? 0)), 0);
+        const cumpleAsistencia = aula?.asistenciaVirtual ?? (esVirtual || minAsistencia === 0 ||
+          (ins?.modalidades || []).some((item: any) => Number(item.num_asistencia ?? 0) >= minAsistencia));
+        if (!cumpleAsistencia) throw new BadRequestException('No cumple la asistencia mínima para recibir un certificado.');
+        const categoria = nota != null && nota >= minNota ? 1 : 0;
+        const plantilla = plantillas.find((item) => Number(item.es_excelencia) === categoria);
+        if (!plantilla) throw new BadRequestException(`Falta configurar la plantilla de ${categoria ? 'aprobación' : 'participación'} para este evento.`);
+
         // 3. Crear Certificado
         const certificado = queryRunner.manager.create(Certificado, {
-          infoCertificado: { id: id_info_certificado },
+          infoCertificado: { id: plantilla.id },
           actividadAcademica: { id: id_actividad_academica },
           usuario: { id: idUsuario },
           tipo: 1, // Asistente por defecto
@@ -271,7 +298,7 @@ export class CertificadosService {
 
   async findAll() {
     const certs = await this.certificadoRepository.find({
-      relations: ['usuario', 'usuario.persona', 'actividadAcademica', 'actividadAcademica.evento'],
+      relations: ['usuario', 'usuario.persona', 'actividadAcademica', 'actividadAcademica.evento', 'infoCertificado', 'infoCertificado.evento'],
       order: { fecha_emision: 'DESC' },
     });
 
@@ -451,7 +478,7 @@ export class CertificadosService {
 
         let finalInfoCertId = id_info_certificado;
 
-        // Lógica de excelencia automática si el usuario seleccionó un asistente
+        // La nota final del curso define la plantilla de aprobación o participación.
         if (dbTipo === 1 && id_actividad_academica) {
           const ins: any = await queryRunner.manager.findOne('Inscripcion', {
             where: {
@@ -461,60 +488,39 @@ export class CertificadosService {
             relations: ['modalidades', 'modalidades.cursoModalidad']
           });
 
+          if (!ins) throw new BadRequestException('El participante no está inscrito en la actividad.');
           if (ins) {
-            let esParaExcelencia = false;
+            const config: any = await queryRunner.manager.findOne('ActividadAcademica', {
+              where: { id: id_actividad_academica },
+              relations: ['modalidades', 'evento'],
+            });
+            const eventoParaPlantilla = id_evento || config?.evento?.id;
+            const modalidad = config?.modalidades?.[0];
+            const minNota = Number(modalidad?.min_nota ?? 51);
+            const esVirtual = /^virtual$/i.test(modalidad?.tipo || '');
+            const aula = await requisitosCertificadoAula(queryRunner.manager, id_actividad_academica, idUsuario, modalidad);
+            const nota = aula ? aula.nota : ins.nota_principal != null
+              ? Number(ins.nota_principal)
+              : Math.max(...(ins.modalidades || []).map((item: any) => Number(item.nota ?? 0)), 0);
+            const cumpleAsistencia = aula?.asistenciaVirtual ?? (esVirtual || Number(modalidad?.min_asistencia ?? 0) === 0 ||
+              (ins.modalidades || []).some((item: any) => Number(item.num_asistencia ?? 0) >= Number(modalidad.min_asistencia)));
+            if (!cumpleAsistencia) throw new BadRequestException('No cumple la asistencia mínima para recibir un certificado.');
+            const esParaAprobacion = nota != null && nota >= minNota;
 
-            if (ins.modalidades && ins.modalidades.length > 0) {
-              for (const im of ins.modalidades) {
-                const minNota = im.cursoModalidad?.min_nota ?? 0;
-                const minAsistencia = im.cursoModalidad?.min_asistencia ?? 0;
-                const nota = im.nota ?? 0;
-                const asistencia = im.num_asistencia ?? 0;
-                
-                const cumpleAsistencia = asistencia >= minAsistencia;
-                const cumpleNota = nota >= minNota;
-
-                if (im.aprobado === 1 || (cumpleAsistencia && cumpleNota)) {
-                  esParaExcelencia = true;
-                }
-              }
-            } else {
-              // Fallback map check
-              const config: any = await queryRunner.manager.findOne('ActividadAcademica', {
-                where: { id: id_actividad_academica },
-                relations: ['modalidades']
-              });
-              let minNota = 51;
-              let minAsistencia = 0;
-              if (config && config.modalidades && config.modalidades.length > 0) {
-                minNota = config.modalidades[0].min_nota ?? 0;
-                minAsistencia = config.modalidades[0].min_asistencia ?? 0;
-              }
-              const nota = ins.nota_principal ?? 0;
-              const asistencia = 0;
-              console.log('FALLBACK CHECK:', { nota, minNota, asistencia, minAsistencia });
-              if (nota >= minNota && asistencia >= minAsistencia) {
-                esParaExcelencia = true;
-              }
-              console.log('esParaExcelencia final:', esParaExcelencia, 'dbTipo:', dbTipo, 'id_evento:', id_evento);
-            }
-
-            if (esParaExcelencia) {
-              // Buscar plantilla de excelencia para este evento
+            if (esParaAprobacion) {
+              // Plantilla de aprobación configurada para este evento.
               const excelTemplate: any = await queryRunner.manager.findOne('InfoCertificado', {
-                where: { evento: { id: id_evento }, tipo: dbTipo, es_excelencia: 1 }
+                where: { evento: { id: eventoParaPlantilla }, tipo: infoCert.tipo, es_excelencia: 1 }
               });
-              if (excelTemplate) {
-                finalInfoCertId = excelTemplate.id;
-              }
+              if (!excelTemplate) throw new BadRequestException('Falta configurar la plantilla de aprobación para este evento.');
+              finalInfoCertId = excelTemplate.id;
             } else {
-              // Buscar plantilla normal
+              // Plantilla de participación configurada para este evento.
               const normalTemplate: any = await queryRunner.manager.findOne('InfoCertificado', {
-                where: { evento: { id: id_evento }, tipo: dbTipo, es_excelencia: 0 }
+                where: { evento: { id: eventoParaPlantilla }, tipo: infoCert.tipo, es_excelencia: 0 }
               });
-              if (normalTemplate) {
-                finalInfoCertId = normalTemplate.id;
-              }
+              if (!normalTemplate) throw new BadRequestException('Falta configurar la plantilla de participación para este evento.');
+              finalInfoCertId = normalTemplate.id;
             }
           }
         }

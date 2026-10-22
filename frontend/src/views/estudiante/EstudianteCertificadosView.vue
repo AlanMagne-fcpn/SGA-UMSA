@@ -36,18 +36,18 @@ const getTipoNombre = (tipo: number) => {
         <h2 class="text-3xl font-black text-primary-dark dark:text-white uppercase italic">Mi Billetera de Certificados</h2>
         <p class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mt-1">Certificados validados por la Universidad Mayor de San Andrés</p>
       </div>
-      <span class="material-symbols-outlined text-[3rem] text-umsa-gold drop-shadow-sm">workspace_premium</span>
+      <VIcon class="material-symbols-outlined text-[3rem] text-umsa-gold drop-shadow-sm">workspace_premium</VIcon>
     </div>
 
     <!-- Cargando -->
     <div v-if="certificadosStore.loading" class="flex flex-col items-center justify-center py-20 text-slate-400">
-      <span class="material-symbols-outlined animate-spin text-4xl mb-4">progress_activity</span>
+      <VIcon class="material-symbols-outlined animate-spin text-4xl mb-4">progress_activity</VIcon>
       <p class="text-xs font-bold uppercase tracking-widest">Cargando certificados...</p>
     </div>
 
     <!-- Vacío -->
     <div v-else-if="!certificadosVisibles.length" class="flex flex-col items-center justify-center py-20 bg-slate-50 dark:bg-gray-800/50 rounded-3xl border-2 border-dashed border-slate-200 dark:border-gray-700">
-      <span class="material-symbols-outlined text-6xl text-slate-300 dark:text-gray-600 mb-4">sentiment_dissatisfied</span>
+      <VIcon class="material-symbols-outlined text-6xl text-slate-300 dark:text-gray-600 mb-4">sentiment_dissatisfied</VIcon>
       <h3 class="text-xl font-black text-slate-500 dark:text-gray-400 mb-2 uppercase tracking-tighter">Aún no tienes certificados</h3>
       <p class="text-sm text-slate-400 text-center max-w-md">No se encontraron certificados emitidos a tu nombre.</p>
     </div>
@@ -55,12 +55,12 @@ const getTipoNombre = (tipo: number) => {
     <!-- Lista de Certificados -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
        <!-- Tarjeta de Certificado -->
-       <div v-for="cert in certificadosVisibles" :key="cert.id" class="group bg-white dark:bg-gray-900 rounded-[1.5rem] overflow-hidden shadow-sm border border-slate-200/60 dark:border-gray-800 hover:border-umsa-gold/50 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-yellow-500/10 flex flex-col justify-between">
+       <VCard v-for="cert in certificadosVisibles" :key="cert.id" class="group bg-white dark:bg-gray-900 rounded-[1.5rem] overflow-hidden shadow-sm border border-slate-200/60 dark:border-gray-800 hover:border-umsa-gold/50 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-yellow-500/10 flex flex-col justify-between">
           <div class="relative h-40 w-full overflow-hidden shrink-0">
              <div class="absolute inset-0 bg-primary-dark/40 group-hover:bg-black/60 transition-colors z-10 duration-500 backdrop-blur-[1px]"></div>
              <img :src="cert.imagen" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" alt="Evento">
              <div class="absolute inset-0 flex items-center justify-center z-20">
-                <span class="material-symbols-outlined text-white text-5xl opacity-80 group-hover:scale-125 transition-transform duration-500 drop-shadow-md">workspace_premium</span>
+                <VIcon class="material-symbols-outlined text-white text-5xl opacity-80 group-hover:scale-125 transition-transform duration-500 drop-shadow-md">workspace_premium</VIcon>
              </div>
              <span class="absolute top-3 right-3 z-30 text-[8px] font-black uppercase px-2 py-1 rounded-md tracking-widest shadow-sm border" :class="getStatusColor(cert.tipo)">
                {{ getTipoNombre(cert.tipo) }}
@@ -77,12 +77,12 @@ const getTipoNombre = (tipo: number) => {
              
              <div class="mt-6 pt-4 border-t border-slate-100 dark:border-gray-800 flex gap-2">
                  <!-- Botón Descargar PDF invocando el endpoint on-the-fly -->
-                 <button @click="certificadosStore.descargarCertificado(cert.id)" class="w-full bg-umsa-gold hover:bg-yellow-500 text-white text-[10px] font-black uppercase py-2.5 rounded-lg tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm">
-                     <span class="material-symbols-outlined text-[16px]">download</span> Descargar PDF
-                 </button>
+                 <VBtn @click="certificadosStore.descargarCertificado(cert.id)" class="w-full bg-umsa-gold hover:bg-yellow-500 text-white text-[10px] font-black uppercase py-2.5 rounded-lg tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm">
+                     <VIcon class="material-symbols-outlined text-[16px]">download</VIcon> Descargar PDF
+                 </VBtn>
              </div>
           </div>
-       </div>
+       </VCard>
     </div>
   </div>
 </template>

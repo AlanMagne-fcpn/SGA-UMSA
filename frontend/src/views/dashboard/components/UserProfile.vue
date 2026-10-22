@@ -21,22 +21,22 @@ const saveProfile = () => {
 </script>
 
 <template>
-  <div class="bg-white shadow rounded-lg p-6">
+  <VCard class="bg-white shadow rounded-lg p-6">
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-xl font-bold text-gray-800">Datos Personales</h2>
-      <button 
+      <VBtn
         @click="isEditing = !isEditing"
         class="text-sm px-4 py-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
       >
         {{ isEditing ? 'Cancelar' : 'Editar' }}
-      </button>
+      </VBtn>
     </div>
 
     <form @submit.prevent="saveProfile" class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <!-- Nombre -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-        <input 
+        <UiInput
           v-model="user.nombre" 
           type="text" 
           :disabled="!isEditing"
@@ -47,7 +47,7 @@ const saveProfile = () => {
       <!-- Apellido -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Apellido</label>
-        <input 
+        <UiInput
           v-model="user.apellido" 
           type="text" 
           :disabled="!isEditing"
@@ -58,7 +58,7 @@ const saveProfile = () => {
       <!-- Email -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
-        <input 
+        <UiInput
           v-model="user.email" 
           type="email" 
           disabled
@@ -70,7 +70,7 @@ const saveProfile = () => {
       <!-- Documento -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Documento de Identidad</label>
-        <input 
+        <UiInput
           v-model="user.documento" 
           type="text" 
           :disabled="!isEditing"
@@ -81,7 +81,7 @@ const saveProfile = () => {
       <!-- País -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">País</label>
-        <select 
+        <UiSelect
           v-model="user.pais" 
           :disabled="!isEditing"
           class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500 p-2 border"
@@ -91,18 +91,18 @@ const saveProfile = () => {
           <option>Chile</option>
           <option>Perú</option>
           <option>Otro</option>
-        </select>
+        </UiSelect>
       </div>
 
       <!-- Botón Guardar -->
       <div v-if="isEditing" class="md:col-span-2 flex justify-end mt-4">
-        <button 
+        <VBtn
           type="submit" 
           class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           Guardar Cambios
-        </button>
+        </VBtn>
       </div>
     </form>
-  </div>
+  </VCard>
 </template>

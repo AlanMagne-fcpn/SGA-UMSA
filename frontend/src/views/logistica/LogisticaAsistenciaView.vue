@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 const misEventos = ref<any[]>([]);
 const loading = ref(true);
@@ -146,27 +146,27 @@ onUnmounted(() => stopScanner());
         </p>
       </div>
       <div class="h-10 w-10 rounded-xl bg-teal-50 dark:bg-teal-900/20 text-teal-600 flex items-center justify-center border border-teal-100 dark:border-teal-800 shadow-sm">
-        <span class="material-symbols-outlined text-[24px]">qr_code_scanner</span>
+        <VIcon class="material-symbols-outlined text-[24px]">qr_code_scanner</VIcon>
       </div>
     </div>
 
     <!-- LOADING -->
     <div v-if="loading" class="flex justify-center py-16">
-      <span class="material-symbols-outlined animate-spin text-3xl text-teal-500">progress_activity</span>
+      <VIcon class="material-symbols-outlined animate-spin text-3xl text-teal-500">progress_activity</VIcon>
     </div>
 
     <template v-else>
       <!-- SIN ACTIVIDADES ASIGNADAS -->
-      <div v-if="todasActividades.length === 0"
+      <VCard v-if="todasActividades.length === 0"
            class="flex flex-col items-center justify-center py-20 text-center bg-white dark:bg-gray-900 rounded-[2rem] border border-slate-200 dark:border-gray-800 shadow-sm">
         <div class="w-20 h-20 rounded-full bg-amber-50 dark:bg-amber-900/10 flex items-center justify-center mb-6 border-2 border-dashed border-amber-300 dark:border-amber-700">
-          <span class="material-symbols-outlined text-3xl text-amber-400">assignment_late</span>
+          <VIcon class="material-symbols-outlined text-3xl text-amber-400">assignment_late</VIcon>
         </div>
         <h3 class="text-base font-black text-slate-700 dark:text-white uppercase tracking-tight">Sin actividades asignadas</h3>
         <p class="text-slate-400 dark:text-gray-500 text-xs mt-2 max-w-xs">
           No tienes actividades académicas asignadas. Contacta a tu coordinador para que te asigne a una actividad.
         </p>
-      </div>
+      </VCard>
 
       <!-- MAIN SPLIT LAYOUT -->
       <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -201,7 +201,7 @@ onUnmounted(() => stopScanner());
 
               <div class="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 dark:border-gray-800/80">
                 <span class="text-[10px] font-bold text-slate-500 dark:text-gray-400 flex items-center gap-1">
-                  <span class="material-symbols-outlined text-teal-500 text-[14px]">calendar_today</span>
+                  <VIcon class="material-symbols-outlined text-teal-500 text-[14px]">calendar_today</VIcon>
                   {{ act.sesiones?.length || 0 }} Sesión(es)
                 </span>
                 <span v-if="actividadSeleccionada?.id === act.id" class="text-[9px] font-black text-teal-600 dark:text-teal-400 uppercase tracking-wider">Activo</span>
@@ -212,11 +212,11 @@ onUnmounted(() => stopScanner());
 
         <!-- COL 2 & 3: CONTROL DE SESIÓN Y REGISTRO -->
         <div class="lg:col-span-2 space-y-6">
-          <div v-if="!actividadSeleccionada" class="bg-white dark:bg-gray-900 rounded-[2rem] p-12 text-center border border-slate-200 dark:border-gray-800 shadow-sm">
-            <span class="material-symbols-outlined text-4xl text-slate-300 dark:text-gray-600 mb-4 block">arrow_back</span>
+          <VCard v-if="!actividadSeleccionada" class="bg-white dark:bg-gray-900 rounded-[2rem] p-12 text-center border border-slate-200 dark:border-gray-800 shadow-sm">
+            <VIcon class="material-symbols-outlined text-4xl text-slate-300 dark:text-gray-600 mb-4 block">arrow_back</VIcon>
             <h4 class="font-black text-slate-700 dark:text-white uppercase text-sm">Selecciona una Actividad</h4>
             <p class="text-xs text-slate-400 dark:text-gray-500 mt-2">Elige una de tus actividades asignadas en el panel izquierdo.</p>
-          </div>
+          </VCard>
 
           <template v-else>
             <!-- CABECERA DE ACTIVIDAD SELECCIONADA -->
@@ -227,22 +227,22 @@ onUnmounted(() => stopScanner());
             </div>
 
             <!-- PASO 2: SELECCIONAR LA SESIÓN -->
-            <div class="bg-white dark:bg-gray-900 rounded-[2rem] p-6 border border-slate-200 dark:border-gray-800 shadow-sm space-y-4">
+            <VCard class="bg-white dark:bg-gray-900 rounded-[2rem] p-6 border border-slate-200 dark:border-gray-800 shadow-sm space-y-4">
               <div class="flex items-center gap-2 border-b border-slate-100 dark:border-gray-800 pb-3">
-                <span class="material-symbols-outlined text-teal-600 text-[18px]">calendar_today</span>
+                <VIcon class="material-symbols-outlined text-teal-600 text-[18px]">calendar_today</VIcon>
                 <h4 class="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-gray-200">Selecciona la Sesión de Hoy</h4>
               </div>
 
               <!-- Sin sesiones -->
               <div v-if="!actividadSeleccionada.sesiones || actividadSeleccionada.sesiones.length === 0"
                    class="p-6 bg-slate-50 dark:bg-gray-800 rounded-2xl border border-slate-100 dark:border-gray-700 text-center flex flex-col items-center justify-center">
-                <span class="material-symbols-outlined text-slate-400 text-3xl mb-2">event_busy</span>
+                <VIcon class="material-symbols-outlined text-slate-400 text-3xl mb-2">event_busy</VIcon>
                 <p class="text-xs text-slate-500 dark:text-gray-400 font-bold">Esta actividad no cuenta con sesiones programadas.</p>
               </div>
 
               <!-- Listado de sesiones horizontal/grid -->
               <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div
+                <VCard
                   v-for="s in actividadSeleccionada.sesiones"
                   :key="s.id"
                   @click="seleccionarSesion(s.id)"
@@ -260,17 +260,17 @@ onUnmounted(() => stopScanner());
                   <h4 class="text-xs font-black text-slate-800 dark:text-white mt-2">{{ s.fecha }}</h4>
                   <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-gray-400 mt-2 pt-2 border-t border-slate-100 dark:border-gray-900">
                     <span>{{ s.hora_inicio }} — {{ s.hora_fin }}</span>
-                    <span v-if="s.aula" class="flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">meeting_room</span>{{ s.aula }}</span>
+                    <span v-if="s.aula" class="flex items-center gap-0.5"><VIcon class="material-symbols-outlined text-xs">meeting_room</VIcon>{{ s.aula }}</span>
                   </div>
-                </div>
+                </VCard>
               </div>
-            </div>
+            </VCard>
 
             <!-- PASO 3: REGISTRO (QR/PIN) -->
-            <div v-if="selectedSessionId" class="bg-white dark:bg-gray-900 rounded-[2rem] p-6 border border-slate-200 dark:border-gray-800 shadow-sm space-y-4">
+            <VCard v-if="selectedSessionId" class="bg-white dark:bg-gray-900 rounded-[2rem] p-6 border border-slate-200 dark:border-gray-800 shadow-sm space-y-4">
               <div class="flex items-center justify-between border-b border-slate-100 dark:border-gray-800 pb-3">
                 <div class="flex items-center gap-2">
-                  <span class="material-symbols-outlined text-teal-600 text-[18px]">verified</span>
+                  <VIcon class="material-symbols-outlined text-teal-600 text-[18px]">verified</VIcon>
                   <h4 class="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-gray-200">Método de Registro</h4>
                 </div>
                 <!-- Active session info badge -->
@@ -281,16 +281,16 @@ onUnmounted(() => stopScanner());
 
               <!-- Selector QR/PIN -->
               <div class="flex gap-2 max-w-xs bg-slate-50 dark:bg-gray-950 p-1.5 rounded-2xl border border-slate-100 dark:border-gray-800/80">
-                <button @click="activeMode = 'qr'; stopScanner()"
+                <VBtn @click="activeMode = 'qr'; stopScanner()"
                   :class="activeMode === 'qr' ? 'bg-teal-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-gray-900'"
                   class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">
-                  <span class="material-symbols-outlined text-xs">qr_code_scanner</span> QR
-                </button>
-                <button @click="activeMode = 'pin'; stopScanner()"
+                  <VIcon class="material-symbols-outlined text-xs">qr_code_scanner</VIcon> QR
+                </VBtn>
+                <VBtn @click="activeMode = 'pin'; stopScanner()"
                   :class="activeMode === 'pin' ? 'bg-teal-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-gray-900'"
                   class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">
-                  <span class="material-symbols-outlined text-xs">pin</span> PIN
-                </button>
+                  <VIcon class="material-symbols-outlined text-xs">pin</VIcon> PIN
+                </VBtn>
               </div>
 
               <!-- QR Mode Camera Area -->
@@ -298,21 +298,21 @@ onUnmounted(() => stopScanner());
                 <div v-if="!scannerActive"
                      class="bg-slate-50 dark:bg-gray-950 border-2 border-dashed border-slate-200 dark:border-gray-850 rounded-2xl p-8 flex flex-col items-center justify-center text-center max-w-md mx-auto">
                   <div class="w-16 h-16 rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-600 flex items-center justify-center mb-4">
-                    <span class="material-symbols-outlined text-2xl">photo_camera</span>
+                    <VIcon class="material-symbols-outlined text-2xl">photo_camera</VIcon>
                   </div>
                   <h4 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Activar Cámara Escáner</h4>
                   <p class="text-[10px] text-slate-400 mt-1 max-w-xs">Permite el acceso a la cámara para escanear el código QR del estudiante.</p>
-                  <button @click="startScanner"
+                  <VBtn @click="startScanner"
                     class="mt-5 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl shadow-lg shadow-teal-600/10 transition-all uppercase tracking-widest text-[10px] flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm">qr_code_scanner</span> Iniciar Escaneo
-                  </button>
+                    <VIcon class="material-symbols-outlined text-sm">qr_code_scanner</VIcon> Iniciar Escaneo
+                  </VBtn>
                 </div>
 
                 <div v-show="scannerActive" class="bg-black rounded-2xl overflow-hidden shadow-xl relative max-w-md mx-auto">
                   <div id="qr-reader" class="w-full"></div>
-                  <button @click="stopScanner" class="absolute top-3 right-3 z-10 bg-white/20 backdrop-blur-md text-white p-2 rounded-full hover:bg-red-500 hover:text-white transition-colors shadow-md">
-                    <span class="material-symbols-outlined text-sm">close</span>
-                  </button>
+                  <VBtn @click="stopScanner" class="absolute top-3 right-3 z-10 bg-white/20 backdrop-blur-md text-white p-2 rounded-full hover:bg-red-500 hover:text-white transition-colors shadow-md">
+                    <VIcon class="material-symbols-outlined text-sm">close</VIcon>
+                  </VBtn>
                 </div>
               </div>
 
@@ -322,19 +322,19 @@ onUnmounted(() => stopScanner());
                   <h4 class="text-xs font-black text-slate-700 dark:text-gray-200 uppercase tracking-widest mb-1">Registro Manual</h4>
                   <p class="text-[10px] text-slate-400 mb-5">Ingresa el código PIN o token proporcionado por el estudiante.</p>
                   
-                  <input v-model="pinCode" type="text" placeholder="Código PIN..."
+                  <UiInput v-model="pinCode" type="text" placeholder="Código PIN..."
                     class="w-full bg-white dark:bg-gray-900 border-2 border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-center text-base font-mono font-black tracking-[0.2em] outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all mb-4"
                     @keyup.enter="registrarPorPin" />
                   
-                  <button @click="registrarPorPin" :disabled="pinLoading"
+                  <VBtn @click="registrarPorPin" :disabled="pinLoading"
                     class="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl shadow-lg shadow-teal-600/10 transition-all uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 disabled:opacity-50">
-                    <span v-if="pinLoading" class="material-symbols-outlined animate-spin text-xs">progress_activity</span>
-                    <span v-else class="material-symbols-outlined text-xs">check_circle</span>
+                    <VIcon v-if="pinLoading" class="material-symbols-outlined animate-spin text-xs">progress_activity</VIcon>
+                    <VIcon v-else class="material-symbols-outlined text-xs">check_circle</VIcon>
                     {{ pinLoading ? 'Registrando...' : 'Registrar Asistencia' }}
-                  </button>
+                  </VBtn>
                 </div>
               </div>
-            </div>
+            </VCard>
           </template>
         </div>
 

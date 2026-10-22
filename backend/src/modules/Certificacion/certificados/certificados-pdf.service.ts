@@ -134,7 +134,7 @@ export class CertificadosPdfService {
       '{GESTION}': new Date().getFullYear().toString(),
       '{ROL}': rolParticipacion,
       '{CI_USUARIO}': ciUsuario,
-      '{CARGA_HORARIA}': (certificado.actividadAcademica as any)?.horas?.toString() || '',
+      '{CARGA_HORARIA}': Number(certificado.tipo) === 1 && Number(certificado.infoCertificado?.es_excelencia) !== 1 ? '' : (certificado.actividadAcademica as any)?.horas?.toString() || '',
       '{FECHA_EMISION}': fechaEmision,
       '{NOTA_FINAL}': '', // Si aplica en el futuro
       '{CODIGO_CERTIFICADO}': certificado.codigo_certificado || '',

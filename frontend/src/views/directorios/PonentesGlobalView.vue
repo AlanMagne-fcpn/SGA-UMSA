@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, reactive } from 'vue';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 import type { Usuario } from '@/types/admin';
 
 const ponentes = ref<Usuario[]>([]);
@@ -9,6 +9,7 @@ const loading = ref(true);
 const searchQuery = ref('');
 const isEditing = ref(false);
 const selectedUser = ref<any>(null);
+const showFicha = ref(false);
 
 // Formulario reactivo para edición
 const form = reactive({
@@ -64,13 +65,10 @@ const openFicha = (usuario: any) => {
     form.id_grado_academico = usuario.afiliaciones?.[0]?.id_grado_academico || null;
     
     isEditing.value = false;
-    const m = document.getElementById('modal-ficha-ponente');
-    if (m) m.style.display = 'flex';
+    showFicha.value = true;
 };
 
 const closeFicha = () => {
-    const m = document.getElementById('modal-ficha-ponente');
-    if (m) m.style.display = 'none';
 };
 
 const saveChanges = async () => {
@@ -119,7 +117,7 @@ const saveChanges = async () => {
   <div class="animate-in fade-in duration-500 max-w-7xl mx-auto space-y-8">
     
     <!-- Header Minimalista -->
-    <div class="relative bg-white dark:bg-slate-800 rounded-[2.5rem] p-8 md:p-12 overflow-hidden shadow-sm border border-emerald-100 dark:border-emerald-900/30 group mb-10">
+    <VCard class="relative bg-white dark:bg-slate-800 rounded-[2.5rem] p-8 md:p-12 overflow-hidden shadow-sm border border-emerald-100 dark:border-emerald-900/30 group mb-10">
       <!-- Decoración sutil -->
       <div class="absolute top-0 right-0 w-96 h-96 bg-emerald-50 dark:bg-emerald-900/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
       <div class="absolute inset-0 bg-gradient-to-br from-emerald-50/30 to-transparent dark:from-emerald-900/5 pointer-events-none"></div>
@@ -127,7 +125,7 @@ const saveChanges = async () => {
       <div class="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8">
         <div class="flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
           <div class="w-20 h-20 bg-emerald-50 dark:bg-emerald-900/30 rounded-3xl flex items-center justify-center shadow-sm border border-emerald-100 dark:border-emerald-800 transition-transform duration-500">
-            <span class="material-symbols-outlined text-4xl text-emerald-600 dark:text-emerald-400">psychology</span>
+            <VIcon class="material-symbols-outlined text-4xl text-emerald-600 dark:text-emerald-400">psychology</VIcon>
           </div>
           <div>
             <h2 class="text-4xl md:text-5xl font-black text-slate-800 dark:text-white italic uppercase tracking-tighter leading-none">
@@ -144,9 +142,9 @@ const saveChanges = async () => {
             <label class="absolute -top-2.5 left-5 px-2 bg-white dark:bg-slate-800 text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest z-10">Buscar experto</label>
             <div class="relative">
               <span class="absolute inset-y-0 left-4 flex items-center text-emerald-500">
-                <span class="material-symbols-outlined text-[18px]">search</span>
+                <VIcon class="material-symbols-outlined text-[18px]">search</VIcon>
               </span>
-              <input v-model="searchQuery" class="w-full pl-12 pr-6 py-4 bg-slate-50 dark:bg-slate-900/50 border border-emerald-100 dark:border-emerald-800 text-slate-800 dark:text-white rounded-2xl text-xs font-bold outline-none focus:border-emerald-500 transition-all placeholder:text-slate-400" placeholder="Nombre, apellido o CI...">
+              <UiInput v-model="searchQuery" class="w-full pl-12 pr-6 py-4 bg-slate-50 dark:bg-slate-900/50 border border-emerald-100 dark:border-emerald-800 text-slate-800 dark:text-white rounded-2xl text-xs font-bold outline-none focus:border-emerald-500 transition-all placeholder:text-slate-400" placeholder="Nombre, apellido o CI..." />
             </div>
           </div>
           
@@ -156,12 +154,12 @@ const saveChanges = async () => {
           </div>
         </div>
       </div>
-    </div>
+    </VCard>
 
     <!-- Directorio Tabla con Scroll -->
-    <div class="bg-white dark:bg-gray-900 rounded-3xl md:rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-800 overflow-hidden">
+    <VCard class="bg-white dark:bg-gray-900 rounded-3xl md:rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-gray-800 overflow-hidden">
       <div class="overflow-x-auto custom-scrollbar">
-        <table class="w-full text-left border-collapse min-w-[800px]">
+        <VTable class="w-full text-left border-collapse min-w-[800px]">
           <thead class="bg-slate-50 dark:bg-gray-800/50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-200 dark:border-gray-800">
             <tr>
                 <th class="px-6 md:px-8 py-6">Perfil Docente</th>
@@ -178,7 +176,7 @@ const saveChanges = async () => {
               <td class="px-6 md:px-8 py-6">
                   <div class="flex items-center gap-4">
                       <div class="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform shadow-sm border border-white dark:border-gray-600">
-                          <span class="material-symbols-outlined text-xl md:text-2xl">school</span>
+                          <VIcon class="material-symbols-outlined text-xl md:text-2xl">school</VIcon>
                       </div>
                       <div>
                           <p class="font-black text-primary-dark dark:text-white uppercase text-xs md:text-sm leading-tight">{{ parseName(pon.persona) }}</p>
@@ -189,11 +187,11 @@ const saveChanges = async () => {
               <td class="px-6 md:px-8 py-6">
                   <div class="space-y-1">
                       <p class="text-xs font-black text-primary-dark dark:text-gray-300 flex items-center gap-2">
-                          <span class="material-symbols-outlined text-[14px] text-umsa-gold">badge</span>
+                          <VIcon class="material-symbols-outlined text-[14px] text-umsa-gold">badge</VIcon>
                           {{ pon.persona?.documento_identidad }}
                       </p>
                       <p class="text-[10px] font-bold text-slate-400 italic">
-                        <span class="material-symbols-outlined text-[14px]">smartphone</span>
+                        <VIcon class="material-symbols-outlined text-[14px]">smartphone</VIcon>
                         {{ pon.persona?.celular || 'Sin contacto' }}
                       </p>
                   </div>
@@ -214,37 +212,37 @@ const saveChanges = async () => {
               </td>
               <td class="px-6 md:px-8 py-6 text-center">
                 <div class="flex justify-center gap-2">
-                    <button @click="openFicha(pon)" class="p-2 border border-blue-200 dark:border-blue-900 text-blue-500 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm hover:scale-110">
-                        <span class="material-symbols-outlined text-sm">visibility</span>
-                    </button>
-                    <button @click="openFicha(pon); isEditing = true" class="p-2 border border-slate-200 dark:border-gray-700 text-slate-500 rounded-xl hover:bg-umsa-gold hover:text-white transition-all shadow-sm hover:scale-110">
-                        <span class="material-symbols-outlined text-sm">edit</span>
-                    </button>
+                    <VBtn @click="openFicha(pon)" class="p-2 border border-blue-200 dark:border-blue-900 text-blue-500 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm hover:scale-110">
+                        <VIcon class="material-symbols-outlined text-sm">visibility</VIcon>
+                    </VBtn>
+                    <VBtn @click="openFicha(pon); isEditing = true" class="p-2 border border-slate-200 dark:border-gray-700 text-slate-500 rounded-xl hover:bg-umsa-gold hover:text-white transition-all shadow-sm hover:scale-110">
+                        <VIcon class="material-symbols-outlined text-sm">edit</VIcon>
+                    </VBtn>
                 </div>
               </td>
             </tr>
           </tbody>
-        </table>
+        </VTable>
       </div>
-    </div>
+    </VCard>
 
     <!-- Modal Ficha de Ponente -->
-    <div id="modal-ficha-ponente" class="fixed inset-0 bg-primary-dark/80 backdrop-blur-md z-[500] hidden items-center justify-center p-2 md:p-4">
+    <VDialog v-if="showFicha" :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)">
         <div class="bg-white dark:bg-gray-900 rounded-[2rem] md:rounded-[3rem] w-full max-w-4xl max-h-[95vh] md:max-h-[90vh] overflow-hidden shadow-2xl flex flex-col relative animate-in zoom-in duration-300">
             <!-- Header Ficha -->
             <div class="p-6 md:p-8 bg-gradient-to-r from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-gray-900 border-b border-slate-100 dark:border-gray-700 flex justify-between items-center">
                 <div class="flex items-center gap-3 md:gap-4">
-                    <div class="w-10 h-10 md:w-14 md:h-14 rounded-2xl bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm border border-slate-200 dark:border-gray-700">
-                        <span class="material-symbols-outlined text-2xl md:text-3xl text-emerald-500">psychology</span>
-                    </div>
+                    <VCard class="w-10 h-10 md:w-14 md:h-14 rounded-2xl bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm border border-slate-200 dark:border-gray-700">
+                        <VIcon class="material-symbols-outlined text-2xl md:text-3xl text-emerald-500">psychology</VIcon>
+                    </VCard>
                     <div>
                         <h3 class="text-lg md:text-2xl font-black text-primary-dark dark:text-white uppercase italic leading-none">Perfil Ponente</h3>
                         <p class="text-[8px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Expediente docente #{{ selectedUser?.id }}</p>
                     </div>
                 </div>
-                <button @click="closeFicha" class="w-10 h-10 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors flex items-center justify-center">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
+                <VBtn @click="closeFicha" class="w-10 h-10 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors flex items-center justify-center">
+                    <VIcon class="material-symbols-outlined">close</VIcon>
+                </VBtn>
             </div>
 
             <!-- Contenido Ficha -->
@@ -253,25 +251,25 @@ const saveChanges = async () => {
                 <!-- Sección 1: Identidad -->
                 <div class="space-y-6">
                     <div class="flex items-center gap-3 border-b-2 border-slate-100 dark:border-gray-800 pb-3">
-                        <span class="material-symbols-outlined text-umsa-gold">fingerprint</span>
+                        <VIcon class="material-symbols-outlined text-umsa-gold">fingerprint</VIcon>
                         <h4 class="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">Identidad y Datos Críticos</h4>
                     </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div v-for="(val, key) in {nombres: 'Nombres', primer_apellido: 'Apellido Paterno', segundo_apellido: 'Apellido Materno'}" :key="key">
                             <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block">{{ val }}</label>
-                            <input v-model="form.persona[key]" :disabled="!isEditing" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-transparent focus:border-emerald-500 rounded-xl py-3 px-4 font-bold text-primary-dark dark:text-white outline-none transition-all disabled:opacity-70">
+                            <UiInput v-model="form.persona[key]" :disabled="!isEditing" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-transparent focus:border-emerald-500 rounded-xl py-3 px-4 font-bold text-primary-dark dark:text-white outline-none transition-all disabled:opacity-70" />
                         </div>
                     </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Documento de Identidad</label>
-                            <input v-model="form.persona.documento_identidad" :disabled="!isEditing" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-transparent focus:border-emerald-500 rounded-xl py-3 px-4 font-bold text-primary-dark dark:text-white outline-none transition-all">
+                            <UiInput v-model="form.persona.documento_identidad" :disabled="!isEditing" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-transparent focus:border-emerald-500 rounded-xl py-3 px-4 font-bold text-primary-dark dark:text-white outline-none transition-all" />
                         </div>
                         <div>
                             <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Grado Académico (Abreviado)</label>
-                            <input v-model="form.persona.grado_academico" :disabled="!isEditing" placeholder="Ej: Lic. o MSc." class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-transparent focus:border-emerald-500 rounded-xl py-3 px-4 font-bold text-primary-dark dark:text-white outline-none transition-all">
+                            <UiInput v-model="form.persona.grado_academico" :disabled="!isEditing" placeholder="Ej: Lic. o MSc." class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-transparent focus:border-emerald-500 rounded-xl py-3 px-4 font-bold text-primary-dark dark:text-white outline-none transition-all" />
                         </div>
                     </div>
                 </div>
@@ -279,17 +277,17 @@ const saveChanges = async () => {
                 <!-- Sección 2: Especialidad -->
                 <div class="space-y-6">
                     <div class="flex items-center gap-3 border-b-2 border-slate-100 dark:border-gray-800 pb-3">
-                        <span class="material-symbols-outlined text-emerald-500">workspace_premium</span>
+                        <VIcon class="material-symbols-outlined text-emerald-500">workspace_premium</VIcon>
                         <h4 class="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">Especialidad e Institución</h4>
                     </div>
                     <div class="grid grid-cols-1 gap-6">
                         <div class="col-span-full">
                             <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Área de Especialidad / Temática</label>
-                            <textarea v-model="form.especialidad" :disabled="!isEditing" rows="2" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-transparent focus:border-emerald-500 rounded-2xl py-3 px-4 font-bold text-primary-dark dark:text-white outline-none transition-all"></textarea>
+                            <VTextarea v-model="form.especialidad" :disabled="!isEditing" rows="2" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-transparent focus:border-emerald-500 rounded-2xl py-3 px-4 font-bold text-primary-dark dark:text-white outline-none transition-all"></VTextarea>
                         </div>
                         <div>
                             <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Institución de Origen</label>
-                            <input v-model="form.institucion" :disabled="!isEditing" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-transparent focus:border-emerald-500 rounded-xl py-3 px-4 font-bold text-primary-dark dark:text-white outline-none transition-all">
+                            <UiInput v-model="form.institucion" :disabled="!isEditing" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-transparent focus:border-emerald-500 rounded-xl py-3 px-4 font-bold text-primary-dark dark:text-white outline-none transition-all" />
                         </div>
                     </div>
                 </div>
@@ -297,13 +295,13 @@ const saveChanges = async () => {
                 <!-- Sección 3: Historial Docente -->
                 <div class="space-y-6">
                     <div class="flex items-center gap-3 border-b-2 border-slate-100 dark:border-gray-800 pb-3">
-                        <span class="material-symbols-outlined text-blue-500">history_edu</span>
+                        <VIcon class="material-symbols-outlined text-blue-500">history_edu</VIcon>
                         <h4 class="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">Registro Histórico de Imparticiones</h4>
                     </div>
                     <div v-if="selectedUser?.imparticiones?.length" class="space-y-3">
                         <div v-for="imp in selectedUser.imparticiones" :key="imp.id" class="flex items-center justify-between p-4 bg-slate-50 dark:bg-gray-800 rounded-2xl border border-slate-100 dark:border-gray-700">
                             <div class="flex items-center gap-4">
-                                <span class="material-symbols-outlined text-emerald-600">check_circle</span>
+                                <VIcon class="material-symbols-outlined text-emerald-600">check_circle</VIcon>
                                 <div>
                                     <p class="text-xs font-black text-primary-dark dark:text-white uppercase">{{ imp.actividadAcademica?.nombre }}</p>
                                     <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{{ imp.actividadAcademica?.evento?.nombre_corto }}</p>
@@ -321,23 +319,23 @@ const saveChanges = async () => {
             <!-- Footer Ficha -->
             <div class="p-8 bg-slate-50 dark:bg-gray-800 border-t border-slate-100 dark:border-gray-700 flex justify-between items-center">
                 <div class="text-slate-400 text-[10px] font-bold flex items-center gap-2 uppercase">
-                    <span class="material-symbols-outlined text-sm">event</span>
+                    <VIcon class="material-symbols-outlined text-sm">event</VIcon>
                     Última actualización: {{ new Date(selectedUser?.fecha_actualizacion).toLocaleDateString() }}
                 </div>
                 <div class="flex gap-4">
-                    <button v-if="!isEditing" @click="isEditing = true" class="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:scale-105 active:scale-95 transition-all">
+                    <VBtn v-if="!isEditing" @click="isEditing = true" class="px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:scale-105 active:scale-95 transition-all">
                         Habilitar Edición
-                    </button>
+                    </VBtn>
                     <div v-else class="flex gap-3">
-                        <button @click="isEditing = false" class="px-6 py-4 text-slate-500 font-black uppercase text-[10px] hover:bg-slate-200 dark:hover:bg-gray-700 rounded-2xl transition-all">Descartar</button>
-                        <button @click="saveChanges" class="px-10 py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-emerald-600 transition-all flex items-center gap-2">
-                            <span class="material-symbols-outlined text-sm">cloud_upload</span> Guardar Cambios
-                        </button>
+                        <VBtn @click="isEditing = false" class="px-6 py-4 text-slate-500 font-black uppercase text-[10px] hover:bg-slate-200 dark:hover:bg-gray-700 rounded-2xl transition-all">Descartar</VBtn>
+                        <VBtn @click="saveChanges" class="px-10 py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-emerald-600 transition-all flex items-center gap-2">
+                            <VIcon class="material-symbols-outlined text-sm">cloud_upload</VIcon> Guardar Cambios
+                        </VBtn>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </VDialog>
   </div>
 </template>
 

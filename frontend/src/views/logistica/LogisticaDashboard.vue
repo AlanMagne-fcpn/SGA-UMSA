@@ -48,78 +48,78 @@ onMounted(fetchData);
     <!-- Welcome Banner -->
     <div class="bg-gradient-to-br from-teal-600 to-emerald-700 rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl shadow-teal-900/30">
       <div class="absolute right-[-40px] top-[-40px] opacity-10">
-        <span class="material-symbols-outlined text-[200px]">support_agent</span>
+        <VIcon class="material-symbols-outlined text-[200px]">support_agent</VIcon>
       </div>
       <p class="text-teal-200 text-[10px] font-black uppercase tracking-[0.3em]">Panel de Logística</p>
       <h2 class="text-3xl font-black mt-1">¡Bienvenido, {{ userName }}!</h2>
       <p class="text-teal-100 text-sm mt-2 max-w-lg">Gestiona la asistencia de los estudiantes y ponentes en los eventos asignados a tu cargo.</p>
       <div class="mt-4 flex items-center gap-2 text-teal-200 text-xs">
-        <span class="material-symbols-outlined text-sm">mail</span>
+        <VIcon class="material-symbols-outlined text-sm">mail</VIcon>
         {{ userEmail }}
       </div>
     </div>
 
     <!-- Stats -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div class="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-sm relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
+      <VCard class="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-sm relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
         <div class="absolute right-[-20px] top-[-20px] opacity-10 group-hover:scale-125 transition-transform duration-700">
-          <span class="material-symbols-outlined text-[120px] text-teal-600">event</span>
+          <VIcon class="material-symbols-outlined text-[120px] text-teal-600">event</VIcon>
         </div>
         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Eventos Asignados</p>
         <h3 class="text-5xl font-black text-teal-600 dark:text-teal-400">{{ misEventos.length }}</h3>
-      </div>
+      </VCard>
 
-      <div class="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-sm relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
+      <VCard class="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-sm relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
         <div class="absolute right-[-20px] top-[-20px] opacity-10 group-hover:scale-125 transition-transform duration-700">
-          <span class="material-symbols-outlined text-[120px] text-blue-600">school</span>
+          <VIcon class="material-symbols-outlined text-[120px] text-blue-600">school</VIcon>
         </div>
         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Actividades a Cargo</p>
         <h3 class="text-5xl font-black text-blue-600 dark:text-blue-400">{{ totalActividades }}</h3>
-      </div>
+      </VCard>
 
-      <div class="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-sm relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
+      <VCard class="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-sm relative overflow-hidden group hover:scale-[1.02] transition-all duration-300">
         <div class="absolute right-[-20px] top-[-20px] opacity-10 group-hover:scale-125 transition-transform duration-700">
-          <span class="material-symbols-outlined text-[120px] text-amber-600">workspace_premium</span>
+          <VIcon class="material-symbols-outlined text-[120px] text-amber-600">workspace_premium</VIcon>
         </div>
         <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Mis Certificados</p>
         <h3 class="text-5xl font-black text-amber-600 dark:text-amber-400">{{ misCertificados.length }}</h3>
-      </div>
+      </VCard>
     </div>
 
     <!-- Quick Actions -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div class="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-sm">
+      <VCard class="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-sm">
         <h3 class="text-sm font-black uppercase text-slate-800 dark:text-white mb-6 flex items-center gap-2">
-          <span class="material-symbols-outlined text-teal-500">qr_code_scanner</span>
+          <VIcon class="material-symbols-outlined text-teal-500">qr_code_scanner</VIcon>
           Acceso Directo Escáner
         </h3>
         <p class="text-sm text-slate-500 dark:text-gray-400 mb-6">Inicie el registro de asistencias seleccionando la sesión académica activa.</p>
         <router-link to="/logistica/asistencia" class="inline-flex items-center gap-3 px-8 py-4 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-2xl shadow-xl shadow-teal-600/20 transition-all uppercase tracking-widest text-xs">
-          <span class="material-symbols-outlined">qr_code_scanner</span>
+          <VIcon class="material-symbols-outlined">qr_code_scanner</VIcon>
           Ir al Escáner QR / PIN
         </router-link>
-      </div>
+      </VCard>
 
-      <div class="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-sm">
+      <VCard class="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-sm">
         <h3 class="text-sm font-black uppercase text-slate-800 dark:text-white mb-6 flex items-center gap-2">
-          <span class="material-symbols-outlined text-teal-500">info</span>
+          <VIcon class="material-symbols-outlined text-teal-500">info</VIcon>
           Guía Rápida
         </h3>
         <ul class="space-y-3">
           <li class="flex items-center gap-3 text-xs font-bold text-slate-600 dark:text-gray-300">
-            <span class="material-symbols-outlined text-teal-500 text-sm">check_circle</span>
+            <VIcon class="material-symbols-outlined text-teal-500 text-sm">check_circle</VIcon>
             Verificar el horario antes de escanear.
           </li>
           <li class="flex items-center gap-3 text-xs font-bold text-slate-600 dark:text-gray-300">
-            <span class="material-symbols-outlined text-teal-500 text-sm">check_circle</span>
+            <VIcon class="material-symbols-outlined text-teal-500 text-sm">check_circle</VIcon>
             Solicitar el QR dinámico o PIN del usuario.
           </li>
           <li class="flex items-center gap-3 text-xs font-bold text-slate-600 dark:text-gray-300">
-            <span class="material-symbols-outlined text-teal-500 text-sm">check_circle</span>
+            <VIcon class="material-symbols-outlined text-teal-500 text-sm">check_circle</VIcon>
             Reportar fallos técnicos a coordinación.
           </li>
         </ul>
-      </div>
+      </VCard>
     </div>
   </div>
 </template>

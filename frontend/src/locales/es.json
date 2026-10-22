@@ -1,6 +1,8 @@
 {
   "navbar": {
+    "system_name": "Sistema de Gestión de Eventos y Actividades",
     "home": "Inicio",
+    "events": "Eventos",
     "info": "Información",
     "organization": "Organización",
     "location": "Ubicación",
@@ -11,7 +13,7 @@
   },
   "footer": {
     "where_we_are": "Dónde estamos",
-    "address": "Cota Cota, Calle 27, Edif. Facultad de Ciencias Puras y Naturales - La Paz, Bolivia",
+    "address": "UMSA, Monoblock Central, edificio TIC de la Facultad de Ciencias Puras y Naturales, La Paz, Bolivia",
     "contact_us": "Contáctanos",
     "phone": "Teléfono de referencia",
     "email": "Email",
@@ -31,5 +33,22 @@
     "no_account": "¿No tienes una cuenta?",
     "register_here": "Regístrate aquí",
     "verifying": "Verificando..."
+  },
+  "welcome": {
+    "eyebrow": "Plataforma de eventos y cursos académicos",
+    "heading_start": "Bienvenido al",
+    "heading_accent": "sistema académico.",
+    "description": "Descubre los eventos y actividades disponibles, conoce sus detalles y participa en las próximas experiencias de aprendizaje.",
+    "explore": "Explorar eventos",
+    "register": "Crear cuenta",
+    "hint": "Para explorar los eventos, haz clic en «Explorar eventos».",
+    "official": "Portal oficial",
+    "visual_eyebrow": "Tu siguiente experiencia comienza aquí",
+    "visual_title": "Encuentra el evento que te inspira.",
+    "step_explore": "Explora",
+    "step_register": "Inscríbete",
+    "step_participate": "Participa",
+    "institutions": "Respaldo institucional",
+    "institutions_description": "Una plataforma para conectar nuestra comunidad académica."
   }
 }

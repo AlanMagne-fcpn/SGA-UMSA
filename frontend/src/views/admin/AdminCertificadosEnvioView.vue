@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { certificadosService } from '@/services/certificados.service';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 import CertificadoRender from '@/components/common/CertificadoRender.vue';
 
 const route = useRoute();
@@ -668,7 +668,7 @@ onMounted(() => {
       <div>
         <div class="flex items-center gap-3 mb-2">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-800 to-slate-950 flex items-center justify-center shadow-lg shadow-slate-900/50">
-            <span class="material-symbols-outlined text-white text-[22px]">workspace_premium</span>
+            <VIcon class="material-symbols-outlined text-white text-[22px]">workspace_premium</VIcon>
           </div>
           <div>
             <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Panel de Control</p>
@@ -680,108 +680,108 @@ onMounted(() => {
 
       <div class="flex items-center gap-2 flex-wrap justify-end">
         <!-- Refrescar -->
-        <button @click="activeTab === 'trazabilidad' ? fetchCertificados() : fetchAuditoria()"
+        <VBtn @click="activeTab === 'trazabilidad' ? fetchCertificados() : fetchAuditoria()"
                 class="p-3 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl text-slate-600 dark:text-gray-400 hover:bg-slate-50 transition-all shadow-sm"
                 title="Refrescar vista actual">
-          <span class="material-symbols-outlined" :class="{'animate-spin': isLoading || isStatsLoading}">refresh</span>
-        </button>
+          <VIcon class="material-symbols-outlined" :class="{'animate-spin': isLoading || isStatsLoading}">refresh</VIcon>
+        </VBtn>
 
         <template v-if="activeTab === 'trazabilidad'">
           <!-- Reintentar TODOS los fallidos -->
-          <button @click="handleReintentarFallidos"
+          <VBtn @click="handleReintentarFallidos"
                   :disabled="totalFallidos === 0 || isRetryingAll"
                   :class="totalFallidos === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-rose-700'"
                   class="flex items-center gap-2 px-4 py-3 bg-rose-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all disabled:grayscale shadow-sm">
-            <span class="material-symbols-outlined text-[18px]">{{ isRetryingAll ? 'progress_activity' : 'replay' }}</span>
+            <VIcon class="material-symbols-outlined text-[18px]">{{ isRetryingAll ? 'progress_activity' : 'replay' }}</VIcon>
             Reintentar Fallidos
             <span v-if="totalFallidos > 0" class="bg-white/20 px-1.5 py-0.5 rounded-full text-[9px]">{{ totalFallidos }}</span>
-          </button>
+          </VBtn>
 
           <!-- Enviar seleccionados -->
-          <button @click="handleSendMasivo"
+          <VBtn @click="handleSendMasivo"
                   :disabled="selectedIds.length === 0 || isSending"
                   :class="selectedIds.length === 0 ? 'opacity-50 grayscale' : 'hover:bg-slate-900 shadow-xl shadow-slate-900/20'"
                   class="flex items-center gap-2 px-5 py-3 bg-slate-800 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-sm">
-            <span class="material-symbols-outlined text-[18px]">{{ isSending ? 'progress_activity' : 'send' }}</span>
+            <VIcon class="material-symbols-outlined text-[18px]">{{ isSending ? 'progress_activity' : 'send' }}</VIcon>
             {{ isSending ? 'Encolando...' : `Enviar (${selectedIds.length})` }}
-          </button>
+          </VBtn>
         </template>
       </div>
     </div>
 
     <!-- TAB NAVIGATION -->
     <div class="flex flex-wrap gap-2">
-      <button @click="activeTab = 'trazabilidad'" :class="activeTab === 'trazabilidad' ? 'bg-slate-800 text-white shadow-lg shadow-slate-900/20' : 'bg-white dark:bg-gray-900 text-slate-500 border border-slate-200 dark:border-gray-800 hover:bg-slate-50'" class="flex items-center gap-2 px-5 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all">
-        <span class="material-symbols-outlined text-sm">mail</span>
+      <VBtn @click="activeTab = 'trazabilidad'" :class="activeTab === 'trazabilidad' ? 'bg-slate-800 text-white shadow-lg shadow-slate-900/20' : 'bg-white dark:bg-gray-900 text-slate-500 border border-slate-200 dark:border-gray-800 hover:bg-slate-50'" class="flex items-center gap-2 px-5 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all">
+        <VIcon class="material-symbols-outlined text-sm">mail</VIcon>
         Trazabilidad y Envío
-      </button>
-      <button @click="activeTab = 'emision'" :class="activeTab === 'emision' ? 'bg-slate-800 text-white shadow-lg shadow-slate-900/20' : 'bg-white dark:bg-gray-900 text-slate-500 border border-slate-200 dark:border-gray-800 hover:bg-slate-50'" class="flex items-center gap-2 px-5 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all">
-        <span class="material-symbols-outlined text-sm">add_circle</span>
+      </VBtn>
+      <VBtn @click="activeTab = 'emision'" :class="activeTab === 'emision' ? 'bg-slate-800 text-white shadow-lg shadow-slate-900/20' : 'bg-white dark:bg-gray-900 text-slate-500 border border-slate-200 dark:border-gray-800 hover:bg-slate-50'" class="flex items-center gap-2 px-5 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all">
+        <VIcon class="material-symbols-outlined text-sm">add_circle</VIcon>
         Emisión Masiva
-      </button>
-      <button @click="activeTab = 'auditoria'; fetchAuditoria()" :class="activeTab === 'auditoria' ? 'bg-slate-800 text-white shadow-lg shadow-slate-900/20' : 'bg-white dark:bg-gray-900 text-slate-500 border border-slate-200 dark:border-gray-800 hover:bg-slate-50'" class="flex items-center gap-2 px-5 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all">
-        <span class="material-symbols-outlined text-sm">analytics</span>
+      </VBtn>
+      <VBtn @click="activeTab = 'auditoria'; fetchAuditoria()" :class="activeTab === 'auditoria' ? 'bg-slate-800 text-white shadow-lg shadow-slate-900/20' : 'bg-white dark:bg-gray-900 text-slate-500 border border-slate-200 dark:border-gray-800 hover:bg-slate-50'" class="flex items-center gap-2 px-5 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all">
+        <VIcon class="material-symbols-outlined text-sm">analytics</VIcon>
         Auditoría SMTP
-      </button>
+      </VBtn>
     </div>
 
     <!-- TAB: TRAZABILIDAD -->
     <div v-if="activeTab === 'trazabilidad'" class="space-y-6 animate-in fade-in duration-300">
 
       <!-- FILTROS DE BÚSQUEDA LIBRE -->
-      <div class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
+      <VCard class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
         <div class="flex flex-col sm:flex-row sm:items-center gap-4">
           <div class="flex-1 relative">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[20px]">search</span>
-            <input v-model="filterEvent" type="text" placeholder="Buscar por usuario, email, evento, actividad o código..."
+            <VIcon class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[20px]">search</VIcon>
+            <UiInput v-model="filterEvent" type="text" placeholder="Buscar por usuario, email, evento, actividad o código..."
                    class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-gray-800/50 border border-slate-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-slate-400 transition-all" />
           </div>
-          <select v-model="filterStatus"
+          <UiSelect v-model="filterStatus"
                   class="px-4 py-2.5 bg-slate-50 dark:bg-gray-800/50 border border-slate-200 dark:border-gray-700 rounded-xl text-xs font-bold uppercase outline-none cursor-pointer w-full sm:w-auto">
             <option value="">Todos los estados</option>
             <option value="pendiente">Pendiente</option>
             <option value="enviado">Enviado</option>
             <option value="error">Con Error</option>
             <option value="procesando">Procesando</option>
-          </select>
+          </UiSelect>
         </div>
 
         <!-- SELECTOR DE PLANTILLA DE CORREO -->
         <div class="flex flex-col sm:flex-row sm:items-center gap-3 px-1 py-4 border-t border-slate-100 dark:border-gray-800/60">
           <div class="flex items-center gap-2 shrink-0">
-            <span class="material-symbols-outlined text-[18px] text-amber-500">mail_outline</span>
+            <VIcon class="material-symbols-outlined text-[18px] text-amber-500">mail_outline</VIcon>
             <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Plantilla del Mensaje de Correo:</span>
           </div>
           <div class="flex items-center gap-2 w-full sm:w-auto">
-            <select v-model="selectedTemplateId"
+            <UiSelect v-model="selectedTemplateId"
                     class="px-4 py-2 bg-slate-50 dark:bg-gray-800/50 border border-slate-200 dark:border-gray-700 rounded-xl text-xs font-bold outline-none cursor-pointer focus:border-amber-400 transition-all w-full sm:min-w-[280px]">
               <option :value="null">⚙ Plantilla predeterminada del sistema (.hbs)</option>
               <option v-for="tpl in certTemplates" :key="tpl.id" :value="tpl.id">
                 📧 {{ tpl.nombre }} — {{ tpl.asunto }}
               </option>
-            </select>
-            <button @click="abrirPreviewCorreo" class="w-8 h-8 shrink-0 flex items-center justify-center text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all border border-blue-200 dark:border-blue-900/50" title="Previsualizar mensaje de correo">
-              <span class="material-symbols-outlined text-[18px]">visibility</span>
-            </button>
+            </UiSelect>
+            <VBtn @click="abrirPreviewCorreo" class="w-8 h-8 shrink-0 flex items-center justify-center text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all border border-blue-200 dark:border-blue-900/50" title="Previsualizar mensaje de correo">
+              <VIcon class="material-symbols-outlined text-[18px]">visibility</VIcon>
+            </VBtn>
           </div>
           <div v-if="isFetchingTemplates" class="animate-spin w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full"></div>
           <div v-else-if="certTemplates.length === 0" class="text-[10px] text-slate-400 italic">
             (Sin plantillas personalizadas. <router-link to="/admin/correos" class="text-amber-500 underline hover:text-amber-600">Crear una</router-link>)
           </div>
         </div>
-      </div>
+      </VCard>
 
       <!-- TABLA DE CERTIFICADOS -->
-      <div class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2rem] overflow-hidden shadow-sm">
+      <VCard class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2rem] overflow-hidden shadow-sm">
         <div v-if="isLoading" class="flex justify-center items-center py-20">
-          <span class="material-symbols-outlined animate-spin text-3xl text-slate-400">progress_activity</span>
+          <VIcon class="material-symbols-outlined animate-spin text-3xl text-slate-400">progress_activity</VIcon>
         </div>
         <div v-else class="overflow-x-auto">
-          <table class="w-full text-left border-collapse">
+          <VTable class="w-full text-left border-collapse">
             <thead>
               <tr class="bg-slate-50 dark:bg-gray-800/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-gray-800">
                 <th class="px-6 py-4 w-10">
-                  <input type="checkbox" @change="toggleSelectAll"
+                  <UiInput type="checkbox" @change="toggleSelectAll"
                          :checked="selectedIds.length === filteredCertificados.length && filteredCertificados.length > 0"
                          class="w-4 h-4 rounded border-slate-300 cursor-pointer" />
                 </th>
@@ -799,7 +799,7 @@ onMounted(() => {
 
                 <!-- Checkbox -->
                 <td class="px-6 py-4">
-                  <input type="checkbox" v-model="selectedIds" :value="cert.id"
+                  <UiInput type="checkbox" v-model="selectedIds" :value="cert.id"
                          class="w-4 h-4 rounded border-slate-300 cursor-pointer" />
                 </td>
 
@@ -864,50 +864,50 @@ onMounted(() => {
               <td class="px-6 py-4">
                 <div class="flex items-center justify-end gap-1">
                   <!-- Validar envío / Trazabilidad -->
-                  <button @click="verPdfCertificado(cert)"
+                  <VBtn @click="verPdfCertificado(cert)"
                           title="Ver PDF del certificado"
                           class="p-2 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-900/20 text-sky-500 hover:text-[#003B71] transition-all">
-                    <span class="material-symbols-outlined text-[18px]">picture_as_pdf</span>
-                  </button>
+                    <VIcon class="material-symbols-outlined text-[18px]">picture_as_pdf</VIcon>
+                  </VBtn>
 
-                  <button @click="verVerificacion(cert)"
+                  <VBtn @click="verVerificacion(cert)"
                           title="Verificar autenticidad"
                           class="p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-emerald-500 hover:text-emerald-700 transition-all">
-                    <span class="material-symbols-outlined text-[18px]">verified</span>
-                  </button>
+                    <VIcon class="material-symbols-outlined text-[18px]">verified</VIcon>
+                  </VBtn>
 
-                  <button @click="abrirMailTrace(cert.id)"
+                  <VBtn @click="abrirMailTrace(cert.id)"
                           title="Ver traza de envío"
                           class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all">
-                    <span class="material-symbols-outlined text-[18px]">history</span>
-                  </button>
+                    <VIcon class="material-symbols-outlined text-[18px]">history</VIcon>
+                  </VBtn>
 
                   <!-- Ver error -->
-                  <button v-if="cert.estado_envio === 'error'"
+                  <VBtn v-if="cert.estado_envio === 'error'"
                           @click="verError(cert.log_error_envio || '')"
                           title="Ver detalle del error"
                           class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-400 transition-all">
-                    <span class="material-symbols-outlined text-[18px]">bug_report</span>
-                  </button>
+                    <VIcon class="material-symbols-outlined text-[18px]">bug_report</VIcon>
+                  </VBtn>
 
                   <!-- Editar email -->
-                  <button @click="abrirEditarEmail(cert)"
+                  <VBtn @click="abrirEditarEmail(cert)"
                           title="Editar email del usuario"
                           class="p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-400 hover:text-blue-600 transition-all">
-                    <span class="material-symbols-outlined text-[18px]">edit</span>
-                  </button>
+                    <VIcon class="material-symbols-outlined text-[18px]">edit</VIcon>
+                  </VBtn>
 
                   <!-- Reintentar individual -->
-                  <button @click="reintentarUno(cert)"
+                  <VBtn @click="reintentarUno(cert)"
                           :title="cert.estado_envio === 'enviado' ? 'Ya enviado' : 'Reintentar envío'"
                           :class="cert.estado_envio === 'enviado'
                             ? 'text-slate-300 dark:text-slate-600 cursor-default'
                             : 'hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-400 hover:text-slate-800'"
                           class="p-2 rounded-lg transition-all">
-                    <span class="material-symbols-outlined text-[18px]">
+                    <VIcon class="material-symbols-outlined text-[18px]">
                       {{ cert.estado_envio === 'enviado' ? 'done_all' : 'send' }}
-                    </span>
-                  </button>
+                    </VIcon>
+                  </VBtn>
                 </div>
               </td>
             </tr>
@@ -918,10 +918,10 @@ onMounted(() => {
               </td>
             </tr>
           </tbody>
-        </table>
+        </VTable>
       </div>
 
-    </div>
+    </VCard>
     </div> <!-- end trazabilidad tab -->
 
     <!-- ──────────────────────────────────────────────────────────── -->
@@ -930,15 +930,15 @@ onMounted(() => {
     <div v-else-if="activeTab === 'auditoria'" class="space-y-6">
 
       <div v-if="isStatsLoading" class="flex justify-center items-center py-20">
-        <span class="material-symbols-outlined animate-spin text-3xl text-slate-400">progress_activity</span>
+        <VIcon class="material-symbols-outlined animate-spin text-3xl text-slate-400">progress_activity</VIcon>
       </div>
 
       <template v-else>
         <!-- CUOTA Y PROGRESO DIARIO -->
-        <div class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm space-y-4">
+        <VCard class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm space-y-4">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 text-xs font-black text-slate-500 uppercase tracking-widest">
             <span class="flex items-center gap-1.5 text-primary-dark dark:text-white">
-              <span class="material-symbols-outlined text-[18px]">analytics</span>
+              <VIcon class="material-symbols-outlined text-[18px]">analytics</VIcon>
               Consumo de Cuota de Envío Diario SMTP
             </span>
             <span class="text-slate-600 font-mono">{{ statsData.enviados }} / 100 correos salientes hoy</span>
@@ -952,43 +952,43 @@ onMounted(() => {
           <div class="flex justify-between items-center text-[10px] text-slate-400 font-bold italic">
             <span>Nota: La cuota SMTP se gestiona de forma rotativa para garantizar la reputación del servidor IP.</span>
             <span v-if="statsData.pausados > 0" class="text-amber-500 flex items-center gap-1">
-              <span class="material-symbols-outlined text-[12px] animate-pulse">hourglass_top</span>
+              <VIcon class="material-symbols-outlined text-[12px] animate-pulse">hourglass_top</VIcon>
               {{ statsData.pausados }} en pausa por límite diario
             </span>
           </div>
-        </div>
+        </VCard>
 
         <!-- TARJETAS DE ESTADÍSTICAS -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 p-5 rounded-2xl shadow-sm text-center">
+          <VCard class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 p-5 rounded-2xl shadow-sm text-center">
             <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Enviados (Bitácora)</p>
             <h3 class="text-2xl font-black text-emerald-600 dark:text-emerald-400">{{ statsData.enviados }}</h3>
-          </div>
-          <div class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 p-5 rounded-2xl shadow-sm text-center">
+          </VCard>
+          <VCard class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 p-5 rounded-2xl shadow-sm text-center">
             <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">En Cola (Pendientes)</p>
             <h3 class="text-2xl font-black text-blue-600 dark:text-blue-400">{{ statsData.pendientes }}</h3>
-          </div>
-          <div class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 p-5 rounded-2xl shadow-sm text-center">
+          </VCard>
+          <VCard class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 p-5 rounded-2xl shadow-sm text-center">
             <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Fallas Activas</p>
             <h3 class="text-2xl font-black text-rose-600 dark:text-rose-400">{{ statsData.fallidos }}</h3>
-          </div>
-          <div class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 p-5 rounded-2xl shadow-sm text-center">
+          </VCard>
+          <VCard class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 p-5 rounded-2xl shadow-sm text-center">
             <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Cancelados</p>
             <h3 class="text-2xl font-black text-slate-500">{{ statsData.cancelados }}</h3>
-          </div>
+          </VCard>
         </div>
 
         <!-- COLA FALLIDOS -->
-        <div class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2rem] overflow-hidden shadow-sm">
+        <VCard class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2rem] overflow-hidden shadow-sm">
           <div class="p-6 border-b border-slate-100 dark:border-gray-800 flex justify-between items-center bg-slate-50/50 dark:bg-gray-800/20">
             <h3 class="text-xs font-black text-rose-600 uppercase tracking-widest flex items-center gap-2">
-              <span class="material-symbols-outlined text-[18px]">error</span>
+              <VIcon class="material-symbols-outlined text-[18px]">error</VIcon>
               Fallas en Cola de Envíos (Activas)
             </h3>
             <span class="text-[10px] font-bold text-slate-400">Total: {{ auditData.colaFallidos.length }} pendientes</span>
           </div>
           <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
+            <VTable class="w-full text-left border-collapse">
               <thead>
                 <tr class="bg-slate-50 dark:bg-gray-800/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-gray-800">
                   <th class="px-6 py-4">Destinatario</th>
@@ -1018,9 +1018,9 @@ onMounted(() => {
                       <span class="text-[10px] text-slate-500 font-medium truncate max-w-[220px]" :title="mail.ultimo_error">
                         {{ mail.ultimo_error || 'Fallo SMTP genérico' }}
                       </span>
-                      <button @click="verError(mail.ultimo_error || '')" class="p-1 rounded hover:bg-slate-100 dark:hover:bg-gray-800 text-slate-400">
-                        <span class="material-symbols-outlined text-[15px]">bug_report</span>
-                      </button>
+                      <VBtn @click="verError(mail.ultimo_error || '')" class="p-1 rounded hover:bg-slate-100 dark:hover:bg-gray-800 text-slate-400">
+                        <VIcon class="material-symbols-outlined text-[15px]">bug_report</VIcon>
+                      </VBtn>
                     </div>
                   </td>
                   <td class="px-6 py-4 text-[10px] font-mono text-slate-400">
@@ -1031,20 +1031,20 @@ onMounted(() => {
                   <td colspan="6" class="py-12 text-center text-slate-400 italic text-xs">No hay correos en cola con fallos actualmente. ¡Tu servidor funciona al 100%!</td>
                 </tr>
               </tbody>
-            </table>
+            </VTable>
           </div>
-        </div>
+        </VCard>
 
         <!-- BITÁCORA SMTP -->
-        <div class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2rem] overflow-hidden shadow-sm">
+        <VCard class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2rem] overflow-hidden shadow-sm">
           <div class="p-6 border-b border-slate-100 dark:border-gray-800 flex justify-between items-center bg-slate-50/50 dark:bg-gray-800/20">
             <h3 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
-              <span class="material-symbols-outlined text-[18px]">history</span>
+              <VIcon class="material-symbols-outlined text-[18px]">history</VIcon>
               Bitácora de Salida SMTP (Envíos Finalizados)
             </h3>
           </div>
           <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
+            <VTable class="w-full text-left border-collapse">
               <thead>
                 <tr class="bg-slate-50 dark:bg-gray-800/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-gray-800">
                   <th class="px-6 py-4">Destinatario</th>
@@ -1071,9 +1071,9 @@ onMounted(() => {
                   <td class="px-6 py-4">
                     <div v-if="log.error" class="flex items-center gap-2">
                       <span class="text-[10px] text-rose-500 max-w-[200px] truncate" :title="log.error">{{ log.error }}</span>
-                      <button @click="verError(log.error)" class="p-1 rounded hover:bg-rose-50 text-rose-500">
-                        <span class="material-symbols-outlined text-sm">bug_report</span>
-                      </button>
+                      <VBtn @click="verError(log.error)" class="p-1 rounded hover:bg-rose-50 text-rose-500">
+                        <VIcon class="material-symbols-outlined text-sm">bug_report</VIcon>
+                      </VBtn>
                     </div>
                     <span v-else class="text-[10px] text-emerald-600 font-bold">Entrega Exitosa</span>
                   </td>
@@ -1082,9 +1082,9 @@ onMounted(() => {
                   <td colspan="5" class="py-12 text-center text-slate-400 italic text-xs">No hay envíos registrados en la bitácora SMTP aún.</td>
                 </tr>
               </tbody>
-            </table>
+            </VTable>
           </div>
-        </div>
+        </VCard>
 
       </template>
 
@@ -1092,47 +1092,47 @@ onMounted(() => {
 
     <!-- TAB: EMISIÓN MASIVA -->
     <div v-else-if="activeTab === 'emision'" class="space-y-6 animate-in fade-in duration-300">
-      <div class="bg-white dark:bg-gray-900 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-sm p-6 space-y-6">
+      <VCard class="bg-white dark:bg-gray-900 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-sm p-6 space-y-6">
         <h3 class="text-sm font-black uppercase text-slate-800 dark:text-white flex items-center gap-2">
-          <span class="material-symbols-outlined text-amber-500">add_circle</span>
+          <VIcon class="material-symbols-outlined text-amber-500">add_circle</VIcon>
           Generar Certificados por Tipo de Rol
         </h3>
 
         <!-- Tipo selector -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <button v-for="(label, key) in tipoLabels" :key="key" @click="emisionTipo = Number(key); emisionCandidatos = []; emisionSelectedIds = []; autoSelectInfoCert()"
+          <VBtn v-for="(label, key) in tipoLabels" :key="key" @click="emisionTipo = Number(key); emisionCandidatos = []; emisionSelectedIds = []; autoSelectInfoCert()"
             :class="emisionTipo === Number(key) ? 'bg-slate-800 text-white shadow-lg' : 'bg-slate-100 dark:bg-gray-800 text-slate-500 hover:bg-slate-200'"
             class="px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-center">
             {{ label }}
-          </button>
+          </VBtn>
         </div>
 
         <!-- Evento + Actividad -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">Evento</label>
-            <select v-model="emisionEventoId" @change="fetchEmisionActividades(); fetchEmisionInfoCerts()" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-slate-500">
+            <UiSelect v-model="emisionEventoId" @change="fetchEmisionActividades(); fetchEmisionInfoCerts()" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-slate-500">
               <option :value="null">Seleccionar evento...</option>
               <option v-for="e in emisionEventos" :key="e.id" :value="e.id">{{ e.nombre || e.nombre_evento }}</option>
-            </select>
+            </UiSelect>
           </div>
           <div>
             <label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">Actividad</label>
-            <select v-model="emisionActividadId" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-slate-500">
+            <UiSelect v-model="emisionActividadId" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-slate-500">
               <option :value="null">{{ emisionTipo === 3 ? 'No aplica (por evento)' : 'Seleccionar...' }}</option>
               <option v-for="a in emisionActividades" :key="a.id" :value="a.id">{{ a.nombre }}</option>
-            </select>
+            </UiSelect>
           </div>
           <div>
             <label class="text-[10px] font-black uppercase text-slate-400 mb-1 block">Plantilla Certificado (Asignada automáticamente)</label>
             <div class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-750 dark:text-slate-250 flex items-center min-h-[46px]">
               <span v-if="emisionInfoCertId && emisionInfoCerts.find(ic => ic.id === emisionInfoCertId)" class="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                <span class="material-symbols-outlined text-[18px]">verified</span>
+                <VIcon class="material-symbols-outlined text-[18px]">verified</VIcon>
                 {{ emisionInfoCerts.find(ic => ic.id === emisionInfoCertId).cabecera || `Plantilla #${emisionInfoCertId}` }}
-                ({{ emisionInfoCerts.find(ic => ic.id === emisionInfoCertId).es_excelencia ? 'Excelencia' : 'Regular' }})
+                ({{ emisionInfoCerts.find(ic => ic.id === emisionInfoCertId).es_excelencia ? 'Aprobación' : 'Participación' }})
               </span>
               <span v-else class="text-rose-500 dark:text-rose-400 italic flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[18px]">warning</span>
+                <VIcon class="material-symbols-outlined text-[18px]">warning</VIcon>
                 Sin plantilla configurada para este rol
               </span>
             </div>
@@ -1140,34 +1140,34 @@ onMounted(() => {
         </div>
 
         <div class="flex items-center gap-4">
-          <input v-model="emisionFirma" type="text" placeholder="Firma (ej: Firma del Director)" class="flex-1 bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-slate-500" />
-          <button @click="fetchCandidatos" :disabled="emisionLoading" class="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all disabled:opacity-50">
-            <span class="material-symbols-outlined text-sm">search</span>
+          <UiInput v-model="emisionFirma" type="text" placeholder="Firma (ej: Firma del Director)" class="flex-1 bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-slate-500" />
+          <VBtn @click="fetchCandidatos" :disabled="emisionLoading" class="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all disabled:opacity-50">
+            <VIcon class="material-symbols-outlined text-sm">search</VIcon>
             Buscar Candidatos
-          </button>
+          </VBtn>
         </div>
-      </div>
+      </VCard>
 
       <!-- Candidatos table -->
-      <div v-if="emisionCandidatos.length > 0" class="bg-white dark:bg-gray-900 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-sm overflow-hidden">
+      <VCard v-if="emisionCandidatos.length > 0" class="bg-white dark:bg-gray-900 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-sm overflow-hidden">
         <div class="p-5 border-b border-slate-100 dark:border-gray-800 flex items-center justify-between">
           <p class="text-sm font-black text-slate-800 dark:text-white uppercase">{{ emisionCandidatos.length }} candidatos encontrados</p>
           <div class="flex items-center gap-3">
-            <button @click="abrirPreviewDiseno" :disabled="!emisionInfoCertId" class="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all disabled:opacity-50">
-              <span class="material-symbols-outlined text-sm">visibility</span>
+            <VBtn @click="abrirPreviewDiseno" :disabled="!emisionInfoCertId" class="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all disabled:opacity-50">
+              <VIcon class="material-symbols-outlined text-sm">visibility</VIcon>
               Previsualizar Diseño
-            </button>
-            <button @click="handleEmitirLote" :disabled="emisionSelectedIds.length === 0 || emisionLoading" class="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all disabled:opacity-50">
-              <span class="material-symbols-outlined text-sm">{{ emisionLoading ? 'progress_activity' : 'workspace_premium' }}</span>
+            </VBtn>
+            <VBtn @click="handleEmitirLote" :disabled="emisionSelectedIds.length === 0 || emisionLoading" class="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all disabled:opacity-50">
+              <VIcon class="material-symbols-outlined text-sm">{{ emisionLoading ? 'progress_activity' : 'workspace_premium' }}</VIcon>
               Emitir Seleccionados ({{ emisionSelectedIds.length }})
-            </button>
+            </VBtn>
           </div>
         </div>
         <div class="overflow-x-auto">
-          <table class="w-full text-left">
+          <VTable class="w-full text-left">
             <thead>
               <tr class="bg-slate-50 dark:bg-gray-800/50">
-                <th class="p-4 w-12"><input type="checkbox" @change="toggleEmisionSelectAll" class="rounded" /></th>
+                <th class="p-4 w-12"><UiInput type="checkbox" @change="toggleEmisionSelectAll" class="rounded" /></th>
                 <th class="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Usuario</th>
                 <th class="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Email</th>
                 <th class="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Estado</th>
@@ -1176,8 +1176,8 @@ onMounted(() => {
             <tbody>
               <tr v-for="c in emisionCandidatos" :key="c.id" class="border-t border-slate-100 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors">
                 <td class="p-4">
-                  <input v-if="!c.yaTieneCertificado" type="checkbox" :value="c.id" v-model="emisionSelectedIds" class="rounded" />
-                  <span v-else class="material-symbols-outlined text-emerald-500 text-sm" title="Ya tiene certificado">check_circle</span>
+                  <UiInput v-if="!c.yaTieneCertificado" type="checkbox" :value="c.id" v-model="emisionSelectedIds" class="rounded" />
+                  <VIcon v-else class="material-symbols-outlined text-emerald-500 text-sm" title="Ya tiene certificado">check_circle</VIcon>
                 </td>
                 <td class="p-4 text-sm font-bold text-slate-700 dark:text-gray-300">{{ c.nombres }} {{ c.primer_apellido }}</td>
                 <td class="p-4 text-xs font-mono text-slate-500">{{ c.email }}</td>
@@ -1187,28 +1187,28 @@ onMounted(() => {
                 </td>
               </tr>
             </tbody>
-          </table>
+          </VTable>
         </div>
-      </div>
+      </VCard>
     </div>
 
     <!-- MAIL TRACE MODAL -->
     <Teleport to="body">
       <Transition name="modal-fade">
-        <div v-if="showTraceModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" @click.self="showTraceModal = false">
+        <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" @click:outside="showTraceModal = false" v-if="showTraceModal"  >
           <div class="bg-white dark:bg-gray-900 rounded-3xl border border-slate-200 dark:border-gray-800 shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div class="p-6 border-b border-slate-100 dark:border-gray-800 flex items-center justify-between">
               <div>
                 <h3 class="text-lg font-black text-slate-800 dark:text-white uppercase">Traza de Envío</h3>
                 <p class="text-xs text-slate-400 mt-1">Historial detallado de entrega del certificado.</p>
               </div>
-              <button @click="showTraceModal = false" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-gray-800 transition-all">
-                <span class="material-symbols-outlined text-slate-400">close</span>
-              </button>
+              <VBtn @click="showTraceModal = false" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-gray-800 transition-all">
+                <VIcon class="material-symbols-outlined text-slate-400">close</VIcon>
+              </VBtn>
             </div>
 
             <div v-if="traceLoading" class="p-12 text-center">
-              <span class="material-symbols-outlined animate-spin text-3xl text-slate-400">progress_activity</span>
+              <VIcon class="material-symbols-outlined animate-spin text-3xl text-slate-400">progress_activity</VIcon>
             </div>
 
             <div v-else-if="traceData" class="p-6 space-y-6">
@@ -1269,33 +1269,33 @@ onMounted(() => {
               </div>
             </div>
           </div>
-        </div>
+        </VDialog>
       </Transition>
     </Teleport>
 
     <!-- MODAL: Editar Email -->
     <Teleport to="body">
       <Transition name="modal-fade">
-        <div v-if="showEmailModal"
-             class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-             @click.self="cerrarEditarEmail">
-          <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" @click:outside="cerrarEditarEmail" v-if="showEmailModal"
+
+             >
+          <VCard class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
 
             <!-- Header modal -->
             <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100 dark:border-gray-800">
               <div class="flex items-center gap-3">
                 <div class="w-9 h-9 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
-                  <span class="material-symbols-outlined text-blue-600 text-[20px]">edit</span>
+                  <VIcon class="material-symbols-outlined text-blue-600 text-[20px]">edit</VIcon>
                 </div>
                 <div>
                   <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Corrección rápida</p>
                   <h2 class="text-base font-black text-slate-800 dark:text-white">Editar Email del Usuario</h2>
                 </div>
               </div>
-              <button @click="cerrarEditarEmail"
+              <VBtn @click="cerrarEditarEmail"
                       class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-gray-800 text-slate-400 transition-all">
-                <span class="material-symbols-outlined">close</span>
-              </button>
+                <VIcon class="material-symbols-outlined">close</VIcon>
+              </VBtn>
             </div>
 
             <!-- Body modal -->
@@ -1310,8 +1310,8 @@ onMounted(() => {
 
               <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Nuevo Email</label>
               <div class="relative">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[20px]">mail</span>
-                <input v-model="emailModalValue"
+                <VIcon class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[20px]">mail</VIcon>
+                <UiInput v-model="emailModalValue"
                        type="email"
                        placeholder="correo@ejemplo.com"
                        @keyup.enter="guardarEmail"
@@ -1321,44 +1321,44 @@ onMounted(() => {
 
             <!-- Footer modal -->
             <div class="flex gap-3 px-6 pb-6">
-              <button @click="cerrarEditarEmail"
+              <VBtn @click="cerrarEditarEmail"
                       class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-gray-700 text-sm font-bold text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-800 transition-all">
                 Cancelar
-              </button>
-              <button @click="guardarEmail"
+              </VBtn>
+              <VBtn @click="guardarEmail"
                       :disabled="isSavingEmail"
                       class="flex-1 py-2.5 rounded-xl bg-slate-800 text-white text-sm font-black hover:bg-slate-900 transition-all disabled:opacity-60 flex items-center justify-center gap-2">
-                <span v-if="isSavingEmail" class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                <VIcon v-if="isSavingEmail" class="material-symbols-outlined text-[18px] animate-spin">progress_activity</VIcon>
                 {{ isSavingEmail ? 'Guardando...' : 'Guardar Email' }}
-              </button>
+              </VBtn>
             </div>
-          </div>
-        </div>
+          </VCard>
+        </VDialog>
       </Transition>
     </Teleport>
 
     <!-- MODAL: Previsualización de Correo -->
     <Teleport to="body">
       <Transition name="modal-fade">
-        <div v-if="showPreviewModal"
-             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
-             @click.self="showPreviewModal = false">
+        <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" @click:outside="showPreviewModal = false" v-if="showPreviewModal"
+
+             >
           <div class="bg-white dark:bg-[#1a1a24] w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-slate-100 dark:border-white/10 flex flex-col max-h-[90vh]">
             <!-- Header modal -->
             <div class="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-black/20">
               <div class="flex items-center gap-3">
                 <div class="w-9 h-9 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
-                  <span class="material-symbols-outlined text-blue-600 text-[20px]">visibility</span>
+                  <VIcon class="material-symbols-outlined text-blue-600 text-[20px]">visibility</VIcon>
                 </div>
                 <div>
                   <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vista Previa del Mensaje</p>
                   <h2 class="text-sm font-black text-slate-800 dark:text-white truncate max-w-[320px]">{{ previewName }}</h2>
                 </div>
               </div>
-              <button @click="showPreviewModal = false"
+              <VBtn @click="showPreviewModal = false"
                       class="w-10 h-10 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center transition-all">
-                <span class="material-symbols-outlined">close</span>
-              </button>
+                <VIcon class="material-symbols-outlined">close</VIcon>
+              </VBtn>
             </div>
 
             <!-- Body modal -->
@@ -1373,7 +1373,7 @@ onMounted(() => {
               <p class="text-[10px] text-slate-400 font-medium">※ Los datos mostrados (Juan Carlos Pérez, etc.) son de ejemplo para la previsualización.</p>
             </div>
           </div>
-        </div>
+        </VDialog>
       </Transition>
     </Teleport>
     <!-- MODAL: Previsualización de Diseño Certificado -->
@@ -1386,18 +1386,18 @@ onMounted(() => {
           <!-- Header -->
           <div class="bg-white dark:bg-gray-900 p-4 rounded-t-3xl w-full max-w-[1024px] flex items-center justify-between border-b border-slate-200 dark:border-gray-800 shadow-xl">
             <h2 class="text-sm font-black uppercase text-slate-800 dark:text-white flex items-center gap-2">
-              <span class="material-symbols-outlined text-blue-500">visibility</span>
+              <VIcon class="material-symbols-outlined text-blue-500">visibility</VIcon>
               Previsualización de Diseño
             </h2>
             <div class="flex items-center gap-4">
               <div class="flex items-center bg-slate-100 dark:bg-gray-800 rounded-lg p-1">
-                <button @click="previewDisenoZoom = Math.max(0.3, previewDisenoZoom - 0.1)" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white"><span class="material-symbols-outlined text-[18px]">remove</span></button>
+                <VBtn @click="previewDisenoZoom = Math.max(0.3, previewDisenoZoom - 0.1)" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white"><VIcon class="material-symbols-outlined text-[18px]">remove</VIcon></VBtn>
                 <span class="text-xs font-bold w-12 text-center text-slate-600 dark:text-gray-300">{{ Math.round(previewDisenoZoom * 100) }}%</span>
-                <button @click="previewDisenoZoom = Math.min(2.0, previewDisenoZoom + 0.1)" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white"><span class="material-symbols-outlined text-[18px]">add</span></button>
+                <VBtn @click="previewDisenoZoom = Math.min(2.0, previewDisenoZoom + 0.1)" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white"><VIcon class="material-symbols-outlined text-[18px]">add</VIcon></VBtn>
               </div>
-              <button @click="showDisenoPreviewModal = false" class="p-2 bg-slate-100 dark:bg-gray-800 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-slate-600 dark:text-gray-300 hover:text-rose-600 rounded-xl transition-all">
-                <span class="material-symbols-outlined">close</span>
-              </button>
+              <VBtn @click="showDisenoPreviewModal = false" class="p-2 bg-slate-100 dark:bg-gray-800 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-slate-600 dark:text-gray-300 hover:text-rose-600 rounded-xl transition-all">
+                <VIcon class="material-symbols-outlined">close</VIcon>
+              </VBtn>
             </div>
           </div>
           
@@ -1415,13 +1415,15 @@ onMounted(() => {
     </Teleport>
 
     <Teleport to="body">
-      <div v-if="visorPdf" class="fixed inset-0 z-[80] flex flex-col bg-slate-900/80 p-4 md:p-8">
+      <VDialog v-if="visorPdf" :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" >
+        <VCard class="w-full h-[92vh] flex flex-col p-4 md:p-8 bg-slate-900">
         <div class="flex items-center justify-between gap-4 mb-3 text-white">
           <p class="text-sm font-black uppercase tracking-widest">{{ visorPdf.titulo }}</p>
-          <button @click="cerrarVisorPdf" class="px-4 py-2 rounded-xl bg-white text-[#003B71] text-[10px] font-black uppercase">Cerrar</button>
+          <VBtn @click="cerrarVisorPdf" class="px-4 py-2 rounded-xl bg-white text-[#003B71] text-[10px] font-black uppercase">Cerrar</VBtn>
         </div>
         <iframe :src="visorPdf.url" class="flex-1 w-full rounded-2xl bg-white" title="Certificado"></iframe>
-      </div>
+      </VCard>
+      </VDialog>
     </Teleport>
   </div>
 </template>

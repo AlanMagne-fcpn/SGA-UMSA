@@ -1,3 +1,5 @@
+@layer vuetify, theme, base, components, utilities;
+
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -80,4 +82,54 @@ body {
 
 .zoom-in {
   animation: zoomIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@layer components {
+  .activity-creation :is(input:not([type='checkbox']):not([type='file']), select, textarea) {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    padding: 12px 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: #f8fafc;
+    color: #0f172a;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .dark .activity-creation :is(input:not([type='checkbox']):not([type='file']), select, textarea) {
+    color-scheme: dark;
+    background: #1e293b;
+    border-color: #64748b;
+    color: #f1f5f9;
+  }
+  .activity-creation :is(input, select, textarea):focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
+  .activity-creation input[type='checkbox'] { width: 18px; height: 18px; accent-color: #0070bb; }
+  .v-icon.material-symbols-outlined {
+    overflow: hidden;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .sgea-dialog .v-overlay__content {
+    display: flex;
+    align-items: center;
+    max-height: calc(100vh - 32px);
+  }
+
+  .sgea-dialog-html :is(input, select, textarea) {
+    display: block;
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: #f8fafc;
+    color: #0f172a;
+  }
+
+  .dark .sgea-dialog-html :is(input, select, textarea) {
+    border-color: #475569;
+    background: #1e293b;
+    color: #f8fafc;
+  }
 }

@@ -5,7 +5,7 @@ import { useAdminHistorialStore } from '@/stores/adminHistorial';
 import { useUIStore } from '@/stores/ui';
 import { useAuthStore } from '@/stores/auth';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 const router = useRouter();
 const historialStore = useAdminHistorialStore();
@@ -520,7 +520,7 @@ const handleNavigation = (card: any) => {
       <div>
         <div class="flex items-center gap-3 mb-2">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#003B71] to-[#0070BB] flex items-center justify-center shadow-lg shadow-[#003B71]/30">
-            <span class="material-symbols-outlined text-white text-[22px]">monitoring</span>
+            <VIcon class="material-symbols-outlined text-white text-[22px]">monitoring</VIcon>
           </div>
           <div>
             <p class="text-[10px] font-black text-umsa-blue dark:text-sky-400 uppercase tracking-widest leading-none">
@@ -537,18 +537,18 @@ const handleNavigation = (card: any) => {
       </div>
       <div class="flex flex-wrap items-center gap-3">
         <!-- BOTONES DE REPORTE TOP -->
-        <div v-if="authStore.esSuperUsuario" class="flex items-center gap-2 mr-4 bg-slate-100 dark:bg-white/5 p-1.5 rounded-2xl border border-slate-200 dark:border-white/10">
-          <button @click="exportarPDFGlobal" 
+        <VCard v-if="authStore.esSuperUsuario" class="flex items-center gap-2 mr-4 bg-slate-100 dark:bg-white/5 p-1.5 rounded-2xl border border-slate-200 dark:border-white/10">
+          <VBtn @click="exportarPDFGlobal"
                   class="flex items-center gap-2 px-4 py-2.5 bg-umsa-blue hover:bg-[#005a96] text-white rounded-xl transition-all shadow-lg shadow-[#0070BB]/30 group">
-            <span class="material-symbols-outlined text-[18px] group-hover:rotate-12 transition-transform">picture_as_pdf</span>
+            <VIcon class="material-symbols-outlined text-[18px] group-hover:rotate-12 transition-transform">picture_as_pdf</VIcon>
             <span class="text-[10px] font-black uppercase tracking-widest">PDF Auditoría</span>
-          </button>
-          <button @click="exportarCsvGlobal" 
+          </VBtn>
+          <VBtn @click="exportarCsvGlobal"
                   class="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all shadow-lg shadow-emerald-900/30 group">
-            <span class="material-symbols-outlined text-[18px] group-hover:scale-110 transition-transform">table_chart</span>
+            <VIcon class="material-symbols-outlined text-[18px] group-hover:scale-110 transition-transform">table_chart</VIcon>
             <span class="text-[10px] font-black uppercase tracking-widest">CSV Gerencial</span>
-          </button>
-        </div>
+          </VBtn>
+        </VCard>
 
         <div class="px-4 py-2 bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-700/30 rounded-xl text-center min-w-[100px]">
           <p class="text-[9px] text-umsa-blue dark:text-sky-400 uppercase tracking-widest font-bold">Acciones hoy</p>
@@ -563,45 +563,45 @@ const handleNavigation = (card: any) => {
 
     <!-- STAT CARDS -->
     <div class="grid grid-cols-2 lg:grid-cols-6 gap-4">
-      <div v-for="card in statCards" :key="card.label"
+      <VCard v-for="card in statCards" :key="card.label"
            @click="handleNavigation(card)"
            class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-2xl p-5 cursor-pointer hover:border-umsa-blue/40 hover:-translate-y-1 transition-all duration-300 group shadow-sm dark:shadow-none">
         <div :class="`w-10 h-10 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`">
-          <span class="material-symbols-outlined text-white text-[20px]">{{ card.icon }}</span>
+          <VIcon class="material-symbols-outlined text-white text-[20px]">{{ card.icon }}</VIcon>
         </div>
         <p class="text-3xl font-black text-slate-800 dark:text-white leading-none mb-1">
           <span v-if="isLoading" class="inline-block w-8 h-6 bg-slate-200 dark:bg-white/10 rounded animate-pulse"></span>
           <span v-else>{{ card.value }}</span>
         </p>
         <p class="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest">{{ card.label }}</p>
-      </div>
+      </VCard>
     </div>
 
     <!-- VISUAL CHARTS SECTION (UI) -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in slide-in-from-bottom-6 duration-1000">
-      <div class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-8 shadow-sm dark:shadow-none group hover:border-sky-400/50 transition-all">
+      <VCard class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-8 shadow-sm dark:shadow-none group hover:border-sky-400/50 transition-all">
         <div class="flex items-center gap-2 mb-6">
           <div class="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/25 flex items-center justify-center">
-            <span class="material-symbols-outlined text-umsa-blue text-lg">leaderboard</span>
+            <VIcon class="material-symbols-outlined text-umsa-blue text-lg">leaderboard</VIcon>
           </div>
           <h3 class="text-[10px] font-black text-slate-800 dark:text-slate-300 uppercase tracking-widest italic">Análisis de Participación</h3>
         </div>
         <div class="flex justify-center p-2 bg-slate-50 dark:bg-black/20 rounded-[2rem] border border-slate-100 dark:border-white/5">
           <img :src="pieUrl" alt="Gráfico de Roles" class="max-w-full h-auto rounded-xl group-hover:scale-105 transition-transform duration-700" />
         </div>
-      </div>
+      </VCard>
 
-      <div class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-8 shadow-sm dark:shadow-none group hover:border-sky-400/50 transition-all">
+      <VCard class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-8 shadow-sm dark:shadow-none group hover:border-sky-400/50 transition-all">
         <div class="flex items-center gap-2 mb-6">
           <div class="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/25 flex items-center justify-center">
-            <span class="material-symbols-outlined text-umsa-blue text-lg">bar_chart</span>
+            <VIcon class="material-symbols-outlined text-umsa-blue text-lg">bar_chart</VIcon>
           </div>
           <h3 class="text-[10px] font-black text-slate-800 dark:text-slate-300 uppercase tracking-widest italic">Métricas de Gestión</h3>
         </div>
         <div class="flex justify-center p-2 bg-slate-50 dark:bg-black/20 rounded-[2rem] border border-slate-100 dark:border-white/5">
           <img :src="barUrl" alt="Gráfico de Gestión" class="max-w-full h-auto rounded-xl group-hover:scale-105 transition-transform duration-700" />
         </div>
-      </div>
+      </VCard>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -609,27 +609,27 @@ const handleNavigation = (card: any) => {
       <div class="lg:col-span-2 space-y-4">
         <div class="flex items-center justify-between px-2">
           <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-umsa-blue">history</span>
+            <VIcon class="material-symbols-outlined text-umsa-blue">history</VIcon>
             <h2 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest italic">Actividad Reciente</h2>
           </div>
-          <button @click="router.push('/admin/historial')" 
+          <VBtn @click="router.push('/admin/historial')"
                   class="text-[9px] font-black text-umsa-blue dark:text-sky-400 uppercase tracking-widest flex items-center gap-1 group">
-            Ver todo <span class="material-symbols-outlined text-[14px] group-hover:translate-x-1 transition-transform">trending_flat</span>
-          </button>
+            Ver todo <VIcon class="material-symbols-outlined text-[14px] group-hover:translate-x-1 transition-transform">trending_flat</VIcon>
+          </VBtn>
         </div>
 
-        <div class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2.5rem] overflow-hidden shadow-sm dark:shadow-none">
+        <VCard class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2.5rem] overflow-hidden shadow-sm dark:shadow-none">
           <div v-if="historialStore.registros.length === 0" class="py-20 flex flex-col items-center text-slate-400">
-            <span class="material-symbols-outlined text-5xl mb-2 opacity-20">history_toggle_off</span>
+            <VIcon class="material-symbols-outlined text-5xl mb-2 opacity-20">history_toggle_off</VIcon>
             <p class="text-[10px] font-black uppercase tracking-widest">Sin actividad registrada aún</p>
           </div>
           <div v-else class="divide-y divide-slate-100 dark:divide-white/5">
             <div v-for="log in historialStore.registros.slice(0, 6)" :key="log.id"
                  class="flex items-center gap-4 p-5 hover:bg-slate-50 dark:hover:bg-white/5 transition-all group">
               <div :class="[accionConfig[log.accion]?.bg || 'bg-slate-100 dark:bg-white/10', 'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border border-slate-200 dark:border-white/10']">
-                <span class="material-symbols-outlined text-[18px]" :class="accionConfig[log.accion]?.color || 'text-slate-400'">
+                <VIcon class="material-symbols-outlined text-[18px]" :class="accionConfig[log.accion]?.color || 'text-slate-400'">
                   {{ accionConfig[log.accion]?.icon || 'visibility' }}
-                </span>
+                </VIcon>
               </div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-0.5">
@@ -644,37 +644,37 @@ const handleNavigation = (card: any) => {
               <p class="text-[9px] font-black text-slate-400 dark:text-slate-600 shrink-0 italic">{{ formatRelativo(log.fecha_creacion) }}</p>
             </div>
           </div>
-        </div>
+        </VCard>
       </div>
 
       <!-- SIDEBAR DASHBOARD CONTENT -->
       <div class="space-y-8">
         <!-- QUICK LINKS -->
-        <div class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-6 shadow-sm dark:shadow-none">
+        <VCard class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-6 shadow-sm dark:shadow-none">
           <div class="flex items-center gap-2 mb-6">
-            <span class="material-symbols-outlined text-umsa-blue">bolt</span>
+            <VIcon class="material-symbols-outlined text-umsa-blue">bolt</VIcon>
             <h2 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest italic">Accesos Rápidos</h2>
           </div>
           <div class="space-y-3">
-            <button @click="router.push({ name: 'admin-gestion', query: { tab: 'eventos' } })"
+            <VBtn @click="router.push({ name: 'admin-gestion', query: { tab: 'eventos' } })"
                     class="w-full flex items-center gap-3 p-4 bg-slate-50 dark:bg-black/30 border border-slate-200 dark:border-white/5 rounded-2xl hover:border-umsa-blue/40 hover:bg-slate-100 dark:hover:bg-sky-900/15 transition-all group text-left">
-              <span class="material-symbols-outlined text-slate-400 dark:text-slate-600 group-hover:text-umsa-blue transition-colors">corporate_fare</span>
+              <VIcon class="material-symbols-outlined text-slate-400 dark:text-slate-600 group-hover:text-umsa-blue transition-colors">corporate_fare</VIcon>
               <span class="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest">Gestionar Eventos</span>
-            </button>
-            <button @click="router.push({ name: 'admin-gestion', query: { tab: 'actividades' } })"
+            </VBtn>
+            <VBtn @click="router.push({ name: 'admin-gestion', query: { tab: 'actividades' } })"
                     class="w-full flex items-center gap-3 p-4 bg-slate-50 dark:bg-black/30 border border-slate-200 dark:border-white/5 rounded-2xl hover:border-umsa-blue/40 hover:bg-slate-100 dark:hover:bg-sky-900/15 transition-all group text-left">
-              <span class="material-symbols-outlined text-slate-400 dark:text-slate-600 group-hover:text-umsa-blue transition-colors">school</span>
+              <VIcon class="material-symbols-outlined text-slate-400 dark:text-slate-600 group-hover:text-umsa-blue transition-colors">school</VIcon>
               <span class="text-[10px] font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest">Actividades Académicas</span>
-            </button>
+            </VBtn>
           </div>
-        </div>
+        </VCard>
 
 
 
         <!-- ACTIVITY BY MODULE (Only Super User) -->
-        <div v-if="authStore.esSuperUsuario" class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-6 shadow-sm dark:shadow-none">
+        <VCard v-if="authStore.esSuperUsuario" class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-6 shadow-sm dark:shadow-none">
           <div class="flex items-center gap-2 mb-6 text-umsa-blue">
-            <span class="material-symbols-outlined">analytics</span>
+            <VIcon class="material-symbols-outlined">analytics</VIcon>
             <h2 class="text-xs font-black dark:text-white uppercase tracking-widest italic">Actividad por Módulo</h2>
           </div>
           <div class="space-y-5">
@@ -682,7 +682,7 @@ const handleNavigation = (card: any) => {
               <div v-for="(count, mod) in historialStore.porModulo" :key="mod" class="space-y-1.5">
                 <div class="flex justify-between items-center px-1">
                   <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[11px]">{{ moduloConfig[mod]?.icon || 'circle' }}</span>
+                    <VIcon class="material-symbols-outlined text-[11px]">{{ moduloConfig[mod]?.icon || 'circle' }}</VIcon>
                     {{ moduloConfig[mod]?.label || mod }}
                   </span>
                   <span class="text-[10px] font-black text-slate-800 dark:text-white">{{ count }}</span>
@@ -694,7 +694,7 @@ const handleNavigation = (card: any) => {
             </template>
             <p v-if="!historialStore.porModulo || Object.keys(historialStore.porModulo).length === 0" class="text-[10px] text-slate-400 uppercase italic text-center py-4">Sin datos registrados</p>
           </div>
-        </div>
+        </VCard>
       </div>
     </div>
   </div>

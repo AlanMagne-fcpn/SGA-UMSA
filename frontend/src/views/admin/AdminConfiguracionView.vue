@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 const configs = ref<any[]>([]);
 const stats = ref<any>(null);
@@ -79,7 +79,7 @@ onMounted(fetchConfigs);
       <div>
         <div class="flex items-center gap-3 mb-2">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-800 to-black flex items-center justify-center shadow-lg">
-            <span class="material-symbols-outlined text-white text-[22px]">settings</span>
+            <VIcon class="material-symbols-outlined text-white text-[22px]">settings</VIcon>
           </div>
           <div>
             <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Sistema</p>
@@ -92,31 +92,31 @@ onMounted(fetchConfigs);
 
     <!-- STATS (MAIL QUEUE) -->
     <div v-if="stats" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-      <div class="bg-white dark:bg-[#13131f] p-5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
+      <VCard class="bg-white dark:bg-[#13131f] p-5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
         <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Total Cola</p>
         <p class="text-2xl font-black text-slate-800 dark:text-white">{{ stats.total }}</p>
-      </div>
-      <div class="bg-white dark:bg-[#13131f] p-5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
+      </VCard>
+      <VCard class="bg-white dark:bg-[#13131f] p-5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
         <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Pendientes</p>
         <p class="text-2xl font-black text-amber-500">{{ stats.pendientes }}</p>
-      </div>
-      <div class="bg-white dark:bg-[#13131f] p-5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
+      </VCard>
+      <VCard class="bg-white dark:bg-[#13131f] p-5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
         <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Enviados</p>
         <p class="text-2xl font-black text-emerald-500">{{ stats.enviados }}</p>
-      </div>
-      <div class="bg-white dark:bg-[#13131f] p-5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
+      </VCard>
+      <VCard class="bg-white dark:bg-[#13131f] p-5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
         <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Pausados (Cuota)</p>
         <p class="text-2xl font-black text-blue-500">{{ stats.pausados }}</p>
-      </div>
-      <div class="bg-white dark:bg-[#13131f] p-5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
+      </VCard>
+      <VCard class="bg-white dark:bg-[#13131f] p-5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
         <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Fallidos</p>
         <p class="text-2xl font-black text-red-500">{{ stats.fallidos }}</p>
-      </div>
+      </VCard>
     </div>
 
     <!-- CONFIG LIST -->
     <div class="grid grid-cols-1 gap-6">
-      <div v-for="config in configs" :key="config.clave" 
+      <VCard v-for="config in configs" :key="config.clave"
            class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-2xl overflow-hidden shadow-sm">
         <div class="p-6">
           <div class="flex justify-between items-start mb-4">
@@ -128,34 +128,34 @@ onMounted(fetchConfigs);
               <p class="text-xs text-slate-500 mt-1">{{ config.descripcion }}</p>
             </div>
             <div class="flex gap-2">
-              <button v-if="config.clave.includes('BODY') || config.clave.includes('LAYOUT')"
+              <VBtn v-if="config.clave.includes('BODY') || config.clave.includes('LAYOUT')"
                       @click="showPreview(config)"
                       class="px-4 py-2 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase rounded-lg hover:bg-slate-200 transition-all flex items-center gap-2">
-                <span class="material-symbols-outlined text-[16px]">visibility</span>
+                <VIcon class="material-symbols-outlined text-[16px]">visibility</VIcon>
                 Previsualizar
-              </button>
-              <button v-if="config.clave === 'MAIL_MASTER_LAYOUT'"
+              </VBtn>
+              <VBtn v-if="config.clave === 'MAIL_MASTER_LAYOUT'"
                       @click="downloadTemplate(config)"
                       class="px-4 py-2 bg-slate-800 text-white text-[10px] font-black uppercase rounded-lg hover:bg-slate-900 transition-all flex items-center gap-2">
-                <span class="material-symbols-outlined text-[16px]">download</span>
+                <VIcon class="material-symbols-outlined text-[16px]">download</VIcon>
                 Exportar
-              </button>
-              <button @click="updateConfig(config)"
+              </VBtn>
+              <VBtn @click="updateConfig(config)"
                       class="px-4 py-2 bg-umsa-blue text-white text-[10px] font-black uppercase rounded-lg shadow-lg shadow-[#0070BB]/20 hover:bg-[#005a96] transition-all">
                 Guardar Cambios
-              </button>
+              </VBtn>
             </div>
           </div>
           
-          <textarea v-if="config.clave.includes('BODY') || config.clave.includes('LAYOUT')" 
+          <VTextarea v-if="config.clave.includes('BODY') || config.clave.includes('LAYOUT')"
                     v-model="config.valor" rows="12"
-                    class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-4 text-xs font-mono outline-none focus:border-umsa-blue/50 transition-all shadow-inner"></textarea>
-          <input v-else v-model="config.valor" type="text"
+                    class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-4 text-xs font-mono outline-none focus:border-umsa-blue/50 transition-all shadow-inner"></VTextarea>
+          <UiInput v-else v-model="config.valor" type="text"
                  class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-4 text-sm font-bold outline-none focus:border-umsa-blue/50 transition-all" />
           
           <div v-if="config.clave === 'WELCOME_MESSAGE_BODY'" class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/30">
             <div class="flex items-center gap-2 mb-3">
-              <span class="material-symbols-outlined text-blue-500 text-[18px]">info</span>
+              <VIcon class="material-symbols-outlined text-blue-500 text-[18px]">info</VIcon>
               <p class="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">Etiquetas Dinámicas Soportadas:</p>
             </div>
             <div class="flex flex-wrap gap-3">
@@ -178,21 +178,21 @@ onMounted(fetchConfigs);
             </div>
           </div>
         </div>
-      </div>
+      </VCard>
     </div>
 
     <!-- PREVIEW MODAL -->
-    <div v-if="previewHtml" 
-         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+    <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" v-if="previewHtml"
+         >
       <div class="bg-white dark:bg-[#13131f] w-full max-w-4xl h-[85vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white/10">
         <div class="p-6 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-slate-50 dark:bg-white/2">
           <div class="flex items-center gap-3">
-            <span class="material-symbols-outlined text-red-500">mark_email_read</span>
+            <VIcon class="material-symbols-outlined text-red-500">mark_email_read</VIcon>
             <h3 class="text-sm font-black uppercase tracking-tight text-slate-800 dark:text-white">Vista Previa del Correo</h3>
           </div>
-          <button @click="previewHtml = ''" class="w-10 h-10 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center transition-all">
-            <span class="material-symbols-outlined">close</span>
-          </button>
+          <VBtn @click="previewHtml = ''" class="w-10 h-10 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center transition-all">
+            <VIcon class="material-symbols-outlined">close</VIcon>
+          </VBtn>
         </div>
         <div class="flex-1 overflow-y-auto p-8 bg-slate-100 dark:bg-black/20">
           <div class="bg-white rounded-2xl shadow-xl overflow-hidden max-w-[600px] mx-auto border border-slate-200" v-html="previewHtml"></div>
@@ -201,12 +201,12 @@ onMounted(fetchConfigs);
           <p class="text-[10px] text-slate-400 uppercase font-black tracking-widest">Este es un ejemplo de cómo el usuario final verá el mensaje</p>
         </div>
       </div>
-    </div>
+    </VDialog>
 
     <!-- SCALABILITY INFO -->
     <div class="p-6 bg-slate-800 text-white rounded-2xl shadow-xl">
       <div class="flex items-center gap-4 mb-4">
-        <span class="material-symbols-outlined text-amber-400">info</span>
+        <VIcon class="material-symbols-outlined text-amber-400">info</VIcon>
         <h3 class="text-lg font-black italic uppercase tracking-tight">Arquitectura de Escalabilidad</h3>
       </div>
       <p class="text-sm text-slate-300 leading-relaxed">

@@ -92,15 +92,15 @@ const getStatusColor = (status: string) => {
 <template>
   <div class="animate-in fade-in duration-500 max-w-7xl mx-auto space-y-8">
     <div class="border-b border-slate-200 dark:border-gray-800 pb-6 mb-8 mt-2">
-      <button @click="router.push({ name: 'ponente-eventos' })" class="text-[10px] font-bold text-slate-500 hover:text-umsa-blue uppercase tracking-widest mb-4 flex items-center group transition-colors">
-        <span class="material-symbols-outlined text-[16px] mr-1 group-hover:-translate-x-1 transition-transform">arrow_back</span>
+      <VBtn @click="router.push({ name: 'ponente-eventos' })" class="text-[10px] font-bold text-slate-500 hover:text-umsa-blue uppercase tracking-widest mb-4 flex items-center group transition-colors">
+        <VIcon class="material-symbols-outlined text-[16px] mr-1 group-hover:-translate-x-1 transition-transform">arrow_back</VIcon>
         Volver a Mis Eventos Asignados
-      </button>
+      </VBtn>
       <h2 class="text-3xl font-black text-primary-dark dark:text-white uppercase italic">Mis Actividades</h2>
       <p class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mt-1">Gestiona estudiantes, asistencia y certificados de The World Academy of Sciences</p>
     </div>
 
-    <div class="w-full bg-white dark:bg-gray-900 rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 dark:border-gray-800 flex flex-col group/card mb-8">
+    <VCard class="w-full bg-white dark:bg-gray-900 rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 dark:border-gray-800 flex flex-col group/card mb-8">
         
         <div class="relative w-full h-[240px] md:h-[320px] overflow-hidden">
           <img :src="eventoData.imagen" alt="Banner" class="w-full h-full object-cover object-center group-hover/card:scale-105 transition-transform duration-[1.5s] ease-out">
@@ -126,20 +126,20 @@ const getStatusColor = (status: string) => {
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-8 pb-8 pt-2">
-              <div v-for="act in acts" :key="act.id" @click="router.push({ name: 'ponente-curso-detalle', params: { id: act.id } })" 
+              <VCard v-for="act in acts" :key="act.id" @click="router.push({ name: 'ponente-curso-detalle', params: { id: act.id } })"
                 class="bg-white dark:bg-gray-900 rounded-[2rem] overflow-hidden shadow-lg border border-slate-100 dark:border-gray-800 hover:border-umsa-blue transition-all duration-500 hover:-translate-y-2 cursor-pointer group relative">
                 
                 <!-- Badge de Asignado -->
                 <div class="absolute top-4 left-4 z-30">
                   <span class="bg-umsa-gold text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-full shadow-xl flex items-center gap-1 border border-white/20 backdrop-blur-md">
-                    <span class="material-symbols-outlined text-[12px]">assignment_ind</span>
+                    <VIcon class="material-symbols-outlined text-[12px]">assignment_ind</VIcon>
                     ASIGNADO
                   </span>
                 </div>
 
                 <!-- Imagen Predominante -->
                 <div class="relative h-64 w-full overflow-hidden">
-                  <img :src="act.image" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000">   
+                  <img :src="act.image" data-course-image :alt="act.title" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000">
                   <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                   
                   <span class="absolute top-4 right-4 z-20 text-[9px] font-black uppercase px-3 py-1.5 rounded-full tracking-widest shadow-lg backdrop-blur-md border border-white/10" :class="getStatusColor(act.status)">
@@ -160,11 +160,11 @@ const getStatusColor = (status: string) => {
                 <div class="p-6 flex flex-col bg-white dark:bg-gray-900">
                   <div class="flex items-center justify-between text-slate-500 dark:text-gray-400 mb-4">
                     <div class="flex items-center gap-2">
-                      <span class="material-symbols-outlined text-sm text-umsa-blue">calendar_month</span>
+                      <VIcon class="material-symbols-outlined text-sm text-umsa-blue">calendar_month</VIcon>
                       <span class="text-[10px] font-bold uppercase tracking-wider">{{ act.date }}</span>
                     </div>
                     <div class="flex items-center gap-2">
-                      <span class="material-symbols-outlined text-sm text-umsa-blue">groups</span>
+                      <VIcon class="material-symbols-outlined text-sm text-umsa-blue">groups</VIcon>
                       <span class="text-[10px] font-bold uppercase tracking-wider">{{ act.students }} Inscritos</span>
                     </div>
                   </div>
@@ -172,15 +172,15 @@ const getStatusColor = (status: string) => {
                   <div class="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-gray-800">
                       <div class="flex items-center text-umsa-blue font-black group/btn">
                           <span class="text-[11px] uppercase tracking-widest">Gestionar Actividad</span>
-                          <span class="material-symbols-outlined text-[18px] ml-2 group-hover/btn:translate-x-1 transition-transform">arrow_forward</span>
+                          <VIcon class="material-symbols-outlined text-[18px] ml-2 group-hover/btn:translate-x-1 transition-transform">arrow_forward</VIcon>
                       </div>
                   </div>
                 </div>
-              </div>
+              </VCard>
             </div>
           </div>
         </div>
-      </div>
+      </VCard>
   </div>
 </template>
 

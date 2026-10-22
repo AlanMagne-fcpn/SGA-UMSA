@@ -3,10 +3,11 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAdminHistorialStore } from '@/stores/adminHistorial';
-import api, { getImageUrl, resolveMediaUrl } from '@/services/api';
+import api, { getImageUrl, imagenActividad, resolveMediaUrl } from '@/services/api';
 import { coordinacionesService } from '@/services/coordinaciones.service';
 import { usuariosService } from '@/services/usuarios.service';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
+import { certificadosDeEvento } from '@/utils/certificadosEvento';
 
 const usuariosDetalle = ref<any[]>([]);
 const fetchUsuariosPersonal = async () => {
@@ -86,16 +87,147 @@ const eventosActivos = computed(() => {
 });
 
 const certificadosEmitidos = ref<any[]>([]);
-const panelEvento = ref<Record<number, 'certificados' | 'usuarios' | ''>>({});
+const panelEvento = ref<Record<number, 'certificados' | ''>>({});
 const panelActividad = ref<Record<number, 'certificados' | 'usuarios' | ''>>({});
 const actividadesVisibles = ref<Record<number, boolean>>({});
+type ParticipanteEvento = { id: number; nombre: string; email: string; roles: string[]; actividades: string[] };
+const showModalUsuariosEvento = ref(false);
+const eventoParaUsuarios = ref<any | null>(null);
+const participantesEvento = ref<ParticipanteEvento[]>([]);
+const cargandoParticipantes = ref(false);
+const errorParticipantes = ref(false);
+const avisoParticipantes = ref('');
+const rutaParticipantesDisponible = ref(true);
+const cargandoCertificados = ref(false);
+const errorCertificados = ref(false);
+const busquedaParticipante = ref('');
+const filtroRolParticipante = ref<'todos' | 'Estudiante' | 'Ponente' | 'Coordinador'>('todos');
+const filtrosParticipante = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'Estudiante', label: 'Estudiantes' },
+  { value: 'Ponente', label: 'Ponentes' },
+  { value: 'Coordinador', label: 'Coordinadores' },
+] as const;
+
+const participantesFiltrados = computed(() => {
+  const texto = busquedaParticipante.value.trim().toLocaleLowerCase('es');
+  return participantesEvento.value.filter((participante) => {
+    if (filtroRolParticipante.value !== 'todos' && !participante.roles.includes(filtroRolParticipante.value)) return false;
+    return !texto || [participante.nombre, participante.email, ...participante.actividades]
+      .some((valor) => valor.toLocaleLowerCase('es').includes(texto));
+  });
+});
+
+const certificadosPorParticipante = computed(() => {
+  const mapa = new Map<number, any[]>();
+  if (!eventoParaUsuarios.value) return mapa;
+  for (const certificado of certsDeEvento(eventoParaUsuarios.value)) {
+    const id = Number(certificado.usuario?.id);
+    if (!id) continue;
+    const lista = mapa.get(id) || [];
+    lista.push(certificado);
+    mapa.set(id, lista);
+  }
+  return mapa;
+});
+
+const certificadosParticipante = (id: number) => certificadosPorParticipante.value.get(Number(id)) || [];
+const inicialesParticipante = (nombre: string) => nombre.split(/\s+/).slice(0, 2).map((parte) => parte.charAt(0)).join('').toUpperCase();
+
+const cargarParticipantesCompatibles = async (evento: any): Promise<ParticipanteEvento[]> => {
+  const personas = new Map<number, ParticipanteEvento>();
+  const agregar = (usuario: any, rol: 'Estudiante' | 'Ponente' | 'Coordinador', actividad?: string) => {
+    const id = Number(usuario?.id);
+    if (!id) return;
+    let persona = personas.get(id);
+    if (!persona) {
+      persona = {
+        id,
+        nombre: [usuario.persona?.nombres || usuario.nombres, usuario.persona?.primer_apellido || usuario.primer_apellido, usuario.persona?.segundo_apellido || usuario.segundo_apellido]
+          .filter(Boolean).join(' ') || usuario.email || 'Sin nombre',
+        email: usuario.email || '',
+        roles: [],
+        actividades: [],
+      };
+      personas.set(id, persona);
+    }
+    if (!persona.roles.includes(rol)) persona.roles.push(rol);
+    if (actividad && !persona.actividades.includes(actividad)) persona.actividades.push(actividad);
+  };
+
+  for (const actividad of evento.actividades || []) {
+    for (const inscripcion of actividad.inscripciones || []) agregar(inscripcion.usuario, 'Estudiante', actividad.nombre);
+  }
+  for (const coordinador of evento.coordinadores || []) agregar(coordinador, 'Coordinador');
+
+  const [imparticiones, coordinaciones] = await Promise.allSettled([
+    api.get('/imparticiones', { params: { eventoId: evento.id } }),
+    api.get(`/eventos/${evento.id}/coordinaciones`),
+  ]);
+  if (imparticiones.status === 'fulfilled') {
+    for (const imparticion of imparticiones.value.data || []) {
+      agregar(imparticion.usuario, 'Ponente', imparticion.actividadAcademica?.nombre);
+    }
+  }
+  if (coordinaciones.status === 'fulfilled') {
+    if (!usuariosDetalle.value.length) await fetchUsuariosPersonal();
+    let sinRolIdentificable = 0;
+    for (const coordinacion of coordinaciones.value.data || []) {
+      const usuario = coordinacion.usuario;
+      const directorio = usuariosDetalle.value.find((item) => Number(item.id) === Number(usuario?.id));
+      const roles = [...(directorio?.usuariosRoles || usuario?.usuariosRoles || []).map((asignacion: any) => asignacion.rol?.nombre_rol || ''), directorio?.rol || ''];
+      if (roles.some((rol) => rol.toLowerCase().includes('coordinador'))) agregar(usuario, 'Coordinador');
+      else if (roles.every((rol) => !rol)) sinRolIdentificable++;
+    }
+    if (sinRolIdentificable) avisoParticipantes.value = 'No fue posible identificar el rol de todos los responsables asignados.';
+  }
+  if (imparticiones.status === 'rejected' || coordinaciones.status === 'rejected') {
+    avisoParticipantes.value = 'Algunas asignaciones no pudieron consultarse. El listado puede estar incompleto.';
+  }
+  return Array.from(personas.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+};
+
+const abrirUsuariosEvento = async (evento: any) => {
+  eventoParaUsuarios.value = evento;
+  participantesEvento.value = [];
+  busquedaParticipante.value = '';
+  filtroRolParticipante.value = 'todos';
+  errorParticipantes.value = false;
+  avisoParticipantes.value = '';
+  cargandoParticipantes.value = true;
+  showModalUsuariosEvento.value = true;
+  void fetchCertificados();
+  try {
+    if (rutaParticipantesDisponible.value) {
+      try {
+        const respuesta = await api.get(`/admin/eventos/${evento.id}/usuarios`);
+        participantesEvento.value = Array.isArray(respuesta.data) ? respuesta.data : [];
+        if (participantesEvento.value.length || !(evento.actividades || []).some((actividad: any) => actividad.inscripciones?.length)) return;
+      } catch (error: any) {
+        if (error?.response?.status === 401 || error?.response?.status === 403) throw error;
+        if (error?.response?.status === 404) rutaParticipantesDisponible.value = false;
+      }
+    }
+    participantesEvento.value = await cargarParticipantesCompatibles(evento);
+  } catch (error) {
+    console.error('Error al cargar usuarios del evento:', error);
+    errorParticipantes.value = true;
+  } finally {
+    cargandoParticipantes.value = false;
+  }
+};
 
 const fetchCertificados = async () => {
+  cargandoCertificados.value = true;
   try {
     const res = await api.get('/admin/certificados');
     certificadosEmitidos.value = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+    errorCertificados.value = false;
   } catch {
     certificadosEmitidos.value = [];
+    errorCertificados.value = true;
+  } finally {
+    cargandoCertificados.value = false;
   }
 };
 
@@ -146,25 +278,12 @@ const usuariosDeActividad = (act: any) => {
   return Array.from(vistos.values());
 };
 
-const usuariosDeEvento = (ev: any) => {
-  const vistos = new Map<number, any>();
-  for (const act of ev.actividades || []) {
-    for (const usuario of usuariosDeActividad(act)) {
-      if (!vistos.has(usuario.id)) vistos.set(usuario.id, { ...usuario, actividad: act.nombre });
-    }
-  }
-  return Array.from(vistos.values());
-};
-
 const certsDeActividad = (actId: number) =>
   certificadosEmitidos.value.filter((cert) => cert.actividadAcademica?.id === actId);
 
-const certsDeEvento = (ev: any) => {
-  const ids = new Set((ev.actividades || []).map((act: any) => act.id));
-  return certificadosEmitidos.value.filter((cert) => ids.has(cert.actividadAcademica?.id));
-};
+const certsDeEvento = (ev: any) => certificadosDeEvento(certificadosEmitidos.value, ev);
 
-const togglePanelEvento = (id: number, panel: 'certificados' | 'usuarios') => {
+const togglePanelEvento = (id: number, panel: 'certificados') => {
   panelEvento.value = { ...panelEvento.value, [id]: panelEvento.value[id] === panel ? '' : panel };
 };
 
@@ -307,16 +426,23 @@ const fetchCoordinadores = async (eventoId: number) => {
   }
 };
 
+const rolesDe = (u: any) =>
+  u?.usuariosRoles?.map((ur: any) => (ur.rol?.nombre_rol || '').toLowerCase()) || [];
+
 const getRoleName = (u: any) => {
-  const roles = u?.usuariosRoles?.map((ur: any) => (ur.rol?.nombre_rol || '').toLowerCase()) || [];
+  const roles = rolesDe(u);
   if (roles.some((r: string) => r.includes('coordinador'))) return 'Coordinador';
   if (roles.some((r: string) => r.includes('logistica'))) return 'Logística';
+  if (roles.some((r: string) => r.includes('ponent'))) return 'Ponente';
   return roles[0] || 'Usuario';
 };
 
+const esCoordinador = (u: any) => rolesDe(u).some((r: string) => r.includes('coordinador'));
+const esPonente = (u: any) => rolesDe(u).some((r: string) => r.includes('ponent'));
+
 const esResponsable = (u: any) => {
-  const roles = u?.usuariosRoles?.map((ur: any) => (ur.rol?.nombre_rol || '').toLowerCase()) || [];
-  return roles.some((r: string) => r.includes('coordinador') || r.includes('logist'));
+  const roles = rolesDe(u);
+  return roles.some((r: string) => r.includes('coordinador') || r.includes('logist') || r.includes('ponent'));
 };
 
 const nombreCompleto = (u: any) =>
@@ -361,9 +487,13 @@ const abrirCoordinadores = async (evento: any) => {
 
 const asignarCoordinador = async (usuario: any) => {
   try {
-    await coordinacionesService.asignar(eventoParaCoordinadores.value.id, usuario.id);
+    const eventoId = eventoParaCoordinadores.value.id;
+    await coordinacionesService.asignar(eventoId, usuario.id);
+    if (esPonente(usuario)) {
+      await api.post(`/imparticiones/evento/${eventoId}/asignar`, { id_usuario: usuario.id });
+    }
     Swal.fire({ toast: true, icon: 'success', title: 'Responsable asignado', timer: 2000, showConfirmButton: false, position: 'top-end' });
-    await fetchCoordinadores(eventoParaCoordinadores.value.id);
+    await fetchCoordinadores(eventoId);
     await fetchCandidatos();
   } catch (err) {
     Swal.fire('Error', 'No se pudo asignar.', 'error');
@@ -445,7 +575,7 @@ const abrirCrearActividad = async () => {
     showCancelButton: true,
     confirmButtonColor: '#dc2626',
     cancelButtonText: 'Cancelar',
-    inputValidator: (value) => {
+    inputValidator: (value: string) => {
       if (!value) return '¡Debes seleccionar un evento!'
     }
   });
@@ -577,7 +707,7 @@ const archivarTicket = async (id: number) => {
 };
 
 const vincularUsuario = async (ticketId: number, emailSugerido: string) => {
-  const { value: email } = await Swal.fire({ title: 'Vincular Usuario', text: 'Ingresa el correo exacto del usuario:', input: 'text', inputValue: emailSugerido, showCancelButton: true, confirmButtonText: 'Buscar', confirmButtonColor: '#dc2626', inputValidator: (v) => { if (!v) return 'Debes ingresar un correo'; } });
+  const { value: email } = await Swal.fire({ title: 'Vincular Usuario', text: 'Ingresa el correo exacto del usuario:', input: 'text', inputValue: emailSugerido, showCancelButton: true, confirmButtonText: 'Buscar', confirmButtonColor: '#dc2626', inputValidator: (v: string) => { if (!v) return 'Debes ingresar un correo'; } });
   if (!email) return;
   try { const res = await api.get(`/usuarios/email/${email}`); await api.patch(`/soporte/${ticketId}/vincular/${res.data.id}`); Swal.fire('¡Vinculado!', `Ticket vinculado a ${res.data.persona?.nombres}.`, 'success'); fetchTickets(); } catch { Swal.fire('Error', 'No se encontró ningún usuario con ese correo.', 'error'); }
 };
@@ -746,122 +876,122 @@ const exportarPDFSegmentado = async (categoria: string) => {
 
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <!-- Barra de Tabs -->
-        <div class="flex flex-wrap bg-slate-100 dark:bg-white/5 p-1 rounded-xl border border-slate-200 dark:border-white/10 gap-0.5">
-          <button @click="tabActivo = 'eventos'; filtroTexto = ''; filtroEstado = ''"
+        <VCard class="flex flex-wrap bg-slate-100 dark:bg-white/5 p-1 rounded-xl border border-slate-200 dark:border-white/10 gap-0.5">
+          <VBtn @click="tabActivo = 'eventos'; filtroTexto = ''; filtroEstado = ''"
                   :class="tabActivo === 'eventos' ? 'bg-white dark:bg-umsa-blue text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'"
                   class="flex items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-[9px] sm:text-[10px] font-black uppercase transition-all">
-            <span class="material-symbols-outlined text-[14px] sm:text-[16px]">corporate_fare</span>
+            <VIcon class="material-symbols-outlined text-[14px] sm:text-[16px]">corporate_fare</VIcon>
             Eventos
-          </button>
-          <button @click="tabActivo = 'actividades'; filtroTexto = ''; filtroEstado = ''"
+          </VBtn>
+          <VBtn @click="tabActivo = 'actividades'; filtroTexto = ''; filtroEstado = ''"
                   :class="tabActivo === 'actividades' ? 'bg-white dark:bg-amber-600 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'"
                   class="flex items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-[9px] sm:text-[10px] font-black uppercase transition-all">
-            <span class="material-symbols-outlined text-[14px] sm:text-[16px]">school</span>
+            <VIcon class="material-symbols-outlined text-[14px] sm:text-[16px]">school</VIcon>
             Actividades
-          </button>
-          <button @click="tabActivo = 'solicitudes'; filtroTexto = ''; filtroEstado = ''"
+          </VBtn>
+          <VBtn @click="tabActivo = 'solicitudes'; filtroTexto = ''; filtroEstado = ''"
                   :class="tabActivo === 'solicitudes' ? 'bg-white dark:bg-emerald-600 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'"
                   class="flex items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-[9px] sm:text-[10px] font-black uppercase transition-all">
-            <span class="material-symbols-outlined text-[14px] sm:text-[16px]">notification_important</span>
+            <VIcon class="material-symbols-outlined text-[14px] sm:text-[16px]">notification_important</VIcon>
             <span class="hidden xs:inline">Solicitudes</span><span class="xs:hidden">Solic.</span>
             <span v-if="solicitudes.length > 0" class="flex h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
-          </button>
-          <button @click="tabActivo = 'soporte'; filtroTexto = ''; filtroEstado = ''"
+          </VBtn>
+          <VBtn @click="tabActivo = 'soporte'; filtroTexto = ''; filtroEstado = ''"
                   :class="tabActivo === 'soporte' ? 'bg-white dark:bg-sky-600 text-slate-800 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'"
                   class="flex items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-[9px] sm:text-[10px] font-black uppercase transition-all">
-            <span class="material-symbols-outlined text-[14px] sm:text-[16px]">support_agent</span>
+            <VIcon class="material-symbols-outlined text-[14px] sm:text-[16px]">support_agent</VIcon>
             Soporte
             <span v-if="tickets.filter(t => t.estado === 0).length > 0" class="flex h-2 w-2 rounded-full bg-sky-500 animate-pulse"></span>
-          </button>
-        </div>
+          </VBtn>
+        </VCard>
 
         <!-- Botón de acción -->
-        <button v-if="tabActivo === 'eventos'" @click="abrirCrearEvento()"
+        <VBtn v-if="tabActivo === 'eventos'" @click="abrirCrearEvento()"
                 class="flex items-center justify-center gap-2 px-5 py-3 bg-umsa-blue text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-[#0070BB]/20 hover:bg-[#005a96] transition-all group">
-          <span class="material-symbols-outlined text-[16px] group-hover:rotate-90 transition-transform">add</span>
+          <VIcon class="material-symbols-outlined text-[16px] group-hover:rotate-90 transition-transform">add</VIcon>
           Nuevo Evento
-        </button>
-        <button v-else-if="tabActivo === 'actividades'" @click="abrirCrearActividad()"
+        </VBtn>
+        <VBtn v-else-if="tabActivo === 'actividades'" @click="abrirCrearActividad()"
                 class="flex items-center justify-center gap-2 px-5 py-3 bg-amber-500 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition-all group">
-          <span class="material-symbols-outlined text-[16px] group-hover:rotate-90 transition-transform">add</span>
+          <VIcon class="material-symbols-outlined text-[16px] group-hover:rotate-90 transition-transform">add</VIcon>
           Nueva Actividad
-        </button>
-        <button v-else-if="tabActivo === 'soporte'" @click="fetchTickets()"
+        </VBtn>
+        <VBtn v-else-if="tabActivo === 'soporte'" @click="fetchTickets()"
                 class="flex items-center justify-center gap-2 px-5 py-3 bg-sky-500 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-sky-500/20 hover:bg-sky-600 transition-all group">
-          <span class="material-symbols-outlined text-[16px]">refresh</span>
+          <VIcon class="material-symbols-outlined text-[16px]">refresh</VIcon>
           Recargar
-        </button>
-        <button v-else @click="fetchSolicitudes()"
+        </VBtn>
+        <VBtn v-else @click="fetchSolicitudes()"
                 class="flex items-center justify-center gap-2 px-5 py-3 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all group">
-          <span class="material-symbols-outlined text-[16px]">refresh</span>
+          <VIcon class="material-symbols-outlined text-[16px]">refresh</VIcon>
           Recargar
-        </button>
+        </VBtn>
       </div>
     </div>
 
 
 
     <!-- FILTROS -->
-    <div class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-2xl p-4 shadow-sm">
+    <VCard class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-2xl p-4 shadow-sm">
       <div class="flex flex-wrap gap-3 items-center">
         <div class="flex-1 min-w-[200px] relative">
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
-          <input v-model="filtroTexto" type="text" :placeholder="`Buscar ${tabActivo === 'eventos' ? 'evento' : 'actividad'}...`"
+          <VIcon class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</VIcon>
+          <UiInput v-model="filtroTexto" type="text" :placeholder="`Buscar ${tabActivo === 'eventos' ? 'evento' : 'actividad'}...`"
                  class="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm outline-none focus:border-umsa-blue/50 text-slate-800 dark:text-white transition-all" />
         </div>
         <template v-if="tabActivo === 'eventos'">
           <div class="flex gap-1.5 flex-wrap items-center">
-            <button v-for="(cfg, est) in estadoEventoConfig" :key="est"
+            <VBtn v-for="(cfg, est) in estadoEventoConfig" :key="est"
                     @click="filtroEstado = filtroEstado === String(est) ? '' : String(est)"
                     :class="filtroEstado === String(est) ? 'bg-slate-800 dark:bg-white text-white dark:text-slate-900' : 'bg-slate-100 dark:bg-white/5 text-slate-500'"
                     class="px-3 py-1.5 text-[9px] font-black uppercase rounded-lg transition-all">
               {{ cfg.label }}
-            </button>
-            <button v-if="filtroEstado || filtroTexto" @click="limpiarFiltros"
+            </VBtn>
+            <VBtn v-if="filtroEstado || filtroTexto" @click="limpiarFiltros"
                     class="px-3 py-1.5 text-[9px] font-black uppercase rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all border border-red-100">
               Limpiar Filtros
-            </button>
-            <button @click="toggleTodasLasActividades"
+            </VBtn>
+            <VBtn @click="toggleTodasLasActividades"
                     class="px-3 py-1.5 text-[9px] font-black uppercase rounded-lg bg-sky-50 text-[#003B71] hover:bg-sky-100 transition-all border border-sky-100">
               {{ todasLasActividadesAbiertas ? 'Cerrar actividades' : 'Abrir todas las actividades' }}
-            </button>
+            </VBtn>
           </div>
           <div class="flex items-center gap-2 ml-auto">
-            <button @click="generarReporteGeneral('eventos', 'excel')" title="Reporte Excel de Eventos" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all">
-              <span class="material-symbols-outlined text-[16px]">grid_on</span> Excel
-            </button>
-            <button @click="generarReporteGeneral('eventos', 'pdf')" title="Reporte PDF de Eventos" class="bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all">
-              <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span> PDF
-            </button>
+            <VBtn @click="generarReporteGeneral('eventos', 'excel')" title="Reporte Excel de Eventos" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all">
+              <VIcon class="material-symbols-outlined text-[16px]">grid_on</VIcon> Excel
+            </VBtn>
+            <VBtn @click="generarReporteGeneral('eventos', 'pdf')" title="Reporte PDF de Eventos" class="bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all">
+              <VIcon class="material-symbols-outlined text-[16px]">picture_as_pdf</VIcon> PDF
+            </VBtn>
           </div>
         </template>
 
         <template v-if="tabActivo === 'actividades'">
           <div class="relative min-w-[200px] max-w-xs">
-            <select v-model="filtroEventoId"
+            <UiSelect v-model="filtroEventoId"
                     class="w-full px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm outline-none focus:border-amber-500/50 text-slate-700 dark:text-slate-350 cursor-pointer appearance-none">
               <option value="">Todos los eventos</option>
               <option v-for="ev in eventos" :key="ev.id" :value="ev.id">{{ ev.nombre }}</option>
-            </select>
-            <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">unfold_more</span>
+            </UiSelect>
+            <VIcon class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">unfold_more</VIcon>
           </div>
 
-          <button v-if="filtroEventoId || filtroTexto" @click="limpiarFiltros"
+          <VBtn v-if="filtroEventoId || filtroTexto" @click="limpiarFiltros"
                   class="px-3 py-1.5 text-[9px] font-black uppercase rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-all border border-amber-100">
             Limpiar Filtros
-          </button>
+          </VBtn>
 
           <div class="flex items-center gap-2 ml-auto">
-            <button @click="generarReporteGeneral('actividades', 'excel')" title="Reporte Excel de Actividades" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all">
-              <span class="material-symbols-outlined text-[16px]">grid_on</span> Excel
-            </button>
-            <button @click="generarReporteGeneral('actividades', 'pdf')" title="Reporte PDF de Actividades" class="bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all">
-              <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span> PDF
-            </button>
+            <VBtn @click="generarReporteGeneral('actividades', 'excel')" title="Reporte Excel de Actividades" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all">
+              <VIcon class="material-symbols-outlined text-[16px]">grid_on</VIcon> Excel
+            </VBtn>
+            <VBtn @click="generarReporteGeneral('actividades', 'pdf')" title="Reporte PDF de Actividades" class="bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all">
+              <VIcon class="material-symbols-outlined text-[16px]">picture_as_pdf</VIcon> PDF
+            </VBtn>
           </div>
         </template>
       </div>
-    </div>
+    </VCard>
 
     <!-- TAB: EVENTOS -->
     <div v-if="tabActivo === 'eventos'">
@@ -869,7 +999,7 @@ const exportarPDFSegmentado = async (categoria: string) => {
         <div class="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
       </div>
       <div v-else-if="eventosFiltrados.length === 0" class="py-20 flex flex-col items-center text-slate-400">
-        <span class="material-symbols-outlined text-6xl mb-2 opacity-20">corporate_fare</span>
+        <VIcon class="material-symbols-outlined text-6xl mb-2 opacity-20">corporate_fare</VIcon>
         <p class="text-xs font-black uppercase tracking-widest">No hay eventos que mostrar</p>
       </div>
       <div v-else class="space-y-10">
@@ -892,50 +1022,52 @@ const exportarPDFSegmentado = async (categoria: string) => {
                 <span>{{ ev.ubicacion || 'Sin ubicación' }}</span>
               </p>
               <div class="mt-5 flex flex-wrap items-center gap-2">
-                <button @click="togglePanelEvento(ev.id, 'certificados')"
-                        class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white text-[#003B71] text-[10px] font-black uppercase tracking-widest">
-                  <span class="material-symbols-outlined text-[16px]">workspace_premium</span>
-                  Certificados
-                  <span class="px-2 py-0.5 rounded-full bg-[#0070BB] text-white">{{ certsDeEvento(ev).length }}</span>
+                <button type="button" @click="togglePanelEvento(ev.id, 'certificados'); fetchCertificados()"
+                        class="inline-flex min-h-11 items-center gap-3 rounded-xl border border-white/30 bg-white px-4 py-2 text-sm font-semibold text-[#003B71] shadow-sm transition hover:bg-sky-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                        :aria-expanded="panelEvento[ev.id] === 'certificados'">
+                  <VIcon size="20">workspace_premium</VIcon>
+                  <span>Certificados emitidos</span>
+                  <span class="ml-auto min-w-6 rounded-md bg-[#E5F3FC] px-1.5 py-0.5 text-center text-xs font-bold text-[#003B71]">{{ cargandoCertificados ? '…' : errorCertificados ? '—' : certsDeEvento(ev).length }}</span>
                 </button>
-                <button @click="togglePanelEvento(ev.id, 'usuarios')"
-                        class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-sky-300 text-[#003B71] text-[10px] font-black uppercase tracking-widest">
-                  <span class="material-symbols-outlined text-[16px]">groups</span>
-                  Usuarios del evento
-                  <span class="px-2 py-0.5 rounded-full bg-[#003B71] text-white">{{ usuariosDeEvento(ev).length }}</span>
+                <button type="button" @click="abrirUsuariosEvento(ev)"
+                        class="inline-flex min-h-11 items-center gap-3 rounded-xl border border-white/30 bg-[#DDF1FC] px-4 py-2 text-sm font-semibold text-[#003B71] shadow-sm transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+                  <VIcon size="20">groups</VIcon>
+                  <span>Usuarios del evento</span>
                 </button>
-                <button @click="router.push({ name: 'admin-inscripciones-excel', query: { eventoId: ev.id } })" title="Inscripción masiva"
+                <VBtn @click="router.push({ name: 'admin-inscripciones-excel', query: { eventoId: ev.id } })" title="Inscripción masiva"
                         class="p-2.5 rounded-xl bg-white/15 border border-white/20 hover:bg-white hover:text-[#003B71]">
-                  <span class="material-symbols-outlined text-[18px]">grid_on</span>
-                </button>
-                <button @click="abrirCoordinadores(ev)" title="Responsables"
+                  <VIcon class="material-symbols-outlined text-[18px]">grid_on</VIcon>
+                </VBtn>
+                <VBtn @click="abrirCoordinadores(ev)" title="Responsables"
                         class="p-2.5 rounded-xl bg-white/15 border border-white/20 hover:bg-white hover:text-[#003B71]">
-                  <span class="material-symbols-outlined text-[18px]">group_add</span>
-                </button>
-                <button @click="ev.fase === 4 ? router.push({ name: 'admin-certificados-envio', query: { search: ev.nombre } }) : Swal.fire('Aviso', 'Solo se pueden emitir certificados de eventos en fase FINALIZADO.', 'info')"
+                  <VIcon class="material-symbols-outlined text-[18px]">group_add</VIcon>
+                </VBtn>
+                <VBtn @click="ev.fase === 4 ? router.push({ name: 'admin-certificados-envio', query: { search: ev.nombre } }) : Swal.fire('Aviso', 'Solo se pueden emitir certificados de eventos en fase FINALIZADO.', 'info')"
                         title="Emitir certificados"
                         class="p-2.5 rounded-xl bg-white/15 border border-white/20 hover:bg-white hover:text-[#003B71]">
-                  <span class="material-symbols-outlined text-[18px]">verified_user</span>
-                </button>
-                <button @click="nuevaActividadEnEvento(ev)" title="Nueva actividad"
+                  <VIcon class="material-symbols-outlined text-[18px]">verified_user</VIcon>
+                </VBtn>
+                <VBtn @click="nuevaActividadEnEvento(ev)" title="Nueva actividad"
                         class="p-2.5 rounded-xl bg-emerald-400 text-[#003B71]">
-                  <span class="material-symbols-outlined text-[18px]">add</span>
-                </button>
-                <button @click="abrirEditarEvento(ev)" title="Editar evento"
+                  <VIcon class="material-symbols-outlined text-[18px]">add</VIcon>
+                </VBtn>
+                <VBtn @click="abrirEditarEvento(ev)" title="Editar evento"
                         class="p-2.5 rounded-xl bg-white/15 border border-white/20 hover:bg-white hover:text-[#003B71]">
-                  <span class="material-symbols-outlined text-[18px]">edit</span>
-                </button>
-                <button @click="confirmarEliminarEvento(ev)" title="Inhabilitar"
+                  <VIcon class="material-symbols-outlined text-[18px]">edit</VIcon>
+                </VBtn>
+                <VBtn @click="confirmarEliminarEvento(ev)" title="Inhabilitar"
                         class="p-2.5 rounded-xl bg-white/15 border border-white/20 hover:bg-rose-500">
-                  <span class="material-symbols-outlined text-[18px]">do_not_disturb_on</span>
-                </button>
+                  <VIcon class="material-symbols-outlined text-[18px]">do_not_disturb_on</VIcon>
+                </VBtn>
               </div>
             </div>
           </div>
 
           <div v-if="panelEvento[ev.id] === 'certificados'" class="px-6 md:px-8 py-5 border-b border-slate-100 dark:border-white/5 bg-sky-50/60 dark:bg-sky-950/20">
             <p class="text-[10px] font-black uppercase tracking-widest text-[#003B71] dark:text-sky-300 mb-3">Certificados de todo el evento</p>
-            <p v-if="certsDeEvento(ev).length === 0" class="text-sm text-slate-500">Todavía no hay certificados emitidos en este evento.</p>
+            <p v-if="cargandoCertificados" class="text-sm text-slate-500">Consultando certificados...</p>
+            <p v-else-if="errorCertificados" class="text-sm text-amber-700">No se pudieron cargar los certificados. Vuelve a intentarlo.</p>
+            <p v-else-if="certsDeEvento(ev).length === 0" class="text-sm text-slate-500">Todavía no hay certificados emitidos en este evento.</p>
             <ul v-else class="grid md:grid-cols-2 gap-2">
               <li v-for="cert in certsDeEvento(ev)" :key="cert.id" class="flex items-center justify-between gap-3 bg-white dark:bg-[#13131f] rounded-xl px-4 py-3 border border-sky-100 dark:border-white/10">
                 <div>
@@ -944,40 +1076,28 @@ const exportarPDFSegmentado = async (categoria: string) => {
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                   <span class="text-[9px] font-black uppercase text-[#0070BB]">{{ cert.estado === 1 ? 'Válido' : 'Revocado' }}</span>
-                  <button @click="verCertificado(cert)" class="px-3 py-1.5 rounded-lg bg-[#003B71] text-white text-[10px] font-black uppercase">Ver</button>
-                  <button v-if="cert.uuid_archivo" @click="abrirVerificacion(cert.uuid_archivo)" class="px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-[10px] font-black uppercase">Verificar</button>
+                  <VBtn @click="verCertificado(cert)" class="px-3 py-1.5 rounded-lg bg-[#003B71] text-white text-[10px] font-black uppercase">Ver</VBtn>
+                  <VBtn v-if="cert.uuid_archivo" @click="abrirVerificacion(cert.uuid_archivo)" class="px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-[10px] font-black uppercase">Verificar</VBtn>
                 </div>
               </li>
             </ul>
           </div>
-          <div v-if="panelEvento[ev.id] === 'usuarios'" class="px-6 md:px-8 py-5 border-b border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5">
-            <p class="text-[10px] font-black uppercase tracking-widest text-[#003B71] dark:text-sky-300 mb-3">Usuarios de todo el evento</p>
-            <p v-if="usuariosDeEvento(ev).length === 0" class="text-sm text-slate-500">No hay inscritos en las actividades de este evento.</p>
-            <ul v-else class="grid md:grid-cols-2 gap-2">
-              <li v-for="usuario in usuariosDeEvento(ev)" :key="usuario.id" class="bg-white dark:bg-[#13131f] rounded-xl px-4 py-3 border border-slate-200 dark:border-white/10">
-                <p class="text-sm font-black text-slate-800 dark:text-white">{{ usuario.nombre }}</p>
-                <p class="text-[10px] text-slate-500">{{ usuario.email }} · {{ usuario.actividad }}</p>
-              </li>
-            </ul>
-          </div>
-
           <div class="px-6 md:px-8 py-6">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h3 class="text-xs font-black uppercase tracking-widest text-slate-400">Actividades del evento</h3>
-              <button v-if="(ev.actividades || []).length" @click="toggleActividadesEvento(ev.id)"
+              <VBtn v-if="(ev.actividades || []).length" @click="toggleActividadesEvento(ev.id)"
                       class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 dark:bg-white/10 text-[#003B71] dark:text-sky-200 text-[10px] font-black uppercase tracking-widest">
-                <span class="material-symbols-outlined text-[16px]">{{ actividadesVisibles[ev.id] ? 'expand_less' : 'expand_more' }}</span>
+                <VIcon class="material-symbols-outlined text-[16px]">{{ actividadesVisibles[ev.id] ? 'expand_less' : 'expand_more' }}</VIcon>
                 {{ actividadesVisibles[ev.id] ? 'Ocultar actividades' : 'Ver actividades' }}
                 <span class="px-2 py-0.5 rounded-full bg-[#0070BB] text-white">{{ (ev.actividades || []).length }}</span>
-              </button>
+              </VBtn>
             </div>
             <p v-if="!(ev.actividades || []).length" class="text-sm text-slate-500">Este evento todavía no tiene actividades.</p>
             <div v-else-if="actividadesVisibles[ev.id]" class="space-y-4">
               <div v-for="act in ev.actividades" :key="act.id" class="rounded-2xl border border-slate-200 dark:border-white/10 overflow-hidden">
                 <div class="flex flex-col md:flex-row gap-4 p-4">
                   <div class="w-full md:w-40 h-28 rounded-xl overflow-hidden bg-gradient-to-br from-[#003B71] to-[#0070BB] shrink-0">
-                    <img v-if="act.imagen" :src="resolveMediaUrl(act.imagen)" :alt="act.nombre" class="w-full h-full object-cover">
-                    <span v-else class="material-symbols-outlined text-sky-100 text-4xl w-full h-full flex items-center justify-center">image</span>
+                    <img :src="imagenActividad(act)" data-course-image :alt="act.nombre" class="w-full h-full object-cover">
                   </div>
                   <div class="flex-1 min-w-0">
                     <div class="flex flex-wrap items-center gap-2">
@@ -995,9 +1115,9 @@ const exportarPDFSegmentado = async (categoria: string) => {
                       · {{ usuariosDeActividad(act).length }} inscritos
                     </p>
                     <div class="mt-3 flex flex-wrap gap-2">
-                      <button @click="togglePanelActividad(act.id, 'usuarios')" class="px-3 py-1.5 rounded-lg bg-[#0070BB] text-white text-[10px] font-black uppercase">Usuarios</button>
-                      <button @click="togglePanelActividad(act.id, 'certificados')" class="px-3 py-1.5 rounded-lg bg-sky-100 text-[#003B71] text-[10px] font-black uppercase">Certificados</button>
-                      <button @click="abrirEditarActividad({ ...act, id_evento: ev.id, evento: ev })" class="px-3 py-1.5 rounded-lg border border-slate-200 text-[10px] font-black uppercase text-slate-600">Editar</button>
+                      <VBtn @click="togglePanelActividad(act.id, 'usuarios')" class="px-3 py-1.5 rounded-lg bg-[#0070BB] text-white text-[10px] font-black uppercase">Usuarios</VBtn>
+                      <VBtn @click="togglePanelActividad(act.id, 'certificados')" class="px-3 py-1.5 rounded-lg bg-sky-100 text-[#003B71] text-[10px] font-black uppercase">Certificados</VBtn>
+                      <VBtn @click="abrirEditarActividad({ ...act, id_evento: ev.id, evento: ev })" class="px-3 py-1.5 rounded-lg border border-slate-200 text-[10px] font-black uppercase text-slate-600">Editar</VBtn>
                       <router-link :to="{ name: 'admin-gestion-eventos-detalle', params: { id: act.id } }" class="px-3 py-1.5 rounded-lg border border-slate-200 text-[10px] font-black uppercase text-slate-600">Detalle</router-link>
                     </div>
                   </div>
@@ -1017,8 +1137,8 @@ const exportarPDFSegmentado = async (categoria: string) => {
                     <li v-for="cert in certsDeActividad(act.id)" :key="cert.id" class="rounded-xl bg-sky-50 dark:bg-sky-950/30 px-3 py-2">
                       <p class="text-sm font-black text-slate-800 dark:text-white">{{ nombrePersona(cert.usuario) }}</p>
                       <p class="text-[10px] text-slate-500">{{ cert.codigo_certificado }} · {{ cert.estado === 1 ? 'Válido' : 'Revocado' }}</p>
-                      <button @click="verCertificado(cert)" class="mt-2 px-3 py-1.5 rounded-lg bg-[#003B71] text-white text-[10px] font-black uppercase">Ver certificado</button>
-                      <button v-if="cert.uuid_archivo" @click="abrirVerificacion(cert.uuid_archivo)" class="mt-2 ml-2 px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-[10px] font-black uppercase">Verificar</button>
+                      <VBtn @click="verCertificado(cert)" class="mt-2 px-3 py-1.5 rounded-lg bg-[#003B71] text-white text-[10px] font-black uppercase">Ver certificado</VBtn>
+                      <VBtn v-if="cert.uuid_archivo" @click="abrirVerificacion(cert.uuid_archivo)" class="mt-2 ml-2 px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 text-[10px] font-black uppercase">Verificar</VBtn>
                     </li>
                   </ul>
                 </div>
@@ -1035,12 +1155,12 @@ const exportarPDFSegmentado = async (categoria: string) => {
         <div class="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
       <div v-else-if="actividadesFiltradas.length === 0" class="py-20 flex flex-col items-center text-slate-400">
-        <span class="material-symbols-outlined text-6xl mb-2 opacity-20">school</span>
+        <VIcon class="material-symbols-outlined text-6xl mb-2 opacity-20">school</VIcon>
         <p class="text-xs font-black uppercase tracking-widest">No hay actividades que mostrar</p>
       </div>
-      <div v-else class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2.5rem] overflow-hidden shadow-sm">
+      <VCard v-else class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2.5rem] overflow-hidden shadow-sm">
         <div class="overflow-x-auto">
-          <table class="w-full">
+          <VTable class="w-full">
             <thead class="bg-slate-50 dark:bg-white/5">
               <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 <th class="px-6 py-4 text-left">Actividad</th>
@@ -1057,8 +1177,7 @@ const exportarPDFSegmentado = async (categoria: string) => {
                 <td class="px-6 py-4">
                   <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 dark:border-gray-700 bg-gradient-to-br from-[#003B71] to-[#0070BB]">
-                      <img v-if="act.imagen" :src="getImageUrl('cursos', act.imagen)" class="w-full h-full object-cover" :alt="act.nombre">
-                      <span v-else class="material-symbols-outlined text-sky-100 text-[18px]">image</span>
+                      <img :src="imagenActividad(act)" data-course-image class="w-full h-full object-cover" :alt="act.nombre">
                     </div>
                     <div>
                       <p class="text-sm font-black text-slate-800 dark:text-white">{{ act.nombre }}</p>
@@ -1087,23 +1206,23 @@ const exportarPDFSegmentado = async (categoria: string) => {
                   <div class="flex justify-end items-center gap-1">
                     <router-link :to="{ name: 'admin-gestion-eventos-detalle', params: { id: act.id } }" title="Administrar Estudiantes y Notas"
                             class="p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-400 hover:text-emerald-600 transition-all">
-                      <span class="material-symbols-outlined text-[18px]">manage_accounts</span>
+                      <VIcon class="material-symbols-outlined text-[18px]">manage_accounts</VIcon>
                     </router-link>
-                    <button @click="abrirEditarActividad(act)" title="Editar"
+                    <VBtn @click="abrirEditarActividad(act)" title="Editar"
                             class="p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-slate-400 hover:text-blue-600 transition-all">
-                      <span class="material-symbols-outlined text-[18px]">edit</span>
-                    </button>
-                    <button @click="confirmarEliminarActividad(act)" title="Eliminar"
+                      <VIcon class="material-symbols-outlined text-[18px]">edit</VIcon>
+                    </VBtn>
+                    <VBtn @click="confirmarEliminarActividad(act)" title="Eliminar"
                             class="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-600 transition-all">
-                      <span class="material-symbols-outlined text-[18px]">delete</span>
-                    </button>
+                      <VIcon class="material-symbols-outlined text-[18px]">delete</VIcon>
+                    </VBtn>
                   </div>
                 </td>
               </tr>
             </tbody>
-          </table>
+          </VTable>
         </div>
-      </div>
+      </VCard>
     </div>
 
     <!-- TAB: SOLICITUDES -->
@@ -1112,12 +1231,12 @@ const exportarPDFSegmentado = async (categoria: string) => {
         <div class="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
       </div>
       <div v-else-if="solicitudes.length === 0" class="py-20 flex flex-col items-center text-slate-400">
-        <span class="material-symbols-outlined text-6xl mb-2 opacity-20">notification_important</span>
+        <VIcon class="material-symbols-outlined text-6xl mb-2 opacity-20">notification_important</VIcon>
         <p class="text-xs font-black uppercase tracking-widest">No hay solicitudes pendientes</p>
       </div>
-      <div v-else class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2.5rem] overflow-hidden shadow-sm">
+      <VCard v-else class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2.5rem] overflow-hidden shadow-sm">
         <div class="overflow-x-auto">
-          <table class="w-full">
+          <VTable class="w-full">
             <thead class="bg-slate-50 dark:bg-white/5">
               <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 <th class="px-6 py-4 text-left">Actividad</th>
@@ -1132,7 +1251,7 @@ const exportarPDFSegmentado = async (categoria: string) => {
                 <td class="px-6 py-4">
                   <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center border border-emerald-200 dark:border-emerald-900/30 shrink-0">
-                      <span class="material-symbols-outlined text-emerald-600 text-[18px]">school</span>
+                      <VIcon class="material-symbols-outlined text-emerald-600 text-[18px]">school</VIcon>
                     </div>
                     <div>
                       <p class="text-sm font-black text-slate-800 dark:text-white">{{ sol.nombre }}</p>
@@ -1149,24 +1268,24 @@ const exportarPDFSegmentado = async (categoria: string) => {
                   </p>
                 </td>
                 <td class="px-6 py-4 text-right">
-                  <button @click="aprobarSolicitud(sol)"
+                  <VBtn @click="aprobarSolicitud(sol)"
                           class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/20 flex items-center gap-2 ml-auto">
-                    <span class="material-symbols-outlined text-[14px]">check_circle</span>
+                    <VIcon class="material-symbols-outlined text-[14px]">check_circle</VIcon>
                     Aprobar Activación
-                  </button>
+                  </VBtn>
                 </td>
               </tr>
             </tbody>
-          </table>
+          </VTable>
         </div>
-      </div>
+      </VCard>
     </div>
 
     <!-- TAB: SOPORTE -->
     <div v-else-if="tabActivo === 'soporte'">
       <!-- Sub-tabs del soporte -->
       <div class="flex gap-1 bg-slate-100 dark:bg-white/5 p-1 rounded-2xl w-fit mb-6">
-        <button v-for="t in [
+        <VBtn v-for="t in [
           { id: 'pendientes', label: 'Pendientes', icon: 'pending_actions' },
           { id: 'resueltos', label: 'Resueltos', icon: 'check_circle' },
           { id: 'historial', label: 'Historial', icon: 'history' }
@@ -1176,18 +1295,18 @@ const exportarPDFSegmentado = async (categoria: string) => {
             'flex items-center gap-1.5 px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-[9px] sm:text-xs font-black uppercase tracking-widest transition-all',
             soporteTab === t.id ? 'bg-white dark:bg-sky-600 text-sky-600 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
           ]">
-          <span class="material-symbols-outlined text-sm">{{ t.icon }}</span>
+          <VIcon class="material-symbols-outlined text-sm">{{ t.icon }}</VIcon>
           {{ t.label }}
-        </button>
+        </VBtn>
       </div>
 
-      <div v-if="ticketsFiltrados.length === 0" class="bg-white dark:bg-[#13131f] rounded-2xl p-16 sm:p-20 text-center border border-slate-200 dark:border-white/5">
-        <span class="material-symbols-outlined text-5xl sm:text-6xl text-slate-200 dark:text-gray-800 mb-4">support_agent</span>
+      <VCard v-if="ticketsFiltrados.length === 0" class="bg-white dark:bg-[#13131f] rounded-2xl p-16 sm:p-20 text-center border border-slate-200 dark:border-white/5">
+        <VIcon class="material-symbols-outlined text-5xl sm:text-6xl text-slate-200 dark:text-gray-800 mb-4">support_agent</VIcon>
         <p class="text-slate-400 font-bold uppercase tracking-widest text-xs">No hay solicitudes en esta sección</p>
-      </div>
+      </VCard>
 
       <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div v-for="ticket in ticketsFiltrados" :key="ticket.id" 
+        <VCard v-for="ticket in ticketsFiltrados" :key="ticket.id"
           class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-2xl p-4 sm:p-6 hover:shadow-lg transition-all relative overflow-hidden group">
           
           <div :class="[
@@ -1201,9 +1320,9 @@ const exportarPDFSegmentado = async (categoria: string) => {
                 'w-10 h-10 rounded-xl flex items-center justify-center shrink-0',
                 ticket.tipo === 'password' ? 'bg-sky-100 dark:bg-sky-900/20 text-sky-600' : ticket.tipo === 'datos' ? 'bg-amber-100 dark:bg-amber-900/20 text-amber-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-600'
               ]">
-                <span class="material-symbols-outlined text-[20px]">
+                <VIcon class="material-symbols-outlined text-[20px]">
                   {{ ticket.tipo === 'password' ? 'lock_reset' : ticket.tipo === 'datos' ? 'edit_note' : 'help' }}
-                </span>
+                </VIcon>
               </div>
               <div>
                 <p class="text-[10px] font-black uppercase text-slate-400 leading-none mb-1">Asunto:</p>
@@ -1218,24 +1337,24 @@ const exportarPDFSegmentado = async (categoria: string) => {
               ]">
                 {{ ticket.estado === 1 ? 'Resuelto' : ticket.estado === 2 ? 'Archivado' : 'Pendiente' }}
               </span>
-              <button v-if="ticket.estado === 1" @click="archivarTicket(ticket.id)" 
+              <VBtn v-if="ticket.estado === 1" @click="archivarTicket(ticket.id)"
                 class="text-slate-300 hover:text-red-500 transition-colors">
-                <span class="material-symbols-outlined text-lg">delete</span>
-              </button>
+                <VIcon class="material-symbols-outlined text-lg">delete</VIcon>
+              </VBtn>
             </div>
           </div>
 
-          <div class="bg-slate-50 dark:bg-white/3 rounded-xl p-3 sm:p-4 mb-4 border border-slate-100 dark:border-white/5">
+          <VCard class="bg-slate-50 dark:bg-white/3 rounded-xl p-3 sm:p-4 mb-4 border border-slate-100 dark:border-white/5">
             <p class="text-[10px] font-black uppercase text-slate-400 mb-2">Mensaje del Usuario:</p>
             <p class="text-xs sm:text-sm text-slate-700 dark:text-gray-300 font-medium leading-relaxed italic">
               "{{ ticket.mensaje }}"
             </p>
-          </div>
+          </VCard>
 
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 sm:pt-4 border-t border-slate-100 dark:border-white/5">
             <div class="flex items-center gap-2">
                <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden shrink-0">
-                  <span class="material-symbols-outlined text-slate-400 text-xl">account_circle</span>
+                  <VIcon class="material-symbols-outlined text-slate-400 text-xl">account_circle</VIcon>
                </div>
                <div>
                   <p class="text-[9px] font-black text-slate-800 dark:text-white uppercase leading-none">
@@ -1243,10 +1362,10 @@ const exportarPDFSegmentado = async (categoria: string) => {
                   </p>
                   <div class="flex items-center gap-2 mt-0.5">
                     <p class="text-[8px] text-slate-400 font-medium truncate max-w-[150px]">{{ ticket.usuario?.email || 'Sin cuenta' }}</p>
-                    <button v-if="!ticket.usuario" @click="vincularUsuario(ticket.id, ticket.email || '')"
+                    <VBtn v-if="!ticket.usuario" @click="vincularUsuario(ticket.id, ticket.email || '')"
                       class="text-sky-500 hover:underline text-[8px] font-bold uppercase tracking-tighter">
                       [Vincular]
-                    </button>
+                    </VBtn>
                   </div>
                </div>
             </div>
@@ -1254,24 +1373,24 @@ const exportarPDFSegmentado = async (categoria: string) => {
               <span class="text-[8px] font-bold text-slate-400 uppercase hidden sm:block">{{ new Date(ticket.fechaCreacion).toLocaleString() }}</span>
               
               <template v-if="ticket.estado === 0">
-                <button @click="resetearPassword(ticket.usuario, ticket.id, ticket.email)"
+                <VBtn @click="resetearPassword(ticket.usuario, ticket.id, ticket.email)"
                   class="bg-umsa-blue hover:bg-[#005a96] text-white px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1 shadow-sm">
-                  <span class="material-symbols-outlined text-[12px] sm:text-[14px]">key</span>
+                  <VIcon class="material-symbols-outlined text-[12px] sm:text-[14px]">key</VIcon>
                   Clave
-                </button>
-                <button @click="habilitarEdicion(ticket.usuario, ticket.id, ticket.email)"
+                </VBtn>
+                <VBtn @click="habilitarEdicion(ticket.usuario, ticket.id, ticket.email)"
                   class="bg-emerald-500 hover:bg-emerald-600 text-white px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1 shadow-sm">
-                  <span class="material-symbols-outlined text-[12px] sm:text-[14px]">edit</span>
+                  <VIcon class="material-symbols-outlined text-[12px] sm:text-[14px]">edit</VIcon>
                   Edición
-                </button>
-                <button @click="resolverTicket(ticket.id)"
+                </VBtn>
+                <VBtn @click="resolverTicket(ticket.id)"
                   class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 sm:py-2 rounded-lg text-[8px] sm:text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm">
                   Resolver
-                </button>
+                </VBtn>
               </template>
             </div>
           </div>
-        </div>
+        </VCard>
       </div>
     </div>
 
@@ -1290,114 +1409,209 @@ const exportarPDFSegmentado = async (categoria: string) => {
   <!-- ══════════════════════════════════════════════ -->
   <Teleport to="body">
     <!-- MODAL ACTIVIDAD -->
-    <div v-if="showModalAct" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+    <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" v-if="showModalAct" >
       <div class="bg-white dark:bg-[#0d0d14] w-full max-w-xl rounded-[2.5rem] border border-slate-200 dark:border-white/10 shadow-2xl overflow-auto max-h-[92vh] animate-in zoom-in duration-300">
         <div class="p-8">
           <div class="flex justify-between items-center mb-8">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center">
-                <span class="material-symbols-outlined text-white text-[20px]">school</span>
+                <VIcon class="material-symbols-outlined text-white text-[20px]">school</VIcon>
               </div>
               <h2 class="text-xl font-black text-slate-800 dark:text-white uppercase italic">
                 {{ isEditingAct ? 'Editar Actividad' : 'Nueva Actividad' }}
               </h2>
             </div>
-            <button @click="showModalAct = false" class="text-slate-400 hover:text-red-600 transition-colors">
-              <span class="material-symbols-outlined text-[28px]">close</span>
-            </button>
+            <VBtn @click="showModalAct = false" class="text-slate-400 hover:text-red-600 transition-colors">
+              <VIcon class="material-symbols-outlined text-[28px]">close</VIcon>
+            </VBtn>
           </div>
 
           <div class="space-y-4">
             <div class="space-y-1">
               <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Evento al que pertenece</label>
-              <select v-model="formActividad.id_evento"
+              <UiSelect v-model="formActividad.id_evento"
                       class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-amber-500/50">
                 <option value="">Seleccionar evento padre...</option>
                  <option v-for="ev in eventosActivos" :key="ev.id" :value="ev.id">{{ ev.nombre }}</option>
-              </select>
+              </UiSelect>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-1 col-span-2">
                 <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Nombre de la Actividad</label>
-                <input v-model="formActividad.nombre" type="text"
+                <UiInput v-model="formActividad.nombre" type="text"
                        class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-amber-500/50 transition-all" />
               </div>
               <div class="space-y-1">
                 <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Tipo</label>
-                <select v-model="formActividad.tipo"
+                <UiSelect v-model="formActividad.tipo"
                         class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-amber-500/50">
                   <option v-for="t in tiposActividad" :key="t" :value="t">{{ t }}</option>
-                </select>
+                </UiSelect>
               </div>
               <div class="space-y-1">
                 <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Duración (horas)</label>
-                <input v-model="formActividad.horas" type="number" min="1"
+                <UiInput v-model="formActividad.horas" type="number" min="1"
                        class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-amber-500/50 transition-all" />
               </div>
             </div>
 
             <div class="space-y-1">
               <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Descripción</label>
-              <textarea v-model="formActividad.descripcion" rows="3"
-                        class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-amber-500/50 resize-none transition-all"></textarea>
+              <VTextarea v-model="formActividad.descripcion" rows="3"
+                        class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-amber-500/50 resize-none transition-all"></VTextarea>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-1">
                 <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Fecha Inicio</label>
-                <input v-model="formActividad.fecha_inicio" type="date"
+                <UiInput v-model="formActividad.fecha_inicio" type="date"
                        class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-amber-500/50 transition-all" />
               </div>
               <div class="space-y-1">
                 <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Fecha Fin</label>
-                <input v-model="formActividad.fecha_fin" type="date"
+                <UiInput v-model="formActividad.fecha_fin" type="date"
                        class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-amber-500/50 transition-all" />
               </div>
             </div>
           </div>
 
           <div class="mt-8 flex gap-3">
-            <button @click="showModalAct = false"
-                    class="flex-1 py-4 bg-slate-100 dark:bg-white/5 text-[10px] font-black text-slate-500 uppercase rounded-2xl hover:bg-slate-200 transition-all">Cancelar</button>
-            <button @click="guardarActividad()"
+            <VBtn @click="showModalAct = false"
+                    class="flex-1 py-4 bg-slate-100 dark:bg-white/5 text-[10px] font-black text-slate-500 uppercase rounded-2xl hover:bg-slate-200 transition-all">Cancelar</VBtn>
+            <VBtn @click="guardarActividad()"
                     class="flex-2 px-10 py-4 bg-amber-500 text-[10px] font-black text-white uppercase rounded-2xl shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition-all">
               {{ isEditingAct ? 'Guardar Cambios' : 'Crear Actividad' }}
-            </button>
+            </VBtn>
           </div>
         </div>
       </div>
-    </div>
+    </VDialog>
+
+    <VDialog v-model="showModalUsuariosEvento" class="sgea-dialog" max-width="920" scrollable>
+      <VCard class="w-full overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-[#13131f]">
+        <div class="border-t-4 border-[#BC9C31] bg-gradient-to-r from-[#012248] to-[#003B71] px-5 py-5 text-white sm:px-7">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex min-w-0 items-start gap-3">
+              <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10">
+                <VIcon class="material-symbols-outlined text-2xl">groups</VIcon>
+              </div>
+              <div class="min-w-0">
+                <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-sky-200">Gestión académica</p>
+                <h2 class="mt-1 text-xl font-bold leading-tight">Usuarios del evento</h2>
+                <p class="mt-1 truncate text-sm text-sky-100" :title="eventoParaUsuarios?.nombre">{{ eventoParaUsuarios?.nombre }}</p>
+              </div>
+            </div>
+            <VBtn icon="close" variant="text" class="text-white" aria-label="Cerrar usuarios del evento" @click="showModalUsuariosEvento = false" />
+          </div>
+          <div class="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div v-for="filtro in filtrosParticipante" :key="filtro.value" class="rounded-lg border border-white/15 bg-white/10 px-3 py-2">
+              <p class="text-lg font-bold leading-none">{{ filtro.value === 'todos' ? participantesEvento.length : participantesEvento.filter((persona) => persona.roles.includes(filtro.value)).length }}</p>
+              <p class="mt-1 text-[10px] font-semibold uppercase tracking-wide text-sky-100">{{ filtro.label }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="space-y-3 border-b border-slate-200 bg-slate-50 px-5 py-4 dark:border-white/10 dark:bg-slate-900/60 sm:px-7">
+          <label class="block">
+            <span class="mb-1.5 block text-xs font-bold text-[#003B71] dark:text-sky-200">Buscar usuario</span>
+            <input v-model="busquedaParticipante" type="search" placeholder="Nombre, correo o actividad"
+              class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0070BB] focus:ring-2 focus:ring-[#0070BB]/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
+          </label>
+          <div class="flex flex-wrap gap-2" role="group" aria-label="Filtrar usuarios por rol">
+            <button v-for="filtro in filtrosParticipante" :key="filtro.value" type="button" :aria-pressed="filtroRolParticipante === filtro.value"
+              class="rounded-lg border px-3 py-2 text-xs font-semibold transition-colors"
+              :class="filtroRolParticipante === filtro.value ? 'border-[#003B71] bg-[#003B71] text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-[#0070BB] dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200'"
+              @click="filtroRolParticipante = filtro.value">
+              {{ filtro.label }} <span class="ml-1 opacity-70">{{ filtro.value === 'todos' ? participantesEvento.length : participantesEvento.filter((persona) => persona.roles.includes(filtro.value)).length }}</span>
+            </button>
+          </div>
+          <p v-if="avisoParticipantes" class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{{ avisoParticipantes }}</p>
+          <p v-if="errorCertificados" class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Los certificados no están disponibles en este momento.</p>
+        </div>
+        <div class="max-h-[min(50vh,520px)] min-h-40 overflow-y-auto bg-slate-50/60 px-5 py-4 dark:bg-[#101827] sm:px-7" data-testid="lista-usuarios-evento">
+          <div v-if="cargandoParticipantes" class="flex flex-col items-center gap-3 py-12 text-sm text-slate-500">
+            <VIcon class="material-symbols-outlined animate-spin text-3xl text-[#0070BB]">progress_activity</VIcon>
+            Cargando participantes del evento...
+          </div>
+          <div v-else-if="errorParticipantes" class="flex flex-col items-center gap-3 py-12 text-center text-sm text-slate-600">
+            <VIcon class="material-symbols-outlined text-3xl text-rose-500">error_outline</VIcon>
+            No se pudo cargar el listado de usuarios.
+            <VBtn size="small" color="primary" @click="eventoParaUsuarios && abrirUsuariosEvento(eventoParaUsuarios)">Reintentar</VBtn>
+          </div>
+          <div v-else-if="participantesFiltrados.length === 0" class="flex flex-col items-center gap-2 py-12 text-center text-sm text-slate-500">
+            <VIcon class="material-symbols-outlined text-3xl text-slate-400">person_search</VIcon>
+            No hay usuarios con este filtro.
+          </div>
+          <ul v-else class="space-y-2.5">
+            <li v-for="participante in participantesFiltrados" :key="participante.id" class="grid min-w-0 gap-4 rounded-xl border border-l-4 border-slate-200 border-l-[#0070BB] bg-white p-4 shadow-sm dark:border-slate-700 dark:border-l-[#38bdf8] dark:bg-slate-900 md:grid-cols-2">
+              <div class="flex min-w-0 items-start gap-3">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#003B71] text-xs font-bold text-white">{{ inicialesParticipante(participante.nombre) }}</div>
+                <div class="min-w-0">
+                  <p class="break-words text-sm font-bold text-slate-900 dark:text-white">{{ participante.nombre }}</p>
+                  <p class="break-all text-xs text-slate-500 dark:text-slate-400">{{ participante.email }}</p>
+                  <div class="mt-2 flex flex-wrap gap-1.5">
+                    <span v-for="rol in participante.roles" :key="rol" class="rounded-md bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-[#003B71] dark:bg-sky-900/30 dark:text-sky-200">{{ rol }}</span>
+                  </div>
+                  <p v-if="participante.actividades.length" class="mt-2 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{{ participante.actividades.join(' · ') }}</p>
+                </div>
+              </div>
+              <div class="min-w-0 border-t border-slate-100 pt-3 dark:border-slate-700 md:border-l md:border-t-0 md:pl-4 md:pt-0">
+                <p class="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[#003B71] dark:text-sky-200">
+                  <VIcon class="material-symbols-outlined text-base">workspace_premium</VIcon>
+                  Certificados <span v-if="!cargandoCertificados && !errorCertificados" class="rounded-full bg-sky-100 px-1.5 text-[10px] dark:bg-sky-900/40">{{ certificadosParticipante(participante.id).length }}</span>
+                </p>
+                <p v-if="cargandoCertificados" class="text-xs text-slate-500">Consultando certificados...</p>
+                <p v-else-if="errorCertificados" class="text-xs text-amber-700">Certificados no disponibles</p>
+                <p v-else-if="!certificadosParticipante(participante.id).length" class="text-xs text-slate-400">Sin certificados emitidos</p>
+                <ul v-else class="space-y-1.5">
+                  <li v-for="certificado in certificadosParticipante(participante.id)" :key="certificado.id" class="flex min-w-0 items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-2 dark:bg-slate-800">
+                    <div class="min-w-0">
+                      <p class="truncate text-xs font-semibold text-slate-700 dark:text-slate-200">{{ certificado.actividadAcademica?.nombre || certificado.infoCertificado?.cabecera || 'Certificado del evento' }}</p>
+                      <p class="text-[10px] text-slate-500">{{ certificado.codigo_certificado }} · {{ certificado.estado === 1 ? 'Válido' : 'Revocado' }}</p>
+                    </div>
+                    <VBtn size="small" variant="tonal" color="primary" @click="verCertificado(certificado)">Ver</VBtn>
+                  </li>
+                </ul>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div class="flex items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3 text-xs text-slate-500 dark:border-white/10 dark:bg-[#13131f] sm:px-7">
+          <span>Mostrando <strong class="text-[#003B71] dark:text-sky-200">{{ participantesFiltrados.length }}</strong> de {{ participantesEvento.length }} usuarios</span>
+          <span class="hidden text-slate-400 sm:inline">Desplázate para ver más</span>
+        </div>
+      </VCard>
+    </VDialog>
 
     <!-- MODAL COORDINADORES -->
-    <div v-if="showModalCoordinadores" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
-      <div class="bg-white dark:bg-[#0d0d14] w-full max-w-2xl rounded-[2.5rem] border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+    <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" v-if="showModalCoordinadores" >
+      <VCard class="bg-white dark:bg-[#0d0d14] w-full max-w-2xl rounded-[2.5rem] border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden animate-in zoom-in duration-300">
         <div class="p-8">
           <div class="flex justify-between items-center mb-8">
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center">
-                <span class="material-symbols-outlined text-white text-[20px]">manage_accounts</span>
+                <VIcon class="material-symbols-outlined text-white text-[20px]">manage_accounts</VIcon>
               </div>
               <div>
                 <h2 class="text-xl font-black text-slate-800 dark:text-white uppercase italic leading-tight">Responsables del Evento</h2>
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ eventoParaCoordinadores?.nombre }}</p>
               </div>
             </div>
-            <button @click="showModalCoordinadores = false" class="text-slate-400 hover:text-red-600 transition-colors">
-              <span class="material-symbols-outlined text-[28px]">close</span>
-            </button>
+            <VBtn @click="showModalCoordinadores = false" class="text-slate-400 hover:text-red-600 transition-colors">
+              <VIcon class="material-symbols-outlined text-[28px]">close</VIcon>
+            </VBtn>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <!-- Actuales -->
             <div class="space-y-4">
               <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <span class="material-symbols-outlined text-sm">groups</span> Responsables Actuales
+                <VIcon class="material-symbols-outlined text-sm">groups</VIcon> Responsables Actuales
               </h3>
               <div v-if="cargandoCoordinadores" class="py-10 flex justify-center"><div class="w-6 h-6 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin"></div></div>
               <div v-else-if="coordinadoresActuales.length === 0" class="py-10 text-center border-2 border-dashed border-slate-100 rounded-2xl text-[10px] font-bold text-slate-300 uppercase">Sin responsables asignados</div>
               <div v-else class="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                <div v-for="c in coordinadoresActuales" :key="c.id" class="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5">
+                <VCard v-for="c in coordinadoresActuales" :key="c.id" class="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5">
                   <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-gray-700 flex items-center justify-center text-[10px] font-black text-slate-500">
                       {{ c.usuario?.persona?.nombres?.charAt(0) }}{{ c.usuario?.persona?.primer_apellido?.charAt(0) }}
@@ -1412,26 +1626,26 @@ const exportarPDFSegmentado = async (categoria: string) => {
                       <p class="text-[8px] text-slate-400 font-bold uppercase tracking-tighter">{{ c.usuario?.email }}</p>
                     </div>
                   </div>
-                  <button @click="quitarCoordinador(c)" class="text-slate-300 hover:text-red-500 transition-colors"><span class="material-symbols-outlined text-lg">remove_circle</span></button>
-                </div>
+                  <VBtn @click="quitarCoordinador(c)" class="text-slate-300 hover:text-red-500 transition-colors"><VIcon class="material-symbols-outlined text-lg">remove_circle</VIcon></VBtn>
+                </VCard>
               </div>
             </div>
 
             <!-- Candidatos -->
             <div class="space-y-4">
               <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <span class="material-symbols-outlined text-sm">person_search</span> Asignar Nuevo
+                <VIcon class="material-symbols-outlined text-sm">person_search</VIcon> Asignar Nuevo
               </h3>
-              <input v-model="queryCandidato" type="text" placeholder="BUSCAR POR NOMBRE O EMAIL..." class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-[10px] font-bold uppercase outline-none focus:border-slate-800/50 transition-all" />
+              <UiInput v-model="queryCandidato" type="text" placeholder="BUSCAR POR NOMBRE O EMAIL..." class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-[10px] font-bold uppercase outline-none focus:border-slate-800/50 transition-all" />
               <div class="flex gap-1">
-                <button v-for="op in [{ id: 'todos', label: 'Todos' }, { id: 'libre', label: 'Libres' }, { id: 'restringido', label: 'Restringidos' }]" :key="op.id" type="button" @click="filtroAlcance = op.id as any" class="px-2 py-1 rounded-lg text-[8px] font-black uppercase" :class="filtroAlcance === op.id ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500'">{{ op.label }}</button>
+                <VBtn v-for="op in [{ id: 'todos', label: 'Todos' }, { id: 'libre', label: 'Libres' }, { id: 'restringido', label: 'Restringidos' }]" :key="op.id" type="button" @click="filtroAlcance = op.id as any" class="px-2 py-1 rounded-lg text-[8px] font-black uppercase" :class="filtroAlcance === op.id ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500'">{{ op.label }}</VBtn>
               </div>
               <div class="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
                 <p v-if="candidatosFiltrados.length === 0" class="py-6 text-center text-[10px] font-bold uppercase text-slate-300">No hay coordinadores con ese filtro</p>
-                <div v-for="u in candidatosFiltrados" :key="u.id" class="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-colors border border-transparent hover:border-slate-100">
-                  <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" @click="asignarCoordinador(u)">
+                <VCard v-for="u in candidatosFiltrados" :key="u.id" class="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-colors border border-transparent hover:border-slate-100">
+                  <VBtn type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" @click="asignarCoordinador(u)">
                     <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-gray-800 flex items-center justify-center text-[10px] font-black text-slate-400">
-                      <span class="material-symbols-outlined text-sm">person</span>
+                      <VIcon class="material-symbols-outlined text-sm">person</VIcon>
                     </div>
                     <div class="min-w-0">
                       <div class="flex items-center gap-2">
@@ -1442,18 +1656,18 @@ const exportarPDFSegmentado = async (categoria: string) => {
                       </div>
                       <p class="text-[8px] text-slate-400 truncate">{{ u.email }}</p>
                     </div>
-                  </button>
-                  <div class="flex shrink-0 flex-col gap-1">
-                    <button type="button" class="rounded px-1.5 py-0.5 text-[7px] font-black uppercase" :class="u.alcance_eventos === 'libre' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'" @click="definirAlcance(u, 'libre')">Libre</button>
-                    <button type="button" class="rounded px-1.5 py-0.5 text-[7px] font-black uppercase" :class="u.alcance_eventos !== 'libre' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-400'" @click="definirAlcance(u, 'restringido')">Restringido</button>
+                  </VBtn>
+                  <div v-if="esCoordinador(u)" class="flex shrink-0 flex-col gap-1">
+                    <VBtn type="button" class="rounded px-1.5 py-0.5 text-[7px] font-black uppercase" :class="u.alcance_eventos === 'libre' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'" @click="definirAlcance(u, 'libre')">Libre</VBtn>
+                    <VBtn type="button" class="rounded px-1.5 py-0.5 text-[7px] font-black uppercase" :class="u.alcance_eventos !== 'libre' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-400'" @click="definirAlcance(u, 'restringido')">Restringido</VBtn>
                   </div>
-                </div>
+                </VCard>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </VCard>
+    </VDialog>
   </Teleport>
 </template>
 

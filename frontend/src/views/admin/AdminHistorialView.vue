@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useAdminHistorialStore } from '@/stores/adminHistorial';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 const historialStore = useAdminHistorialStore();
 
@@ -231,7 +231,7 @@ const limpiarFiltros = () => {
       <div>
         <div class="flex items-center gap-3 mb-2">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-800 to-slate-950 flex items-center justify-center shadow-xl">
-            <span class="material-symbols-outlined text-white text-[22px]">gavel</span>
+            <VIcon class="material-symbols-outlined text-white text-[22px]">gavel</VIcon>
           </div>
           <div>
             <p class="text-[10px] font-black text-umsa-blue dark:text-sky-400 uppercase tracking-widest leading-none">Auditoría del Sistema</p>
@@ -245,30 +245,30 @@ const limpiarFiltros = () => {
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
-        <button @click="exportarExcel()"
+        <VBtn @click="exportarExcel()"
                 class="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition-all">
-          <span class="material-symbols-outlined text-[16px]">table_chart</span>
+          <VIcon class="material-symbols-outlined text-[16px]">table_chart</VIcon>
           Excel
-        </button>
-        <button @click="exportarPDF()"
+        </VBtn>
+        <VBtn @click="exportarPDF()"
                 class="flex items-center gap-1.5 px-4 py-2.5 bg-umsa-blue text-white rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#0070BB]/20 hover:bg-[#005a96] transition-all">
-          <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span>
+          <VIcon class="material-symbols-outlined text-[16px]">picture_as_pdf</VIcon>
           PDF
-        </button>
-        <button @click="confirmarLimpiar()" 
+        </VBtn>
+        <VBtn @click="confirmarLimpiar()"
                 class="flex items-center gap-1.5 px-4 py-2.5 bg-slate-100 dark:bg-white/5 text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest rounded-xl hover:bg-red-50 hover:text-red-600 transition-all border border-slate-200 dark:border-white/10">
-          <span class="material-symbols-outlined text-[16px]">delete_sweep</span>
+          <VIcon class="material-symbols-outlined text-[16px]">delete_sweep</VIcon>
           Limpiar
-        </button>
+        </VBtn>
       </div>
     </div>
 
     <!-- FILTROS -->
-    <div class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-2xl p-4 shadow-sm space-y-4">
+    <VCard class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-2xl p-4 shadow-sm space-y-4">
       <!-- Buscador -->
       <div class="relative">
-        <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
-        <input v-model="busqueda" @input="onBusquedaChange" type="text" 
+        <VIcon class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</VIcon>
+        <UiInput v-model="busqueda" @input="onBusquedaChange" type="text"
                placeholder="Buscar en descripción, entidad o usuario..."
                class="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm outline-none focus:border-umsa-blue/50 text-slate-800 dark:text-white transition-all" />
       </div>
@@ -279,12 +279,12 @@ const limpiarFiltros = () => {
         <div class="flex items-center gap-2">
           <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest hidden sm:block">Módulo:</span>
           <div class="flex gap-1 flex-wrap">
-            <button v-for="(cfg, key) in moduloConfig" :key="key"
+            <VBtn v-for="(cfg, key) in moduloConfig" :key="key"
                     @click="filtroModulo = filtroModulo === key ? '' : (key as string)"
                     :class="[filtroModulo === key ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md' : 'bg-slate-100 dark:bg-white/5 text-slate-500 hover:bg-slate-200']"
                     class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[8px] sm:text-[9px] font-black uppercase transition-all">
               {{ cfg.label }}
-            </button>
+            </VBtn>
           </div>
         </div>
 
@@ -292,32 +292,32 @@ const limpiarFiltros = () => {
         <div class="flex items-center gap-2">
           <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest hidden sm:block">Acción:</span>
           <div class="flex gap-1 flex-wrap">
-            <button v-for="(cfg, key) in accionConfig" :key="key"
+            <VBtn v-for="(cfg, key) in accionConfig" :key="key"
                     @click="filtroAccion = filtroAccion === key ? '' : (key as string)"
                     :class="[filtroAccion === key ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md' : 'bg-slate-100 dark:bg-white/5 text-slate-500 hover:bg-slate-200']"
                     class="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[8px] sm:text-[9px] font-black uppercase transition-all">
               {{ cfg.label }}
-            </button>
+            </VBtn>
           </div>
         </div>
 
         <!-- Fechas -->
         <div class="flex items-center gap-2">
-          <input v-model="fechaDesde" type="date" title="Desde"
+          <UiInput v-model="fechaDesde" type="date" title="Desde"
                  class="px-2 py-1.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] text-slate-600 dark:text-white outline-none" />
           <span class="text-slate-400 text-xs">→</span>
-          <input v-model="fechaHasta" type="date" title="Hasta"
+          <UiInput v-model="fechaHasta" type="date" title="Hasta"
                  class="px-2 py-1.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] text-slate-600 dark:text-white outline-none" />
         </div>
 
         <!-- Limpiar -->
-        <button v-if="filtroModulo || filtroAccion || busqueda || fechaDesde || fechaHasta" 
+        <VBtn v-if="filtroModulo || filtroAccion || busqueda || fechaDesde || fechaHasta"
                 @click="limpiarFiltros"
                 class="px-3 py-1.5 text-[9px] font-black uppercase rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all border border-red-100">
           Limpiar
-        </button>
+        </VBtn>
       </div>
-    </div>
+    </VCard>
 
     <!-- LOADING -->
     <div v-if="historialStore.loading" class="py-20 flex justify-center">
@@ -326,13 +326,13 @@ const limpiarFiltros = () => {
 
     <!-- EMPTY STATE -->
     <div v-else-if="historialStore.registros.length === 0" class="py-20 flex flex-col items-center text-slate-300">
-      <span class="material-symbols-outlined text-6xl mb-2 opacity-20">history_edu</span>
+      <VIcon class="material-symbols-outlined text-6xl mb-2 opacity-20">history_edu</VIcon>
       <p class="text-xs font-black uppercase tracking-widest italic">No hay cambios registrados</p>
     </div>
 
     <!-- REGISTROS -->
     <div v-else class="space-y-3">
-      <div v-for="log in historialStore.registros" :key="log.id"
+      <VCard v-for="log in historialStore.registros" :key="log.id"
            @click="toggleExpand(log.id)"
            class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-2xl overflow-hidden shadow-sm hover:border-red-600/20 transition-all cursor-pointer group">
         
@@ -342,7 +342,7 @@ const limpiarFiltros = () => {
             <!-- Ícono módulo -->
             <div :class="[moduloConfig[log.modulo]?.color, moduloConfig[log.modulo]?.bg]" 
                  class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 border border-current/10">
-              <span class="material-symbols-outlined text-[20px] sm:text-[22px]">{{ moduloConfig[log.modulo]?.icon || 'help' }}</span>
+              <VIcon class="material-symbols-outlined text-[20px] sm:text-[22px]">{{ moduloConfig[log.modulo]?.icon || 'help' }}</VIcon>
             </div>
             
             <div class="flex-1 min-w-0">
@@ -364,10 +364,10 @@ const limpiarFiltros = () => {
               <p class="text-[10px] font-black text-slate-400 uppercase">{{ formatFecha(log.fecha_creacion) }}</p>
               <p class="text-[9px] font-bold text-slate-300">{{ formatHora(log.fecha_creacion) }}</p>
             </div>
-            <span class="material-symbols-outlined text-slate-300 text-[18px] transition-transform"
+            <VIcon class="material-symbols-outlined text-slate-300 text-[18px] transition-transform"
                   :class="expandedId === log.id ? 'rotate-180' : ''">
               expand_more
-            </span>
+            </VIcon>
           </div>
         </div>
 
@@ -377,30 +377,30 @@ const limpiarFiltros = () => {
           
           <!-- Info general -->
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div class="bg-white dark:bg-[#13131f] rounded-xl p-3 border border-slate-100 dark:border-white/5">
+            <VCard class="bg-white dark:bg-[#13131f] rounded-xl p-3 border border-slate-100 dark:border-white/5">
               <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Módulo</p>
               <p class="text-xs font-bold text-slate-800 dark:text-white">{{ moduloConfig[log.modulo]?.label || log.modulo }}</p>
-            </div>
-            <div class="bg-white dark:bg-[#13131f] rounded-xl p-3 border border-slate-100 dark:border-white/5">
+            </VCard>
+            <VCard class="bg-white dark:bg-[#13131f] rounded-xl p-3 border border-slate-100 dark:border-white/5">
               <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Realizado por</p>
               <p class="text-xs font-bold text-slate-800 dark:text-white">{{ log.usuario }}</p>
-            </div>
-            <div class="bg-white dark:bg-[#13131f] rounded-xl p-3 border border-slate-100 dark:border-white/5">
+            </VCard>
+            <VCard class="bg-white dark:bg-[#13131f] rounded-xl p-3 border border-slate-100 dark:border-white/5">
               <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Fecha y Hora</p>
               <p class="text-xs font-bold text-slate-800 dark:text-white">{{ formatFechaCompleta(log.fecha_creacion) }}</p>
               <p class="text-[10px] text-slate-500">{{ formatHora(log.fecha_creacion) }}</p>
-            </div>
-            <div class="bg-white dark:bg-[#13131f] rounded-xl p-3 border border-slate-100 dark:border-white/5">
+            </VCard>
+            <VCard class="bg-white dark:bg-[#13131f] rounded-xl p-3 border border-slate-100 dark:border-white/5">
               <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">ID Entidad</p>
               <p class="text-xs font-bold text-slate-800 dark:text-white">{{ log.entidad_id || '—' }}</p>
-            </div>
+            </VCard>
           </div>
 
           <!-- Cambios realizados -->
           <div v-if="log.cambios && log.cambios.length > 0">
             <p class="text-[9px] font-black text-red-600 uppercase tracking-widest mb-3">Detalle de cambios:</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div v-for="cambio in log.cambios" :key="cambio.campo" 
+              <VCard v-for="cambio in log.cambios" :key="cambio.campo"
                    class="bg-white dark:bg-[#13131f] rounded-xl p-3 border border-slate-100 dark:border-white/5">
                 <p class="text-[8px] font-black text-red-600 uppercase mb-2">{{ cambio.campo }}</p>
                 <div class="flex items-center justify-between gap-3">
@@ -408,50 +408,50 @@ const limpiarFiltros = () => {
                     <p class="text-[7px] text-slate-400 uppercase font-black mb-0.5">Anterior</p>
                     <p class="text-[10px] font-bold text-slate-500 line-through decoration-red-500/50 truncate">{{ cambio.antes || '(vacío)' }}</p>
                   </div>
-                  <span class="material-symbols-outlined text-slate-300 text-[14px] shrink-0">trending_flat</span>
+                  <VIcon class="material-symbols-outlined text-slate-300 text-[14px] shrink-0">trending_flat</VIcon>
                   <div class="flex-1 min-w-0">
                     <p class="text-[7px] text-emerald-500 uppercase font-black mb-0.5">Nuevo</p>
                     <p class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 truncate">{{ cambio.despues || '(vacío)' }}</p>
                   </div>
                 </div>
-              </div>
+              </VCard>
             </div>
           </div>
 
           <!-- Acciones -->
           <div class="flex justify-end">
-            <button @click.stop="historialStore.eliminarRegistro(log.id)"
+            <VBtn @click.stop="historialStore.eliminarRegistro(log.id)"
                     class="text-[9px] font-black text-slate-400 hover:text-red-600 uppercase tracking-widest transition-colors flex items-center gap-1">
-              <span class="material-symbols-outlined text-[14px]">delete</span>
+              <VIcon class="material-symbols-outlined text-[14px]">delete</VIcon>
               Eliminar registro
-            </button>
+            </VBtn>
           </div>
         </div>
-      </div>
+      </VCard>
     </div>
 
     <!-- PAGINACIÓN -->
-    <div v-if="historialStore.totalPages > 1" 
+    <VCard v-if="historialStore.totalPages > 1"
          class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-2xl p-4 shadow-sm">
       <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
         Mostrando {{ ((historialStore.page - 1) * historialStore.limit) + 1 }}–{{ Math.min(historialStore.page * historialStore.limit, historialStore.total) }} de {{ historialStore.total }}
       </p>
       <div class="flex items-center gap-1">
-        <button @click="cambiarPagina(-1)" :disabled="historialStore.page <= 1"
+        <VBtn @click="cambiarPagina(-1)" :disabled="historialStore.page <= 1"
                 class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-all disabled:opacity-30">
-          <span class="material-symbols-outlined text-[18px] text-slate-500">chevron_left</span>
-        </button>
-        <button v-for="p in paginasVisibles" :key="p" @click="irAPagina(p)"
+          <VIcon class="material-symbols-outlined text-[18px] text-slate-500">chevron_left</VIcon>
+        </VBtn>
+        <VBtn v-for="p in paginasVisibles" :key="p" @click="irAPagina(p)"
                 :class="p === historialStore.page ? 'bg-umsa-blue text-white shadow-md' : 'bg-slate-100 dark:bg-white/5 text-slate-500 hover:bg-slate-200'"
                 class="w-8 h-8 rounded-lg text-[10px] font-black transition-all">
           {{ p }}
-        </button>
-        <button @click="cambiarPagina(1)" :disabled="historialStore.page >= historialStore.totalPages"
+        </VBtn>
+        <VBtn @click="cambiarPagina(1)" :disabled="historialStore.page >= historialStore.totalPages"
                 class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-all disabled:opacity-30">
-          <span class="material-symbols-outlined text-[18px] text-slate-500">chevron_right</span>
-        </button>
+          <VIcon class="material-symbols-outlined text-[18px] text-slate-500">chevron_right</VIcon>
+        </VBtn>
       </div>
-    </div>
+    </VCard>
 
   </div>
 </template>

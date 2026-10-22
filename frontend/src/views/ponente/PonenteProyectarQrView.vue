@@ -1,16 +1,16 @@
 <template>
   <div class="p-6 md:p-12 min-h-[calc(100vh-100px)] flex flex-col items-center justify-center bg-gray-50">
-    <div class="max-w-4xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row">
+    <VCard class="max-w-4xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row">
       
       <!-- Lado Izquierdo: Información y PIN -->
       <div class="flex-1 p-8 md:p-12 bg-indigo-600 text-white flex flex-col justify-center items-center text-center">
         <h2 class="text-3xl md:text-4xl font-bold mb-4">Registro de Asistencia</h2>
         <p class="text-indigo-100 mb-8 text-lg">Sesión Académica #{{ idSesion }}</p>
         
-        <div class="bg-white/10 p-6 rounded-xl border border-white/20 w-full mb-6">
+        <VCard class="bg-white/10 p-6 rounded-xl border border-white/20 w-full mb-6">
           <p class="text-sm uppercase tracking-wider font-semibold text-indigo-200 mb-2">Ingresa este PIN</p>
           <p class="text-5xl md:text-6xl font-mono font-bold tracking-widest">{{ codVerificacion || '------' }}</p>
-        </div>
+        </VCard>
         
         <p class="text-indigo-100 mt-auto">Opción 1: Ingresa el PIN en tu dispositivo</p>
       </div>
@@ -27,7 +27,7 @@
         <div v-else-if="error" class="text-red-500 text-center flex flex-col items-center">
           <svg class="w-16 h-16 mb-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
           <p class="text-lg font-medium">{{ error }}</p>
-          <button @click="fetchQrAndSessionDetails" class="mt-6 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">Reintentar</button>
+          <VBtn @click="fetchQrAndSessionDetails" class="mt-6 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">Reintentar</VBtn>
         </div>
 
         <div v-else class="flex flex-col items-center">
@@ -42,7 +42,7 @@
         </div>
       </div>
       
-    </div>
+    </VCard>
   </div>
 </template>
 

@@ -3,7 +3,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useUIStore } from '@/stores/ui';
 import { computed } from 'vue';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 const router = useRouter();
 const route = useRoute();
@@ -116,14 +116,14 @@ const cambiarRol = async () => {
 </script>
 
 <template>
-  <aside :class="[
+  <VSheet tag="aside" :class="[
     uiStore.isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
     'fixed top-[72px] bottom-0 left-0 w-72 bg-white dark:bg-[#0d0d14] border-r border-slate-200 dark:border-teal-900/30 z-[45] transition-all duration-300 shadow-2xl shadow-black/5'
   ]">
     <div class="h-full flex flex-col p-6 overflow-y-auto custom-scrollbar">
       <div class="mb-8 p-4 bg-teal-50 dark:bg-teal-900/20 rounded-2xl border border-teal-100 dark:border-teal-800 flex items-center gap-4">
         <div class="w-12 h-12 rounded-xl bg-teal-600 flex items-center justify-center shadow-lg shadow-teal-900/40 text-white">
-          <span class="material-symbols-outlined text-[28px]">support_agent</span>
+          <VIcon class="material-symbols-outlined text-[28px]">support_agent</VIcon>
         </div>
         <div>
           <p class="text-[10px] font-black text-teal-600 dark:text-teal-400 uppercase tracking-widest leading-none">Personal de Apoyo</p>
@@ -131,7 +131,7 @@ const cambiarRol = async () => {
         </div>
       </div>
 
-      <nav class="flex-1 space-y-2">
+      <VSheet tag="nav" class="flex-1 space-y-2">
         <div v-for="item in menuItems" :key="item.path">
           <router-link :to="item.path" 
             :class="[
@@ -140,25 +140,25 @@ const cambiarRol = async () => {
                 : 'text-slate-500 dark:text-gray-500 hover:bg-teal-50 dark:hover:bg-teal-900/20 hover:text-teal-600 dark:hover:text-teal-400 border-transparent',
               'flex items-center gap-4 px-5 py-4 rounded-2xl font-bold text-sm transition-all border group'
             ]">
-            <span class="material-symbols-outlined transition-transform group-hover:scale-110">{{ item.icon }}</span>
+            <VIcon class="material-symbols-outlined transition-transform group-hover:scale-110">{{ item.icon }}</VIcon>
             <span class="uppercase tracking-widest text-[11px]">{{ item.name }}</span>
           </router-link>
         </div>
-      </nav>
+      </VSheet>
 
       <div class="mt-auto pt-6 border-t border-slate-100 dark:border-gray-800 space-y-3">
-        <button @click="cambiarRol" v-if="authStore.tieneMultiplesRoles"
+        <VBtn @click="cambiarRol" v-if="authStore.tieneMultiplesRoles"
           class="w-full flex items-center gap-4 px-5 py-4 rounded-2xl font-bold text-sm text-slate-500 hover:bg-slate-50 dark:hover:bg-gray-900 transition-all border border-transparent group cursor-pointer">
-          <span class="material-symbols-outlined text-teal-600">cached</span>
+          <VIcon class="material-symbols-outlined text-teal-600">cached</VIcon>
           <span class="uppercase tracking-widest text-[11px]">Cambiar Rol</span>
-        </button>
+        </VBtn>
 
-        <button @click="handleLogout" 
+        <VBtn @click="handleLogout"
           class="w-full flex items-center gap-4 px-5 py-4 rounded-2xl font-bold text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all border border-transparent group">
-          <span class="material-symbols-outlined transition-transform group-hover:translate-x-1">logout</span>
+          <VIcon class="material-symbols-outlined transition-transform group-hover:translate-x-1">logout</VIcon>
           <span class="uppercase tracking-widest text-[11px]">Cerrar Sesión</span>
-        </button>
+        </VBtn>
       </div>
     </div>
-  </aside>
+  </VSheet>
 </template>

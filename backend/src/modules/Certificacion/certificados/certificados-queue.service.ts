@@ -1,4 +1,5 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { requisitosCertificadoAula } from '../../Academico/actividades-academicas/certificacion-aula';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
@@ -130,12 +131,13 @@ export class CertificadosQueueService implements OnModuleInit {
         where: { evento: { id: eventoId } },
         relations: ['modalidades']
       });
-      const actividadConfigMap = new Map<number, { minNota: number, minAsistencia: number }>();
+      const actividadConfigMap = new Map<number, { minNota: number, minAsistencia: number, tipo: string }>();
       for (const act of actividadesConfig) {
         if (act.modalidades && act.modalidades.length > 0) {
           actividadConfigMap.set(act.id, {
             minNota: act.modalidades[0].min_nota ?? 0,
-            minAsistencia: act.modalidades[0].min_asistencia ?? 0
+            minAsistencia: act.modalidades[0].min_asistencia ?? 0,
+            tipo: act.modalidades[0].tipo || 'Presencial',
           });
         }
       }
@@ -144,7 +146,7 @@ export class CertificadosQueueService implements OnModuleInit {
       const inscripciones = await queryRunner.manager.find(Inscripcion, {
         where: {
           actividadAcademica: { evento: { id: eventoId } },
-          estado: 1,
+          estado: In([1, 3]),
         },
         relations: [
           'usuario',
@@ -159,58 +161,33 @@ export class CertificadosQueueService implements OnModuleInit {
       for (const ins of inscripciones) {
         if (!ins.usuario) continue;
 
-        // Todo inscrito (estado=1) recibe al menos el certificado regular (Asistencia)
-        let esAprobadoParaCertificado = true;
-        let esParaExcelencia = false;
-        let notaEstudiante = 0;
-
-        if (ins.modalidades && ins.modalidades.length > 0) {
-          for (const im of ins.modalidades) {
-            const minNota = im.cursoModalidad?.min_nota ?? 0;
-            const minAsistencia = im.cursoModalidad?.min_asistencia ?? 0;
-
-            const nota = im.nota ?? 0;
-            const asistencia = im.num_asistencia ?? 0;
-
-            const cumpleAsistencia = asistencia >= minAsistencia;
-            const cumpleNota = nota >= minNota;
-
-            if (nota > notaEstudiante) {
-              notaEstudiante = nota;
-            }
-
-            // Recibe certificado de excelencia (Aprobación) si cumple ambos
-            if (im.aprobado === 1 || (cumpleAsistencia && cumpleNota)) {
-              esParaExcelencia = true;
-            }
-          }
-        } else {
-          // Fallback si no tiene modalidades
-          const nota = ins.nota_principal ?? 0;
-          const asistencia = 0; // Inscripción base no tiene registro global de asistencia
-          let minNota = 51;
-          let minAsistencia = 0;
-
-          const configMap = actividadConfigMap.get(ins.actividadAcademica.id);
-          if (configMap) {
-            minNota = configMap.minNota;
-            minAsistencia = configMap.minAsistencia;
-          } else if (ins.actividadAcademica?.modalidades?.length > 0) {
-            minNota = ins.actividadAcademica.modalidades[0].min_nota ?? 0;
-            minAsistencia = ins.actividadAcademica.modalidades[0].min_asistencia ?? 0;
-          }
-
-          if (nota >= minNota && asistencia >= minAsistencia) {
-            esParaExcelencia = true;
-            notaEstudiante = nota;
-          }
+        const config = actividadConfigMap.get(ins.actividadAcademica.id);
+        let aula: Awaited<ReturnType<typeof requisitosCertificadoAula>>;
+        try {
+          aula = await requisitosCertificadoAula(queryRunner.manager, ins.actividadAcademica.id, ins.usuario.id, { tipo: config?.tipo, min_asistencia: config?.minAsistencia });
+        } catch (error) {
+          if (error instanceof BadRequestException) continue;
+          throw error;
+        }
+        const esVirtual = /virtual|híbrido|hibrido/i.test(config?.tipo || '');
+        if (esVirtual) {
+          if (!aula) continue;
+        } else if (Number(ins.estado) !== 3 && Number(ins.actividadAcademica.estado) !== 0) {
+          continue;
         }
 
-        if (!esAprobadoParaCertificado) continue;
+        const notaEstudiante = aula ? aula.nota : ins.nota_principal != null ? Number(ins.nota_principal)
+          : Math.max(...(ins.modalidades || []).map((im) => Number(im.nota ?? 0)), 0);
+        const minNota = Number(config?.minNota ?? 51);
+        const minAsistencia = Number(config?.minAsistencia ?? 0);
+        const cumpleAsistencia = aula?.asistenciaVirtual ?? (minAsistencia === 0 ||
+          (ins.modalidades || []).some((im) => Number(im.num_asistencia ?? 0) >= minAsistencia));
+        if (!cumpleAsistencia) continue;
+        const esParaExcelencia = notaEstudiante != null && notaEstudiante >= minNota;
 
         // Determinar excelencia académica usando la nota mínima de la BD
         const plantillaDestino = esParaExcelencia
-          ? (plantillaEstudianteExcelencia || plantillaEstudianteRegular)
+          ? plantillaEstudianteExcelencia
           : plantillaEstudianteRegular;
 
         if (!plantillaDestino) continue;
@@ -220,7 +197,6 @@ export class CertificadosQueueService implements OnModuleInit {
           where: {
             usuario: { id: ins.usuario.id },
             actividadAcademica: { id: ins.actividadAcademica.id },
-            infoCertificado: { id: plantillaDestino.id },
           },
         });
 

@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 import * as XLSX from 'xlsx';
 
 const route = useRoute();
@@ -408,7 +408,7 @@ const getStatusIcon = (status: string) => {
       <div>
         <div class="flex items-center gap-3 mb-2">
           <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-umsa-blue to-blue-700 flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <span class="material-symbols-outlined text-white text-2xl">grid_on</span>
+            <VIcon class="material-symbols-outlined text-white text-2xl">grid_on</VIcon>
           </div>
           <div>
             <h1 class="text-3xl font-black text-slate-800 dark:text-white tracking-tight">Inscripciones Masivas</h1>
@@ -417,29 +417,29 @@ const getStatusIcon = (status: string) => {
         </div>
       </div>
       
-      <div class="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200 dark:border-white/10 w-fit self-start md:self-end">
-        <button 
+      <VCard class="flex bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200 dark:border-white/10 w-fit self-start md:self-end">
+        <VBtn
           @click="activeTab = 'usuarios'; clearFile()"
           :class="[activeTab === 'usuarios' ? 'bg-white dark:bg-white/10 shadow-sm text-umsa-blue dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300']"
           class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300"
         >
           Registro de Usuarios
-        </button>
-        <button 
+        </VBtn>
+        <VBtn
           @click="activeTab = 'inscripciones'; clearFile()"
           :class="[activeTab === 'inscripciones' ? 'bg-white dark:bg-white/10 shadow-sm text-umsa-blue dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300']"
           class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300"
         >
           Inscripción a Evento
-        </button>
-        <button 
+        </VBtn>
+        <VBtn
           @click="activeTab = 'ponentes'; clearFile()"
           :class="[activeTab === 'ponentes' ? 'bg-white dark:bg-white/10 shadow-sm text-umsa-blue dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300']"
           class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300"
         >
           Asignación de Ponentes
-        </button>
-      </div>
+        </VBtn>
+      </VCard>
     </div>
 
     <!-- Main Card -->
@@ -447,41 +447,41 @@ const getStatusIcon = (status: string) => {
       
       <!-- Upload Section -->
       <div class="lg:col-span-2 space-y-6">
-        <div class="bg-white dark:bg-[#0d0d14] rounded-3xl border border-slate-200 dark:border-white/5 shadow-xl shadow-slate-200/50 dark:shadow-none p-8 relative overflow-hidden">
+        <VCard class="bg-white dark:bg-[#0d0d14] rounded-3xl border border-slate-200 dark:border-white/5 shadow-xl shadow-slate-200/50 dark:shadow-none p-8 relative overflow-hidden">
           
           <div class="flex items-center justify-between mb-8">
             <h2 class="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
-              <span class="material-symbols-outlined text-umsa-blue">upload</span>
+              <VIcon class="material-symbols-outlined text-umsa-blue">upload</VIcon>
               Subir Archivo
             </h2>
             <div class="flex items-center gap-4">
               <!-- Selector Integrado en Header -->
               <!-- Selector de plantilla: solo para Registro de Usuarios -->
-              <div v-if="activeTab === 'usuarios'" class="flex items-center gap-2 bg-slate-50 dark:bg-white/5 px-3 py-1.5 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm">
-                <span class="material-symbols-outlined text-slate-400 text-sm">mail</span>
-                <select v-model="selectedTemplateId"
+              <VCard v-if="activeTab === 'usuarios'" class="flex items-center gap-2 bg-slate-50 dark:bg-white/5 px-3 py-1.5 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm">
+                <VIcon class="material-symbols-outlined text-slate-400 text-sm">mail</VIcon>
+                <UiSelect v-model="selectedTemplateId"
                         class="bg-transparent text-[11px] font-bold text-slate-600 dark:text-slate-300 outline-none cursor-pointer min-w-[140px]">
                   <option value="">Plantilla por Defecto (admission)</option>
                   <option v-for="p in plantillas" :key="p.id" :value="String(p.id)">{{ p.nombre }}</option>
-                </select>
+                </UiSelect>
                 <div class="w-px h-4 bg-slate-200 dark:bg-white/10 mx-1"></div>
-                <button @click="openPreviewTemplate" class="w-7 h-7 flex items-center justify-center text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all" title="Ver visor de plantilla">
-                  <span class="material-symbols-outlined text-[18px]">visibility</span>
-                </button>
-              </div>
+                <VBtn @click="openPreviewTemplate" class="w-7 h-7 flex items-center justify-center text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all" title="Ver visor de plantilla">
+                  <VIcon class="material-symbols-outlined text-[18px]">visibility</VIcon>
+                </VBtn>
+              </VCard>
 
-              <button 
+              <VBtn
                 @click="descargarPlantilla"
                 class="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs font-bold hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
               >
-                <span class="material-symbols-outlined text-sm">download</span>
+                <VIcon class="material-symbols-outlined text-sm">download</VIcon>
                 Plantilla Excel
-              </button>
+              </VBtn>
             </div>
           </div>
 
           <!-- Selectores de Evento (Para Inscripciones y Ponentes) -->
-          <div v-if="activeTab === 'inscripciones' || activeTab === 'ponentes'" class="mb-8 p-6 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-200 dark:border-white/10 space-y-4 animate-in slide-in-from-top-4 duration-500">
+          <VCard v-if="activeTab === 'inscripciones' || activeTab === 'ponentes'" class="mb-8 p-6 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-200 dark:border-white/10 space-y-4 animate-in slide-in-from-top-4 duration-500">
             
             <!-- Encabezado y Buscador -->
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-white/10 pb-4">
@@ -491,8 +491,8 @@ const getStatusIcon = (status: string) => {
               </div>
               
               <div class="relative w-full md:w-72">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
-                <input 
+                <VIcon class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</VIcon>
+                <UiInput
                   v-model="searchQuery" 
                   type="text" 
                   placeholder="FILTRAR POR NOMBRE O GESTIÓN..." 
@@ -502,10 +502,10 @@ const getStatusIcon = (status: string) => {
             </div>
 
             <!-- Opciones Rápidas -->
-            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 p-3 bg-white dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
+            <VCard class="flex flex-col sm:flex-row items-center justify-between gap-4 p-3 bg-white dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
               <div class="flex items-center gap-2">
                 <div class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-                  <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-sm">info</span>
+                  <VIcon class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-sm">info</VIcon>
                 </div>
                 <p class="text-[9px] text-slate-500 font-bold max-w-xs leading-tight">
                   <span class="text-blue-600 font-black">REGISTRO AUTOMÁTICO:</span> Actívalo para crear cuentas a usuarios nuevos detectados en el Excel.
@@ -519,10 +519,10 @@ const getStatusIcon = (status: string) => {
                 </label>
                 <span class="text-[9px] font-black text-umsa-blue uppercase tracking-tighter">Activado</span>
               </div>
-            </div>
+            </VCard>
 
             <!-- Lista Estructurada de Eventos -->
-            <div class="bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-sm">
+            <VCard class="bg-white dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-white/5 overflow-hidden shadow-sm">
               <div class="overflow-y-auto max-h-[320px] custom-scrollbar">
                 <div 
                   v-for="ev in filteredEventos" 
@@ -540,7 +540,7 @@ const getStatusIcon = (status: string) => {
                       :class="selectedEventoId === String(ev.id) ? 'bg-umsa-blue text-white shadow-md' : 'bg-slate-100 dark:bg-white/10 text-slate-400'"
                       class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all"
                     >
-                      <span class="material-symbols-outlined text-[18px]">{{ selectedEventoId === String(ev.id) ? 'check_circle' : 'event' }}</span>
+                      <VIcon class="material-symbols-outlined text-[18px]">{{ selectedEventoId === String(ev.id) ? 'check_circle' : 'event' }}</VIcon>
                     </div>
                     <div class="min-w-0">
                       <h4 class="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight truncate">
@@ -548,11 +548,11 @@ const getStatusIcon = (status: string) => {
                       </h4>
                       <div class="flex items-center gap-3 mt-0.5">
                         <span class="flex items-center gap-1 text-[8px] font-bold text-slate-400 uppercase">
-                          <span class="material-symbols-outlined text-[10px]">calendar_today</span> {{ ev.gestion }}
+                          <VIcon class="material-symbols-outlined text-[10px]">calendar_today</VIcon> {{ ev.gestion }}
                         </span>
                         <span class="w-1 h-1 rounded-full bg-slate-300"></span>
                         <span class="flex items-center gap-1 text-[8px] font-bold text-slate-400 uppercase">
-                          <span class="material-symbols-outlined text-[10px]">location_on</span> {{ ev.modalidad || 'Presencial' }}
+                          <VIcon class="material-symbols-outlined text-[10px]">location_on</VIcon> {{ ev.modalidad || 'Presencial' }}
                         </span>
                       </div>
                     </div>
@@ -565,17 +565,17 @@ const getStatusIcon = (status: string) => {
                     >
                       {{ ev.estado === 1 ? 'Activo' : 'En espera' }}
                     </span>
-                    <span v-if="selectedEventoId === String(ev.id)" class="material-symbols-outlined text-umsa-blue text-sm animate-bounce">keyboard_arrow_left</span>
+                    <VIcon v-if="selectedEventoId === String(ev.id)" class="material-symbols-outlined text-umsa-blue text-sm animate-bounce">keyboard_arrow_left</VIcon>
                   </div>
                 </div>
 
                 <!-- Estado Vacío -->
                 <div v-if="filteredEventos.length === 0" class="py-16 flex flex-col items-center justify-center text-slate-300">
-                  <span class="material-symbols-outlined text-4xl mb-2 opacity-20">search_off</span>
+                  <VIcon class="material-symbols-outlined text-4xl mb-2 opacity-20">search_off</VIcon>
                   <p class="text-[10px] font-black uppercase tracking-widest">No hay resultados para la búsqueda</p>
                 </div>
               </div>
-            </div>
+            </VCard>
 
             <!-- Barra de Estado Inferior -->
             <div class="flex items-center justify-between px-2 pt-2 border-t border-slate-200 dark:border-white/5">
@@ -590,13 +590,13 @@ const getStatusIcon = (status: string) => {
               <p class="text-[8px] text-slate-400 font-bold uppercase">{{ filteredEventos.length }} eventos encontrados</p>
             </div>
 
-            <div v-if="activeTab === 'inscripciones' && selectedEventoId" class="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-gray-900 p-4">
+            <VCard v-if="activeTab === 'inscripciones' && selectedEventoId" class="rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-gray-900 p-4">
               <h3 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Actividades del evento</h3>
               <p class="mt-1 text-[10px] font-bold text-slate-500">Los estudiantes quedan inscritos en las actividades que marques, no solo en el evento.</p>
               <p v-if="cargandoActividades" class="mt-4 text-xs font-bold text-slate-400">Cargando actividades...</p>
               <p v-else-if="actividadesEvento.length === 0" class="mt-4 text-xs font-bold text-amber-600">Este evento no tiene actividades. Crea una antes de inscribir.</p>
               <div v-else class="mt-4 grid gap-2">
-                <button
+                <VBtn
                   v-for="act in actividadesEvento"
                   :key="act.id"
                   type="button"
@@ -608,13 +608,13 @@ const getStatusIcon = (status: string) => {
                     <span class="block text-sm font-black text-slate-800 dark:text-white">{{ act.nombre }}</span>
                     <span class="block text-[10px] font-bold uppercase text-slate-400">{{ act.tipo || act.modalidad || 'Actividad' }}</span>
                   </span>
-                  <span class="material-symbols-outlined" :class="selectedActividadIds.includes(act.id) ? 'text-[#0070BB]' : 'text-slate-300'">
+                  <VIcon class="material-symbols-outlined" :class="selectedActividadIds.includes(act.id) ? 'text-[#0070BB]' : 'text-slate-300'">
                     {{ selectedActividadIds.includes(act.id) ? 'check_circle' : 'radio_button_unchecked' }}
-                  </span>
-                </button>
+                  </VIcon>
+                </VBtn>
               </div>
-            </div>
-          </div>
+            </VCard>
+          </VCard>
 
           <!-- Dropzone -->
           <div 
@@ -626,7 +626,7 @@ const getStatusIcon = (status: string) => {
           >
             <input type="file" ref="fileInput" class="hidden" accept=".xlsx, .xls" @change="onFileChange">
             <div class="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-              <span class="material-symbols-outlined text-3xl text-slate-400 group-hover:text-umsa-blue">file_upload</span>
+              <VIcon class="material-symbols-outlined text-3xl text-slate-400 group-hover:text-umsa-blue">file_upload</VIcon>
             </div>
             <p class="text-slate-600 dark:text-slate-300 font-bold mb-1">Arrastra tu archivo aquí</p>
             <p class="text-slate-400 text-sm">O haz clic para seleccionar (Máx. 5MB)</p>
@@ -634,20 +634,20 @@ const getStatusIcon = (status: string) => {
 
           <!-- File Info & Preview -->
           <div v-else class="space-y-6">
-            <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/10">
+            <VCard class="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/10">
               <div class="flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                  <span class="material-symbols-outlined text-emerald-500">description</span>
+                  <VIcon class="material-symbols-outlined text-emerald-500">description</VIcon>
                 </div>
                 <div>
                   <p class="text-sm font-bold text-slate-800 dark:text-white">{{ selectedFile.name }}</p>
                   <p class="text-xs text-slate-500">{{ (selectedFile.size / 1024).toFixed(2) }} KB</p>
                 </div>
               </div>
-              <button @click="clearFile" class="w-10 h-10 rounded-full hover:bg-red-500/10 text-slate-400 hover:text-red-500 transition-all flex items-center justify-center">
-                <span class="material-symbols-outlined">close</span>
-              </button>
-            </div>
+              <VBtn @click="clearFile" class="w-10 h-10 rounded-full hover:bg-red-500/10 text-slate-400 hover:text-red-500 transition-all flex items-center justify-center">
+                <VIcon class="material-symbols-outlined">close</VIcon>
+              </VBtn>
+            </VCard>
 
             <div v-if="previewRows.length > 0" class="space-y-4">
               <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -659,8 +659,8 @@ const getStatusIcon = (status: string) => {
                 <div class="flex items-center gap-4 w-full sm:w-auto">
                   <!-- Buscador en la previsualización -->
                   <div class="relative w-full sm:w-64">
-                    <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
-                    <input 
+                    <VIcon class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</VIcon>
+                    <UiInput
                       v-model="previewSearch" 
                       type="text" 
                       placeholder="Buscar en la vista previa..." 
@@ -670,19 +670,19 @@ const getStatusIcon = (status: string) => {
                   <!-- Tamaño de Página -->
                   <div class="flex items-center gap-2 shrink-0">
                     <span class="text-[10px] font-bold text-slate-400 uppercase">Filas:</span>
-                    <select v-model="itemsPerPage" class="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-2 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 outline-none">
+                    <UiSelect v-model="itemsPerPage" class="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-2 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 outline-none">
                       <option :value="10">10</option>
                       <option :value="20">20</option>
                       <option :value="50">50</option>
                       <option :value="100">100</option>
-                    </select>
+                    </UiSelect>
                   </div>
                 </div>
               </div>
 
               <!-- Tabla de previsualización completa y scrollable -->
               <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-white/10 max-h-[400px] overflow-y-auto custom-scrollbar">
-                <table class="w-full text-left text-xs table-auto">
+                <VTable class="w-full text-left text-xs table-auto">
                   <thead class="bg-slate-50 dark:bg-white/5 text-slate-500 font-black uppercase tracking-wider sticky top-0 z-10 backdrop-blur-md">
                     <tr>
                       <th class="px-4 py-3 w-12 bg-slate-50 dark:bg-gray-900">#</th>
@@ -695,7 +695,7 @@ const getStatusIcon = (status: string) => {
                       <td v-for="header in previewHeaders" :key="header" class="px-4 py-3 whitespace-nowrap">{{ row[header] }}</td>
                     </tr>
                   </tbody>
-                </table>
+                </VTable>
               </div>
 
               <!-- Controles de Paginación -->
@@ -704,20 +704,20 @@ const getStatusIcon = (status: string) => {
                   Página {{ currentPage }} de {{ totalPages }}
                 </p>
                 <div class="flex items-center gap-2">
-                  <button 
+                  <VBtn
                     @click="currentPage > 1 && currentPage--" 
                     :disabled="currentPage === 1"
                     class="p-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-all disabled:opacity-40"
                   >
-                    <span class="material-symbols-outlined text-[16px] block">navigate_before</span>
-                  </button>
-                  <button 
+                    <VIcon class="material-symbols-outlined text-[16px] block">navigate_before</VIcon>
+                  </VBtn>
+                  <VBtn
                     @click="currentPage < totalPages && currentPage++" 
                     :disabled="currentPage === totalPages"
                     class="p-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-all disabled:opacity-40"
                   >
-                    <span class="material-symbols-outlined text-[16px] block">navigate_next</span>
-                  </button>
+                    <VIcon class="material-symbols-outlined text-[16px] block">navigate_next</VIcon>
+                  </VBtn>
                 </div>
               </div>
             </div>
@@ -737,18 +737,18 @@ const getStatusIcon = (status: string) => {
 
               <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
                 <!-- Botón de Verificar (Siempre disponible si hay archivo) -->
-                <button 
+                <VBtn
                   @click="importar('verificar')"
                   :disabled="isUploading"
                   class="w-full sm:w-auto px-6 py-3.5 bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 dark:hover:bg-white/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2 border border-slate-300 dark:border-white/10"
                 >
-                  <span v-if="isUploading && ultimoModo === 'verificar'" class="animate-spin material-symbols-outlined text-sm">progress_activity</span>
-                  <span v-else class="material-symbols-outlined text-sm">fact_check</span>
+                  <VIcon v-if="isUploading && ultimoModo === 'verificar'" class="animate-spin material-symbols-outlined text-sm">progress_activity</VIcon>
+                  <VIcon v-else class="material-symbols-outlined text-sm">fact_check</VIcon>
                   Verificar
-                </button>
+                </VBtn>
 
                 <!-- Botón de Guardar (Bloqueado si no se ha verificado o si hay errores) -->
-                <button 
+                <VBtn
                   @click="importar('guardar')"
                   :disabled="isUploading || ultimoModo !== 'verificar' || (results && results.errores > 0)"
                   :class="[
@@ -759,23 +759,23 @@ const getStatusIcon = (status: string) => {
                   ]"
                   title="Debes verificar primero y asegurar que no haya errores"
                 >
-                  <span v-if="isUploading && ultimoModo === 'guardar'" class="animate-spin material-symbols-outlined text-sm">progress_activity</span>
-                  <span v-else class="material-symbols-outlined text-sm">save</span>
+                  <VIcon v-if="isUploading && ultimoModo === 'guardar'" class="animate-spin material-symbols-outlined text-sm">progress_activity</VIcon>
+                  <VIcon v-else class="material-symbols-outlined text-sm">save</VIcon>
                   Guardar Datos
-                </button>
+                </VBtn>
               </div>
             </div>
           </div>
-        </div>
+        </VCard>
 
         <!-- Progress/Result Details Table -->
-        <div v-if="results && results.detalle" class="bg-white dark:bg-[#0d0d14] rounded-3xl border border-slate-200 dark:border-white/5 shadow-xl p-8 animate-in zoom-in duration-500">
+        <VCard v-if="results && results.detalle" class="bg-white dark:bg-[#0d0d14] rounded-3xl border border-slate-200 dark:border-white/5 shadow-xl p-8 animate-in zoom-in duration-500">
           <h2 class="text-xl font-black text-slate-800 dark:text-white mb-6 flex items-center gap-2">
-            <span class="material-symbols-outlined text-umsa-blue">list_alt</span>
+            <VIcon class="material-symbols-outlined text-umsa-blue">list_alt</VIcon>
             Detalle del Proceso
           </h2>
           <div class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-white/10">
-            <table class="w-full text-left text-xs">
+            <VTable class="w-full text-left text-xs">
               <thead class="bg-slate-50 dark:bg-white/5 text-slate-500 font-black uppercase tracking-wider">
                 <tr>
                   <th class="px-4 py-3 w-16">Fila</th>
@@ -791,18 +791,18 @@ const getStatusIcon = (status: string) => {
                   <td class="px-4 py-4 text-slate-700 dark:text-slate-300 font-medium">{{ item.email || '-' }}</td>
                   <td class="px-4 py-4">
                     <span :class="getStatusClass(item.estado)" class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border flex items-center gap-1.5 w-fit">
-                      <span class="material-symbols-outlined text-[14px]">{{ getStatusIcon(item.estado) }}</span>
+                      <VIcon class="material-symbols-outlined text-[14px]">{{ getStatusIcon(item.estado) }}</VIcon>
                       {{ item.estado }}
                     </span>
                   </td>
                   <td class="px-4 py-4 text-slate-500 text-[11px] leading-snug">{{ item.mensaje }}</td>
                   <td class="px-4 py-4">
                     <div v-if="item.correoEnviado" class="text-blue-500 flex items-center gap-1" title="El correo fue puesto en cola para su envío">
-                      <span class="material-symbols-outlined text-[16px]">schedule_send</span>
+                      <VIcon class="material-symbols-outlined text-[16px]">schedule_send</VIcon>
                       <span class="font-bold">Encolado</span>
                     </div>
                     <div v-else-if="item.correoAdvertencia" class="text-amber-500 group relative">
-                      <span class="material-symbols-outlined text-[16px]">mail_lock</span>
+                      <VIcon class="material-symbols-outlined text-[16px]">mail_lock</VIcon>
                       <div class="absolute bottom-full mb-2 hidden group-hover:block bg-slate-800 text-white p-2 rounded text-[10px] w-48 z-10">
                         {{ item.correoAdvertencia }}
                       </div>
@@ -811,9 +811,9 @@ const getStatusIcon = (status: string) => {
                   </td>
                 </tr>
               </tbody>
-            </table>
+            </VTable>
           </div>
-        </div>
+        </VCard>
       </div>
 
       <!-- Stats Sidebar -->
@@ -821,15 +821,15 @@ const getStatusIcon = (status: string) => {
         <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
           <div class="absolute -right-12 -top-12 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
           <h3 class="text-lg font-black mb-6 flex items-center gap-2">
-            <span class="material-symbols-outlined text-blue-400">analytics</span>
+            <VIcon class="material-symbols-outlined text-blue-400">analytics</VIcon>
             Estadísticas
           </h3>
           
           <div v-if="results" class="space-y-4">
-            <div class="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
+            <VCard class="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10">
               <span class="text-sm font-medium text-slate-300">Total procesados</span>
               <span class="text-xl font-black">{{ results.total }}</span>
-            </div>
+            </VCard>
             
             <div v-if="activeTab === 'usuarios'" class="flex items-center justify-between p-4 bg-emerald-500/20 rounded-2xl border border-emerald-500/20">
               <span class="text-sm font-medium text-emerald-100">Usuarios creados</span>
@@ -863,12 +863,12 @@ const getStatusIcon = (status: string) => {
           </div>
 
           <div v-else class="flex flex-col items-center justify-center py-12 text-slate-500">
-            <span class="material-symbols-outlined text-4xl mb-2">query_stats</span>
+            <VIcon class="material-symbols-outlined text-4xl mb-2">query_stats</VIcon>
             <p class="text-sm font-bold">Esperando archivo...</p>
           </div>
         </div>
 
-        <div class="bg-white dark:bg-[#0d0d14] rounded-3xl border border-slate-200 dark:border-white/5 p-8">
+        <VCard class="bg-white dark:bg-[#0d0d14] rounded-3xl border border-slate-200 dark:border-white/5 p-8">
           <h3 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-6">Instrucciones</h3>
           <ul class="space-y-4">
             <li class="flex gap-3">
@@ -888,21 +888,21 @@ const getStatusIcon = (status: string) => {
               <p class="text-xs text-slate-600 dark:text-slate-400 font-medium">Inicia el proceso y descarga los resultados si es necesario.</p>
             </li>
           </ul>
-        </div>
+        </VCard>
       </div>
     </div>
 
     <!-- Modal de Previsualización de Plantilla -->
-    <div v-if="showPreviewModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+    <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" v-if="showPreviewModal" >
       <div class="bg-white dark:bg-[#1a1a24] w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-white/10 flex flex-col max-h-[90vh]">
         <div class="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-black/20">
           <h3 class="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
-            <span class="material-symbols-outlined text-blue-500">visibility</span>
+            <VIcon class="material-symbols-outlined text-blue-500">visibility</VIcon>
             Previsualización de Correo
           </h3>
-          <button @click="showPreviewModal = false" class="w-10 h-10 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center transition-all">
-            <span class="material-symbols-outlined">close</span>
-          </button>
+          <VBtn @click="showPreviewModal = false" class="w-10 h-10 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 flex items-center justify-center transition-all">
+            <VIcon class="material-symbols-outlined">close</VIcon>
+          </VBtn>
         </div>
         <div class="flex-1 overflow-y-auto bg-slate-100 dark:bg-black/40 p-4 md:p-8">
           <div class="bg-white rounded-xl shadow-sm overflow-hidden mx-auto max-w-[600px] border border-slate-200">
@@ -913,7 +913,7 @@ const getStatusIcon = (status: string) => {
           <p class="text-[10px] text-slate-400 font-medium">※ Los datos mostrados (Juan Perez, etc.) son solo para fines de previsualización.</p>
         </div>
       </div>
-    </div>
+    </VDialog>
   </div>
 </template>
 

@@ -7,6 +7,8 @@ import { CreateActividadDto } from './dto/create-actividad.dto';
 import { UpdateActividadDto } from './dto/update-actividad.dto';
 import { MailService } from '../../Comun/mail/mail.service';
 import { formatMediaUrl } from '../../../common/media-url.util';
+import { resumenAula } from './aula-resumen';
+import { esCurso, permisosContenido, TipoContenido } from './aula-permisos';
 
 @Injectable()
 export class ActividadesAcademicasService {
@@ -62,7 +64,7 @@ export class ActividadesAcademicasService {
   async findOne(id: number) {
     const act = await this.actividadRepository.findOne({
       where: { id },
-      relations: ['evento', 'modalidades', 'modalidades.sesiones', 'imparticiones', 'imparticiones.usuario', 'imparticiones.usuario.persona'],
+      relations: ['evento', 'modalidades', 'modalidades.sesiones', 'imparticiones', 'imparticiones.usuario', 'imparticiones.usuario.persona', 'inscripciones'],
     });
     if (!act) throw new NotFoundException(`Actividad ${id} no encontrada.`);
     const firstMod = act.modalidades?.[0];
@@ -73,6 +75,275 @@ export class ActividadesAcademicasService {
       modalidad: firstMod ? firstMod.tipo : 'Presencial',
       imagen: this.formatImageUrl(act.imagen)
     };
+  }
+
+  /** Ficha pública: expone datos del curso sin inscripciones ni datos privados. */
+  async findPublicOne(id: number) {
+    const act = await this.actividadRepository.findOne({
+      where: { id },
+      relations: ['evento', 'modalidades', 'imparticiones', 'imparticiones.usuario', 'imparticiones.usuario.persona'],
+    });
+    if (!act || Number(act.estado) === -1 || Number(act.evento?.estado) === -1) {
+      throw new NotFoundException(`Curso ${id} no disponible.`);
+    }
+    const [{ total }] = await this.dataSource.query(
+      'SELECT COUNT(*)::integer AS total FROM inscripciones WHERE id_actividad_academica = $1 AND estado = 1',
+      [id],
+    );
+    const normalizar = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\./g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const publicados = new Set((act.evento?.descripcion || '').match(/(?:^|\n)\[PONENTES_METADATA\]:([^\n]*)/)?.[1]?.split(',').map(normalizar).filter(Boolean) || []);
+    const contenido = await this.dataSource.query(
+      "SELECT id, tipo, titulo, descripcion, orden FROM curso_lecciones WHERE id_actividad_academica = $1 AND publicado = true AND ($2::boolean OR tipo IN ('video','material')) ORDER BY orden, id",
+      [id, esCurso(act.tipo)],
+    );
+    const [valoracion] = await this.dataSource.query(
+      'SELECT COUNT(*)::integer AS cantidad, ROUND(AVG(puntuacion)::numeric,1) AS promedio FROM curso_valoraciones WHERE id_actividad_academica=$1',
+      [id],
+    );
+    return {
+      id: act.id,
+      nombre: act.nombre,
+      descripcion: act.descripcion,
+      tipo: act.tipo,
+      imagen: this.formatImageUrl(act.imagen),
+      fecha_inicio: act.fecha_inicio,
+      fecha_fin: act.fecha_fin,
+      horas: act.horas,
+      cupo: act.cupo,
+      inscritos: Number(total || 0),
+      contenido,
+      valoracion: { cantidad: Number(valoracion?.cantidad || 0), promedio: valoracion?.promedio == null ? null : Number(valoracion.promedio) },
+      requisitos: Array.isArray(act.requisitos?.custom) ? act.requisitos.custom.map((item: any) => String(item.label || '').trim()).filter(Boolean) : [],
+      objetivos: String(act.requisitos?.presentacion?.objetivos || '').split('\n').map((item) => item.trim()).filter(Boolean),
+      publico_objetivo: String(act.requisitos?.presentacion?.publico_objetivo || '').trim(),
+      estado: act.estado,
+      modalidades: (act.modalidades || []).map((modalidad) => ({
+        id: modalidad.id,
+        tipo: modalidad.tipo,
+        min_nota: modalidad.min_nota,
+        min_asistencia: modalidad.min_asistencia,
+      })),
+      docentes: (act.imparticiones || []).filter((item) => {
+        const persona = item.usuario?.persona;
+        if (!persona || !publicados.size) return false;
+        const nombre = normalizar([persona.nombres, persona.primer_apellido].filter(Boolean).join(' '));
+        return [...publicados].some((publicado) => publicado === nombre || publicado.endsWith(` ${nombre}`));
+      }).map((item) => ({
+        id: item.usuario.id,
+        nombre: [item.usuario.persona?.nombres, item.usuario.persona?.primer_apellido, item.usuario.persona?.segundo_apellido].filter(Boolean).join(' '),
+      })),
+      evento: act.evento ? {
+        id: act.evento.id,
+        nombre: act.evento.nombre,
+        gestion: act.evento.gestion,
+        estado: act.evento.estado,
+        imagen_fondo: this.formatImageUrl(act.evento.imagen_fondo, 'fondos'),
+      } : null,
+    };
+  }
+
+  private async verificarInscripcion(actividadId: number, usuarioId: number) {
+    const rows = await this.dataSource.query(
+      'SELECT id FROM inscripciones WHERE id_actividad_academica = $1 AND id_usuario = $2 AND estado IN (1,3) LIMIT 1',
+      [actividadId, usuarioId],
+    );
+    if (!rows.length) throw new ForbiddenException('Debes estar inscrito en este curso para acceder a las lecciones.');
+    return rows[0].id as number;
+  }
+
+  private validarLeccion(input: any) {
+    const titulo = String(input?.titulo || '').trim();
+    const tipo = String(input?.tipo || 'video');
+    const videoUrl = input?.video_url ? String(input.video_url).trim() : null;
+    const preguntas = input?.preguntas ?? [];
+    if (!titulo || titulo.length > 255 || !['video', 'examen', 'material', 'practica'].includes(tipo)) throw new BadRequestException('Título o tipo de lección inválido.');
+    const recursos = input?.recursos ?? [];
+    if (!Array.isArray(recursos) || recursos.length > 20 || recursos.some((r: any) => !r || typeof r.nombre !== 'string' || !r.nombre.trim() || r.nombre.length > 255 || typeof r.url !== 'string' || !/^\/uploads\/materiales\/[a-zA-Z0-9-]+\.[a-zA-Z0-9]+$/.test(r.url))) throw new BadRequestException('Los recursos deben ser archivos subidos al aula.');
+    const peso = Number(input?.peso ?? 1);
+    if (!Number.isFinite(peso) || peso < 0 || peso > 100) throw new BadRequestException('El peso debe estar entre 0 y 100.');
+    if (['material','practica'].includes(tipo) && preguntas.length) throw new BadRequestException('Utiliza un examen o un video para añadir un cuestionario.');
+    if (tipo === 'video' && (!videoUrl || !(/^\/uploads\/materiales\/[a-zA-Z0-9-]+\.[a-zA-Z0-9]+$/.test(videoUrl) || /^https:\/\//i.test(videoUrl)))) throw new BadRequestException('La lección necesita un video subido o un enlace HTTPS.');
+    if (tipo === 'examen' && (!Array.isArray(preguntas) || !preguntas.length)) throw new BadRequestException('El examen necesita preguntas.');
+    if (!Array.isArray(preguntas) || preguntas.length > 100 || preguntas.some((p: any) =>
+      !p || !String(p.enunciado || '').trim() || !Array.isArray(p.opciones) || p.opciones.length < 2 || p.opciones.length > 8 ||
+      p.opciones.some((o: any) => !String(o || '').trim()) || !Number.isInteger(p.correcta) || p.correcta < 0 || p.correcta >= p.opciones.length,
+    )) throw new BadRequestException('Las preguntas deben incluir enunciado, opciones y una respuesta válida.');
+    const orden = Number(input?.orden || 0);
+    if (!Number.isInteger(orden) || orden < 0) throw new BadRequestException('El orden de la lección debe ser un número entero positivo.');
+    return { titulo, tipo, videoUrl, preguntas, recursos: recursos.map(r => ({ nombre: r.nombre.trim(), url: r.url })), peso, descripcion: String(input?.descripcion || ''), orden, publicado: input?.publicado === true };
+  }
+
+  async guardarLeccion(actividadId: number, input: any, usuario: any, leccionId?: number) {
+    await this.verificarPermisosEdicion(actividadId, usuario);
+    const data = this.validarLeccion(input);
+    await this.verificarPermisoContenido(actividadId, data.tipo as TipoContenido);
+    if (data.preguntas.length) await this.verificarPermisoContenido(actividadId, 'examen');
+    if (data.recursos.length) await this.verificarPermisoContenido(actividadId, 'material');
+    if (leccionId) {
+      const result = await this.dataSource.query(
+        `UPDATE curso_lecciones SET tipo=$3, titulo=$4, descripcion=$5, orden=$6, video_url=$7, preguntas=$8::jsonb, publicado=$9, recursos=$10::jsonb, peso=$11, fecha_actualizacion=now()
+         WHERE id=$1 AND id_actividad_academica=$2 RETURNING *`,
+        [leccionId, actividadId, data.tipo, data.titulo, data.descripcion, data.orden, data.videoUrl, JSON.stringify(data.preguntas), data.publicado, JSON.stringify(data.recursos), data.peso],
+      );
+      if (!result.length) throw new NotFoundException('Lección no encontrada.');
+      return result[0];
+    }
+    const result = await this.dataSource.query(
+      `INSERT INTO curso_lecciones (id_actividad_academica, tipo, titulo, descripcion, orden, video_url, preguntas, publicado, recursos, peso)
+       VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9::jsonb,$10) RETURNING *`,
+      [actividadId, data.tipo, data.titulo, data.descripcion, data.orden, data.videoUrl, JSON.stringify(data.preguntas), data.publicado, JSON.stringify(data.recursos), data.peso],
+    );
+    return result[0];
+  }
+
+  async listarLeccionesEditor(actividadId: number, usuario: any) {
+    await this.verificarPermisosEdicion(actividadId, usuario);
+    const config = await this.obtenerConfiguracionAula(actividadId);
+    const rows = await this.dataSource.query('SELECT * FROM curso_lecciones WHERE id_actividad_academica=$1 ORDER BY orden,id', [actividadId]);
+    return esCurso(config.tipo_actividad) ? rows : rows.filter((l: any) => ['video', 'material'].includes(l.tipo)).map((l: any) => ({ ...l, preguntas: [], peso: 0 }));
+  }
+
+  private async obtenerConfiguracionAula(actividadId: number) {
+    const act = await this.actividadRepository.findOne({ where: { id: actividadId } });
+    if (!act) throw new NotFoundException('Actividad no encontrada.');
+    return { tipo_actividad: act.tipo, permisos: permisosContenido(act.tipo, act.requisitos) };
+  }
+
+  async configuracionAula(actividadId: number, usuario: any) {
+    await this.verificarPermisosEdicion(actividadId, usuario);
+    return this.obtenerConfiguracionAula(actividadId);
+  }
+
+  async verificarPermisoContenido(actividadId: number, tipo: TipoContenido) {
+    const config = await this.obtenerConfiguracionAula(actividadId);
+    if (['practica', 'examen'].includes(tipo) && !esCurso(config.tipo_actividad)) throw new BadRequestException('Las prácticas, cuestionarios y exámenes solo están disponibles en actividades de tipo Curso.');
+    if (!config.permisos[tipo]) throw new ForbiddenException('La organización no ha habilitado este contenido para el ponente.');
+  }
+
+  async eliminarLeccion(actividadId: number, leccionId: number, usuario: any) {
+    await this.verificarPermisosEdicion(actividadId, usuario);
+    const result = await this.dataSource.query('DELETE FROM curso_lecciones WHERE id=$1 AND id_actividad_academica=$2 RETURNING id', [leccionId, actividadId]);
+    if (!result.length) throw new NotFoundException('Lección no encontrada.');
+    return { eliminado: true };
+  }
+
+  async listarAula(actividadId: number, usuario: any) {
+    await this.verificarInscripcion(actividadId, usuario.id);
+    const rows = await this.dataSource.query(
+      `SELECT l.id, l.tipo, l.titulo, l.descripcion, l.orden, l.video_url, CASE WHEN LOWER(TRIM(a.tipo))='curso' THEN l.preguntas ELSE '[]'::jsonb END AS preguntas, l.recursos, l.peso, p.completado_en, p.nota, p.entrega, p.retroalimentacion
+       FROM curso_lecciones l JOIN actividades_academicas a ON a.id=l.id_actividad_academica LEFT JOIN curso_progreso p ON p.id_leccion=l.id AND p.id_usuario=$2
+       WHERE l.id_actividad_academica=$1 AND l.publicado=true AND (LOWER(TRIM(a.tipo))='curso' OR l.tipo IN ('video','material')) ORDER BY l.orden,l.id`,
+      [actividadId, usuario.id],
+    );
+    return rows.map(({ preguntas, ...row }: any) => ({ ...row, completado_en: row.tipo === 'practica' && row.nota == null ? null : row.completado_en, preguntas: (preguntas || []).map((p: any) => ({ enunciado: p.enunciado, opciones: p.opciones })) }));
+  }
+
+  async completarLeccion(actividadId: number, leccionId: number, respuestas: unknown, usuario: any) {
+    const inscripcionId = await this.verificarInscripcion(actividadId, usuario.id);
+    const rows = await this.dataSource.query(
+      `SELECT l.id, l.tipo, CASE WHEN LOWER(TRIM(a.tipo))='curso' THEN l.preguntas ELSE '[]'::jsonb END AS preguntas FROM curso_lecciones l JOIN actividades_academicas a ON a.id=l.id_actividad_academica WHERE l.id=$1 AND l.id_actividad_academica=$2 AND l.publicado=true AND (LOWER(TRIM(a.tipo))='curso' OR l.tipo IN ('video','material'))`,
+      [leccionId, actividadId],
+    );
+    if (!rows.length) throw new NotFoundException('Lección no disponible.');
+    if (rows[0].tipo === 'practica') throw new BadRequestException('Esta práctica requiere una entrega y la calificación del docente.');
+    const preguntas = rows[0].preguntas || [];
+    if (preguntas.length && (!Array.isArray(respuestas) || respuestas.length !== preguntas.length || respuestas.some((r, i) => !Number.isInteger(r) || r < 0 || r >= preguntas[i].opciones.length))) {
+      throw new BadRequestException('Responde todas las preguntas antes de completar la lección.');
+    }
+    const nota = preguntas.length ? Math.round(100 * preguntas.filter((p: any, i: number) => p.correcta === (respuestas as number[])[i]).length / preguntas.length) : null;
+    await this.dataSource.query(
+      `INSERT INTO curso_progreso (id_leccion,id_usuario,nota) VALUES ($1,$2,$3)
+       ON CONFLICT (id_leccion,id_usuario) DO UPDATE SET nota=GREATEST(curso_progreso.nota,EXCLUDED.nota), completado_en=now()`,
+      [leccionId, usuario.id, nota],
+    );
+    const resumen = await this.sincronizarNota(actividadId, usuario.id, inscripcionId);
+    const { terminado } = resumen;
+    return {
+      ...resumen, nota,
+      mensaje: terminado ? 'El curso está completo. La organización emitirá el certificado correspondiente.' : 'Progreso guardado.',
+    };
+  }
+
+  private async sincronizarNota(actividadId: number, usuarioId: number, inscripcionId: number) {
+    const resumen = await resumenAula(this.dataSource, actividadId, usuarioId);
+    if (resumen.promedio !== null) await this.dataSource.query('UPDATE inscripciones SET nota_principal=$1 WHERE id=$2', [resumen.promedio, inscripcionId]);
+    return resumen;
+  }
+
+  async resumenEstudiante(actividadId: number, usuario: any) {
+    const inscripcionId = await this.verificarInscripcion(actividadId, usuario.id);
+    return this.sincronizarNota(actividadId, usuario.id, inscripcionId);
+  }
+
+  async entregarPractica(actividadId: number, leccionId: number, texto: string, file: Express.Multer.File | undefined, usuario: any) {
+    await this.verificarInscripcion(actividadId, usuario.id);
+    const [leccion] = await this.dataSource.query("SELECT id FROM curso_lecciones WHERE id=$1 AND id_actividad_academica=$2 AND tipo='practica' AND publicado=true AND EXISTS(SELECT 1 FROM actividades_academicas a WHERE a.id=$2 AND LOWER(TRIM(a.tipo))='curso')", [leccionId, actividadId]);
+    if (!leccion) throw new NotFoundException('Práctica no disponible.');
+    const comentario = String(texto || '').trim();
+    if ((!comentario && !file) || comentario.length > 10000) throw new BadRequestException('Adjunta un archivo o escribe una respuesta de hasta 10000 caracteres.');
+    const entrega = { texto: comentario, archivo: file ? { nombre: file.originalname, almacenado: file.filename } : null };
+    const result = await this.dataSource.query(`INSERT INTO curso_progreso (id_leccion,id_usuario,entrega) VALUES ($1,$2,$3::jsonb)
+      ON CONFLICT (id_leccion,id_usuario) DO UPDATE SET entrega=EXCLUDED.entrega, completado_en=now()
+      WHERE curso_progreso.nota IS NULL RETURNING id`, [leccionId, usuario.id, JSON.stringify(entrega)]);
+    if (!result.length) throw new BadRequestException('La práctica ya fue calificada. Contacta al docente para solicitar una revisión.');
+    return { mensaje: 'Entrega recibida. Pendiente de calificación.' };
+  }
+
+  async listarEntregas(actividadId: number, usuario: any) {
+    await this.verificarPermisosEdicion(actividadId, usuario);
+    return this.dataSource.query(`SELECT p.id, p.id_leccion, p.id_usuario, p.entrega, p.nota, p.retroalimentacion, l.titulo,
+      p.completado_en, u.email, CONCAT_WS(' ',per.nombres,per.primer_apellido,per.segundo_apellido) AS estudiante
+      FROM curso_progreso p JOIN curso_lecciones l ON l.id=p.id_leccion
+      JOIN usuarios u ON u.id=p.id_usuario LEFT JOIN personas per ON per.id_usuario=u.id
+      WHERE l.id_actividad_academica=$1 AND l.tipo='practica' AND p.entrega IS NOT NULL AND EXISTS(SELECT 1 FROM actividades_academicas a WHERE a.id=l.id_actividad_academica AND LOWER(TRIM(a.tipo))='curso') ORDER BY p.nota IS NOT NULL,p.completado_en`, [actividadId]);
+  }
+
+  async calificarPractica(actividadId: number, progresoId: number, input: any, usuario: any) {
+    await this.verificarPermisosEdicion(actividadId, usuario);
+    const nota = input?.nota;
+    const feedback = String(input?.retroalimentacion || '').trim();
+    if (typeof nota !== 'number' || !Number.isFinite(nota) || nota < 0 || nota > 100 || feedback.length > 5000) throw new BadRequestException('Indica una nota entre 0 y 100 y una devolución de hasta 5000 caracteres.');
+    const [entrega] = await this.dataSource.query(`UPDATE curso_progreso p SET nota=$3, retroalimentacion=$4, calificado_por=$5, calificado_en=now()
+      FROM curso_lecciones l WHERE p.id=$1 AND p.id_leccion=l.id AND l.id_actividad_academica=$2 AND l.tipo='practica' AND p.entrega IS NOT NULL AND EXISTS(SELECT 1 FROM actividades_academicas a WHERE a.id=l.id_actividad_academica AND LOWER(TRIM(a.tipo))='curso')
+      RETURNING p.id_usuario`, [progresoId, actividadId, nota, feedback, usuario.id]);
+    if (!entrega) throw new NotFoundException('Entrega no encontrada.');
+    const inscripcionId = await this.verificarInscripcion(actividadId, entrega.id_usuario);
+    return this.sincronizarNota(actividadId, entrega.id_usuario, inscripcionId);
+  }
+
+  async archivoEntrega(actividadId: number, progresoId: number, usuario: any) {
+    const [entrega] = await this.dataSource.query(`SELECT p.id_usuario,p.entrega FROM curso_progreso p JOIN curso_lecciones l ON l.id=p.id_leccion
+      WHERE p.id=$1 AND l.id_actividad_academica=$2`, [progresoId, actividadId]);
+    if (!entrega?.entrega?.archivo) throw new NotFoundException('Archivo no encontrado.');
+    if (entrega.id_usuario !== usuario.id) await this.verificarPermisosEdicion(actividadId, usuario);
+    const file = entrega.entrega.archivo;
+    if (!/^[a-zA-Z0-9-]+\.[a-zA-Z0-9]+$/.test(file.almacenado)) throw new NotFoundException('Archivo no encontrado.');
+    return file;
+  }
+
+  async valorarCurso(actividadId: number, input: any, usuario: any) {
+    const puntuacion = Number(input?.puntuacion);
+    const comentario = String(input?.comentario || '').trim();
+    if (!Number.isInteger(puntuacion) || puntuacion < 1 || puntuacion > 5 || comentario.length > 1000) throw new BadRequestException('La puntuación debe estar entre 1 y 5 y el comentario no puede superar 1000 caracteres.');
+    const [inscripcion] = await this.dataSource.query(
+      'SELECT estado FROM inscripciones WHERE id_actividad_academica=$1 AND id_usuario=$2 AND estado IN (1,3) LIMIT 1',
+      [actividadId, usuario.id],
+    );
+    if (!inscripcion) throw new ForbiddenException('Debes estar inscrito para valorar el curso.');
+    const [resumen] = await this.dataSource.query(
+      `SELECT COUNT(*)::integer AS total, COUNT(p.id)::integer AS completadas FROM curso_lecciones l
+       LEFT JOIN curso_progreso p ON p.id_leccion=l.id AND p.id_usuario=$2
+       WHERE l.id_actividad_academica=$1 AND l.publicado=true`,
+      [actividadId, usuario.id],
+    );
+    const virtualCompletado = resumen.total > 0 && resumen.total === resumen.completadas;
+    if (!virtualCompletado && Number(inscripcion.estado) !== 3) throw new ForbiddenException('Podrás valorar el curso cuando lo completes.');
+    const [result] = await this.dataSource.query(
+      `INSERT INTO curso_valoraciones (id_actividad_academica,id_usuario,puntuacion,comentario) VALUES ($1,$2,$3,$4)
+       ON CONFLICT (id_actividad_academica,id_usuario) DO UPDATE SET puntuacion=EXCLUDED.puntuacion,comentario=EXCLUDED.comentario RETURNING id,puntuacion,comentario`,
+      [actividadId, usuario.id, puntuacion, comentario || null],
+    );
+    return result;
   }
 
   // ── Coordinador ─────────────────────────────────────────────
@@ -341,6 +612,12 @@ export class ActividadesAcademicasService {
     });
     if (!act) throw new NotFoundException(`Actividad ${actividadId} no encontrada.`);
 
+    const esCoordinador = (usuario.roles || []).some((rol: string) => String(rol).toLowerCase().includes('coordinador'));
+    if (esCoordinador) {
+      const [cuenta] = await this.dataSource.query('SELECT alcance_eventos FROM usuarios WHERE id = $1', [usuario.id]);
+      if (cuenta?.alcance_eventos === 'libre') return;
+    }
+
     // Verificar si es coordinador del evento
     const coord = await this.dataSource.query(
       `SELECT 1 FROM coordinacion_eventos WHERE id_evento = $1 AND id_usuario = $2`,
@@ -362,6 +639,7 @@ export class ActividadesAcademicasService {
 
   async actualizarMateriales(actividadId: number, materiales: any[], usuario: any) {
     await this.verificarPermisosEdicion(actividadId, usuario);
+    await this.verificarPermisoContenido(actividadId, 'material');
 
     const act = await this.actividadRepository.findOneBy({ id: actividadId });
     if (!act) throw new NotFoundException(`Actividad ${actividadId} no encontrada.`);

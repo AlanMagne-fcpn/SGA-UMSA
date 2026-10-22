@@ -90,7 +90,7 @@ const getStatusColor = (status: string) => {
         </div>
     </div>
       
-    <div v-for="evento in eventosPublicados" :key="evento.id" class="w-full bg-white dark:bg-gray-900 rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 dark:border-gray-800 mb-12 flex flex-col group/card">
+    <VCard v-for="evento in eventosPublicados" :key="evento.id" class="w-full bg-white dark:bg-gray-900 rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 dark:border-gray-800 mb-12 flex flex-col group/card">
       
       <!-- Header Evento Banner (Estilo Netflix) -->
       <div class="relative w-full h-[320px] overflow-hidden">
@@ -109,10 +109,10 @@ const getStatusColor = (status: string) => {
             </div>
 
             <!-- Accordion Toggle Button -->
-            <button @click="toggleActividades(evento)" class="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 px-5 md:px-6 py-2.5 md:py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group/btn cursor-pointer z-30 relative w-full lg:w-auto">
+            <VBtn @click="toggleActividades(evento)" class="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 px-5 md:px-6 py-2.5 md:py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group/btn cursor-pointer z-30 relative w-full lg:w-auto">
               <span class="text-[10px] md:text-xs font-bold uppercase tracking-widest">{{ evento.mostrarActividades ? 'Ocultar' : 'Ver' }} Actividades</span>
-              <span class="material-symbols-outlined text-[16px] transition-transform duration-300" :class="evento.mostrarActividades ? 'rotate-180' : ''">expand_more</span>
-            </button>
+              <VIcon class="material-symbols-outlined text-[16px] transition-transform duration-300" :class="evento.mostrarActividades ? 'rotate-180' : ''">expand_more</VIcon>
+            </VBtn>
           </div>
         </div>
       </div>
@@ -127,27 +127,27 @@ const getStatusColor = (status: string) => {
               <h3 class="text-lg md:text-2xl font-black text-primary-dark dark:text-white uppercase tracking-tighter">{{ categoria }}</h3>
               <p class="text-[9px] md:text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-widest mt-1">Explorar {{ acts.length }} disponibles en esta categoría</p>
             </div>
-            <button class="text-[9px] md:text-[10px] font-black uppercase tracking-widest bg-white dark:bg-gray-800 hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-700 px-4 py-2 rounded-xl transition-all flex items-center justify-center gap-2 relative z-20 cursor-pointer shadow-sm hover:shadow-md w-full sm:w-auto">
-              <span class="material-symbols-outlined text-[14px]">visibility</span> Ver todos
-            </button>
+            <VBtn class="text-[9px] md:text-[10px] font-black uppercase tracking-widest bg-white dark:bg-gray-800 hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-700 px-4 py-2 rounded-xl transition-all flex items-center justify-center gap-2 relative z-20 cursor-pointer shadow-sm hover:shadow-md w-full sm:w-auto">
+              <VIcon class="material-symbols-outlined text-[14px]">visibility</VIcon> Ver todos
+            </VBtn>
           </div>
 
           <!-- Grid de Actividades con Diseño Premium -->
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-8 pb-8 pt-2">
-            <div v-for="act in acts" :key="act.id" 
+            <VCard v-for="act in acts" :key="act.id"
               class="bg-white dark:bg-gray-900 rounded-[2rem] overflow-hidden shadow-lg border border-slate-100 dark:border-gray-800 hover:border-umsa-blue transition-all duration-500 hover:-translate-y-2 cursor-pointer group relative">
               
               <!-- Badge de Asignado (Simulado: ID 1 y 3 son del ponente) -->
               <div v-if="act.id === 1 || act.id === 3" class="absolute top-4 left-4 z-30">
                 <span class="bg-umsa-gold text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-full shadow-xl flex items-center gap-1 border border-white/20 backdrop-blur-md">
-                  <span class="material-symbols-outlined text-[12px]">assignment_ind</span>
+                  <VIcon class="material-symbols-outlined text-[12px]">assignment_ind</VIcon>
                   ASIGNADO
                 </span>
               </div>
 
               <!-- Imagen Predominante -->
               <div class="relative h-60 w-full overflow-hidden">
-                <img :src="act.image" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000">   
+                <img :src="act.image" data-course-image :alt="act.title" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000">
                 <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                 
                 <span class="absolute top-4 right-4 z-20 text-[9px] font-black uppercase px-3 py-1.5 rounded-full tracking-widest shadow-lg backdrop-blur-md border border-white/10" :class="getStatusColor(act.status)">
@@ -168,23 +168,23 @@ const getStatusColor = (status: string) => {
               <div class="p-6 flex flex-col bg-white dark:bg-gray-900">
                 <div class="flex items-center justify-between text-slate-500 dark:text-gray-400 mb-4">
                   <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm text-umsa-blue">calendar_month</span>
+                    <VIcon class="material-symbols-outlined text-sm text-umsa-blue">calendar_month</VIcon>
                     <span class="text-[10px] font-bold uppercase tracking-wider">{{ act.date }}</span>
                   </div>
                   <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm text-umsa-blue">groups</span>
+                    <VIcon class="material-symbols-outlined text-sm text-umsa-blue">groups</VIcon>
                     <span class="text-[10px] font-bold uppercase tracking-wider">{{ act.students }} Inscritos</span>
                   </div>
                 </div>
 
                 <div class="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-gray-800">
-                    <button @click="router.push(`/ponente/curso/${act.id}`)" class="flex items-center text-umsa-blue font-black group/btn cursor-pointer">
+                    <VBtn @click="router.push(`/ponente/curso/${act.id}`)" class="flex items-center text-umsa-blue font-black group/btn cursor-pointer">
                         <span class="text-[11px] uppercase tracking-widest">Ver Detalles</span>
-                        <span class="material-symbols-outlined text-[18px] ml-2 group-hover/btn:translate-x-1 transition-transform">visibility</span>
-                    </button>
+                        <VIcon class="material-symbols-outlined text-[18px] ml-2 group-hover/btn:translate-x-1 transition-transform">visibility</VIcon>
+                    </VBtn>
                 </div>
               </div>
-            </div>
+            </VCard>
           </div>
         </div>
         
@@ -192,6 +192,6 @@ const getStatusColor = (status: string) => {
           <p class="text-sm font-bold text-gray-500 uppercase tracking-widest">No hay actividades publicadas para esta categoría.</p>
         </div>
       </div>
-    </div>
+    </VCard>
   </div>
 </template>

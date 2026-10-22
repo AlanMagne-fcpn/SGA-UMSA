@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import api, { imagenActividad, imagenEvento } from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 const certificados = ref<any[]>([]);
 const loading = ref(false);
@@ -79,22 +79,22 @@ onUnmounted(cerrarVista);
   <div class="animate-in fade-in duration-500 max-w-6xl mx-auto space-y-8">
     <div class="border-b border-slate-200 dark:border-gray-800 pb-6">
       <h1 class="text-3xl font-black text-primary-dark dark:text-white uppercase tracking-tighter flex items-center gap-3">
-        <span class="material-symbols-outlined text-umsa-gold text-4xl">workspace_premium</span>
+        <VIcon class="material-symbols-outlined text-umsa-gold text-4xl">workspace_premium</VIcon>
         Mis certificados de expositor
       </h1>
       <p class="text-sm text-slate-500 mt-2">Certificados emitidos por tu participación como ponente. El de estudiante no aparece en este portal.</p>
     </div>
 
     <div v-if="loading" class="p-20 flex flex-col items-center justify-center gap-4 text-slate-400">
-      <span class="material-symbols-outlined animate-spin text-4xl">sync</span>
+      <VIcon class="material-symbols-outlined animate-spin text-4xl">sync</VIcon>
       <p class="text-xs font-black uppercase tracking-widest">Cargando certificados...</p>
     </div>
 
-    <div v-else-if="certificados.length === 0" class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-3xl p-20 text-center shadow-sm">
-      <span class="material-symbols-outlined text-6xl text-slate-200 dark:text-gray-800 mb-4 font-light">workspace_premium</span>
+    <VCard v-else-if="certificados.length === 0" class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-3xl p-20 text-center shadow-sm">
+      <VIcon class="material-symbols-outlined text-6xl text-slate-200 dark:text-gray-800 mb-4 font-light">workspace_premium</VIcon>
       <h3 class="text-lg font-black text-slate-600 dark:text-gray-400 uppercase tracking-tighter mb-1">Sin certificados de expositor</h3>
       <p class="text-xs text-slate-400 max-w-xs mx-auto">Aún no se ha emitido un certificado de ponente a tu nombre.</p>
-    </div>
+    </VCard>
 
     <article v-for="cert in certificados" :key="cert.id" class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2rem] overflow-hidden shadow-sm">
       <div class="grid grid-cols-1 md:grid-cols-[280px_1fr]">
@@ -119,31 +119,31 @@ onUnmounted(cerrarVista);
             </div>
           </div>
           <div class="flex flex-wrap gap-3">
-            <button @click="previsualizar(cert)" class="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-[#003B71] dark:text-white hover:border-umsa-blue font-black text-xs uppercase tracking-widest px-5 py-3.5 rounded-xl flex items-center justify-center gap-2">
-              <span class="material-symbols-outlined text-[18px]">visibility</span>
+            <VBtn @click="previsualizar(cert)" class="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-[#003B71] dark:text-white hover:border-umsa-blue font-black text-xs uppercase tracking-widest px-5 py-3.5 rounded-xl flex items-center justify-center gap-2">
+              <VIcon class="material-symbols-outlined text-[18px]">visibility</VIcon>
               Previsualizar
-            </button>
-            <button @click="downloadPdf(cert.id)" class="bg-[#003B71] hover:bg-umsa-blue text-white font-black text-xs uppercase tracking-widest px-5 py-3.5 rounded-xl flex items-center justify-center gap-2">
-              <span class="material-symbols-outlined text-[18px]">download</span>
+            </VBtn>
+            <VBtn @click="downloadPdf(cert.id)" class="bg-[#003B71] hover:bg-umsa-blue text-white font-black text-xs uppercase tracking-widest px-5 py-3.5 rounded-xl flex items-center justify-center gap-2">
+              <VIcon class="material-symbols-outlined text-[18px]">download</VIcon>
               Descargar
-            </button>
+            </VBtn>
           </div>
         </div>
       </div>
     </article>
 
     <Teleport to="body">
-      <div v-if="vistaPdf" class="fixed inset-0 z-[400] bg-black/75 flex items-center justify-center p-3 md:p-6" @click.self="cerrarVista">
+      <VDialog v-if="vistaPdf" :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" @click:outside="cerrarVista">
         <div class="bg-white dark:bg-gray-900 w-full max-w-6xl h-[92vh] rounded-2xl overflow-hidden flex flex-col shadow-2xl">
           <div class="flex items-center justify-between px-5 py-3 border-b border-slate-200 dark:border-gray-800 shrink-0">
             <p class="font-black uppercase tracking-wide text-sm text-slate-800 dark:text-white truncate pr-4">{{ vistaTitulo }}</p>
-            <button @click="cerrarVista" class="w-10 h-10 rounded-full hover:bg-slate-100 dark:hover:bg-gray-800 flex items-center justify-center shrink-0" type="button">
-              <span class="material-symbols-outlined">close</span>
-            </button>
+            <VBtn @click="cerrarVista" class="w-10 h-10 rounded-full hover:bg-slate-100 dark:hover:bg-gray-800 flex items-center justify-center shrink-0" type="button">
+              <VIcon class="material-symbols-outlined">close</VIcon>
+            </VBtn>
           </div>
           <iframe :src="vistaPdf" class="flex-1 w-full min-h-0 bg-slate-200" title="Vista previa del certificado"></iframe>
         </div>
-      </div>
+      </VDialog>
     </Teleport>
   </div>
 </template>

@@ -1,16 +1,24 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import api, { resolveMediaUrl } from '@/services/api';
+import { computed, nextTick, ref, onMounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import api, { getImageUrl, imagenActividad, logoEvento, resolveMediaUrl } from '@/services/api';
 import { useEventoStore } from '@/stores/eventoStore';
+import PublicCatalog from '@/components/PublicCatalog.vue';
+import EventLogo from '@/components/eventos/EventLogo.vue';
 
 const defaultAvatar = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2394a3b8"><rect width="24" height="24" fill="%23e2e8f0"/><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
 
 const eventoStore = useEventoStore();
+const route = useRoute();
+const esDetalleEvento = computed(() => route.params.eventoId !== undefined);
 
 const eventosActivos = ref<any[]>([]);
 const ponentesDB = ref<any[]>([]);
-const eventoSeleccionado = ref<any>(null);
-const isDropdownOpen = ref(false);
+const eventoSeleccionado = computed(() => esDetalleEvento.value
+  ? eventosActivos.value.find(evento => String(evento.id) === String(route.params.eventoId)) || null
+  : null);
+const cargandoEventos = ref(true);
+const heroImageSmall = ref(false);
 const icons = ['school', 'memory', 'public', 'biotech', 'eco', 'science'];
 const colors = ['bg-emerald-500', 'bg-umsa-gold', 'bg-blue-500', 'bg-purple-500', 'bg-orange-500', 'bg-teal-500'];
 
@@ -34,12 +42,15 @@ const cargarEventos = async () => {
         const eventosDB = Array.isArray(response.data) ? response.data : (response.data.data || []);
         
         // Filtramos solo Activos (1) y Planificación (2) para el home
-        const filtrados = eventosDB.filter((e: any) => e.estado === 1 || e.estado === 2);
+        const filtrados = eventosDB.filter((e: any) => {
+            const estado = Number(e.estado);
+            return estado === 1 || estado === 2 || (estado === 0 && e.visibilidad_al_finalizar !== 'oculto');
+        });
         
         // Procesamos los eventos y cargamos sus ponentes reales
         const eventosProcesados = await Promise.all(filtrados.map(async (ev: any, index: number) => {
             const rawDesc = ev.descripcion || '';
-            let mostrarCorreos = true;
+            let mostrarCorreos = false;
             let cleanedDesc = rawDesc;
             
             // Separar metadatos de ponentes si existen
@@ -62,9 +73,9 @@ const cargarEventos = async () => {
                 
                 ponentesArr = dataP.map((p: any) => ({
                     id: p.id,
-                    name: `${p.grado_abreviacion} ${p.nombres} ${p.primer_apellido}`.trim(),
+                    name: [p.grado_abreviacion, p.nombres, p.primer_apellido].filter(Boolean).join(' '),
                     topic: p.profesion || 'Expositor',
-                    country: mostrarCorreos ? p.email : 'Expositor',
+                    country: mostrarCorreos && p.email ? p.email : 'Expositor',
                     img: resolveMediaUrl(p.foto, defaultAvatar)
                 }));
             } catch (e) {
@@ -75,7 +86,7 @@ const cargarEventos = async () => {
                 id: ev.id,
                 title: ev.nombre,
                 subtitle: ev.ubicacion || 'Universidad Mayor de San Andrés', 
-                status: ev.estado === 1 ? 'Activo' : 'Planificación',
+                status: Number(ev.estado) === 1 ? 'Activo' : Number(ev.estado) === 2 ? 'Planificación' : 'Finalizado',
                 gestion: ev.gestion || 'Actual',
                 date: `${ev.fecha_inicio || 'TBD'} - ${ev.fecha_fin || 'TBD'}`,
                 dateShort: formatDate(ev.fecha_inicio) || 'Fechas por definir',
@@ -83,13 +94,13 @@ const cargarEventos = async () => {
                 version: ev.version || '',
                 color: colors[index % colors.length],
                 icon: icons[index % icons.length],
-                imagen_fondo: resolveMediaUrl(ev.imagen_fondo),
-                logo: resolveMediaUrl(ev.imagen_portada || ev.logo, ''),
+                imagen_fondo: getImageUrl('fondos', ev.imagen_fondo, '/logo/fondoejeml.jpg'),
+                logo: logoEvento(ev),
                 google_maps_link: ev.google_maps_link || null,
                 direccion: ev.direccion || null,
                 sobre_evento_1: ev.sobre_evento_1 || null,
                 frase_destacada: ev.frase_destacada || null,
-                sigla: ev.sigla || 'TYAN',
+                sigla: ev.sigla || '',
                 color_principal: ev.color_principal || '#0070b4',
                 institucion_badge: ev.institucion_badge || 'Evento Oficial OEA/TYAN',
                 link_facebook: ev.link_facebook || null,
@@ -104,6 +115,18 @@ const cargarEventos = async () => {
                     } 
                 })(),
                 ponentes: ponentesArr,
+                cursos: (ev.actividades || []).filter((act: any) => Number(act.estado) !== -1).map((act: any) => ({
+                    id: act.id,
+                    nombre: act.nombre,
+                    descripcion: act.descripcion || '',
+                    tipo: act.tipo || 'Curso',
+                    modalidad: act.modalidad || act.modalidades?.[0]?.tipo || 'Presencial',
+                    valoracion: act.valoracion || { cantidad: 0, promedio: null },
+                    horas: act.horas,
+                    fecha_inicio: act.fecha_inicio,
+                    estado: Number(act.estado),
+                    imagen: imagenActividad(act),
+                })),
                 coordinadores: Array.isArray(ev.coordinadores) ? ev.coordinadores : [],
                 secciones: ev.secciones_visibles || {},
             };
@@ -111,27 +134,10 @@ const cargarEventos = async () => {
 
         eventosActivos.value = eventosProcesados;
 
-        // Set default to first active event
-        if (eventosActivos.value.length > 0) {
-            eventoSeleccionado.value = eventosActivos.value[0];
-            // Sincronizar con el store global si no hay uno seleccionado
-            if (!eventoStore.selectedEventoId) {
-                eventoStore.setVersion(eventoSeleccionado.value.id);
-            }
-        } else {
-            eventoSeleccionado.value = {
-                title: 'Bienvenidos al Portal SGEA',
-                subtitle: 'Universidad Mayor de San Andrés',
-                dateShort: 'Próximamente',
-                description: 'Actualmente no hay eventos programados. Manténgase atento para futuras actualizaciones y convocatorias en la red académica.',
-                imagen_fondo: 'https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?w=1600&q=80',
-                google_maps_link: '<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15301.761763784013!2d-68.1332029785816!3d-16.505086782352123!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x915edf0a00000001%3A0x6420546944e8574d!2sUniversidad%20Mayor%20de%20San%20Andr%C3%A9s!5e0!3m2!1ses!2sbo!4v1713670000000!5m2!1ses!2sbo" width="600" height="450" style="border:0;" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>',
-                direccion: 'Av. Villazón Nro 1995, Plaza del Bicentenario - La Paz',
-                ponentes: []
-            };
-        }
     } catch(err) {
         console.error("Error al cargar eventos en Home", err);
+    } finally {
+        cargandoEventos.value = false;
     }
 };
 
@@ -139,10 +145,17 @@ onMounted(() => {
     cargarEventos();
 });
 
-const seleccionarEvento = (evento: any) => {
-  eventoSeleccionado.value = evento;
-  eventoStore.setVersion(evento.id); // Sincronizar con el resto de la app (logo, contacto, etc)
-  isDropdownOpen.value = false;
+watch(eventoSeleccionado, async (evento) => {
+  heroImageSmall.value = false;
+  if (evento) eventoStore.setVersion(evento.id);
+  await nextTick();
+  if (route.hash) document.getElementById(route.hash.slice(1))?.scrollIntoView();
+  else if (evento) window.scrollTo({ top: 0 });
+});
+
+const onHeroImageLoad = (event: Event) => {
+  const image = event.target as HTMLImageElement;
+  heroImageSmall.value = image.naturalWidth < 1280 || image.naturalHeight < 720;
 };
 
 const abrirMapa = (url: string) => {
@@ -153,57 +166,30 @@ const abrirMapa = (url: string) => {
 </script>
 
 <template>
-  <main class="font-sans text-gray-800 dark:text-gray-200 transition-colors duration-300">
+  <main class="pt-20 font-sans text-gray-800 transition-colors duration-300 dark:text-gray-200 md:pt-24">
+    <div v-if="esDetalleEvento && cargandoEventos" class="px-6 py-20 text-center" role="status">Cargando evento…</div>
+    <div v-else-if="esDetalleEvento && !eventoSeleccionado" class="px-6 py-20 text-center">
+      <h1 class="text-3xl font-bold">Evento no disponible</h1>
+      <p class="mt-3">El evento no existe o ya no está publicado.</p>
+      <RouterLink to="/eventos" class="mt-6 inline-block font-bold text-sky-600 dark:text-sky-300">Ver todos los eventos</RouterLink>
+    </div>
     <!-- SECCIÓN PRINCIPAL (HERO) -->
-    <section id="inicio" class="relative w-full min-h-[95vh] group flex flex-col justify-end text-left pt-36 pb-20 overflow-hidden">
-        <div class="absolute inset-0 bg-primary-dark/40 dark:bg-black/60 z-10 transition-colors duration-700"></div>
-        <img :src="resolveMediaUrl(eventoSeleccionado?.imagen_fondo)" class="absolute inset-0 w-full h-full object-cover object-center transition-all duration-[1.5s]" alt="Fondo del Evento">
-        <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/80 to-transparent dark:from-black dark:via-black/80 z-20"></div>
+    <section v-if="eventoSeleccionado" id="inicio" class="relative flex min-h-[560px] w-full flex-col justify-center overflow-hidden bg-[#071523] py-16 text-left md:min-h-[min(76svh,760px)] md:py-20">
+        <div class="absolute inset-0 bg-primary-dark/25 dark:bg-black/50 z-10 transition-colors duration-700"></div>
+        <img :key="eventoSeleccionado?.id" :src="eventoSeleccionado?.imagen_fondo || '/logo/fondoejeml.jpg'" data-fallback-src="/logo/fondoejeml.jpg" :class="heroImageSmall ? 'absolute right-0 top-1/2 h-auto max-h-[70%] w-full -translate-y-1/2 object-contain opacity-50 md:right-[3%] md:w-[48%] md:rounded-2xl' : 'absolute inset-0 h-full w-full object-cover object-center'" class="transition-all duration-700" alt="Fondo del evento" @load="onHeroImageLoad">
+        <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/55 to-transparent dark:from-black dark:via-black/70 z-20"></div>
 
-        <div class="relative z-30 w-full px-6 md:px-16 lg:px-24 max-w-[2500px] mx-auto flex flex-col items-start mt-auto">
-            <!-- ROW 1: SELECTOR DE EVENTO Y BADGE OFICIAL (Lineales Izquierda) -->
-            <div class="flex flex-col md:flex-row items-center justify-start gap-4 mb-8 w-full md:w-auto relative z-50 animate-in fade-in slide-in-from-bottom-2 duration-500">
-               <!-- Elegante Selector de Eventos -->
-               <div class="relative w-full sm:w-auto sm:min-w-[300px]">
-                   <button @click="isDropdownOpen = !isDropdownOpen" class="w-full flex items-center justify-between gap-4 px-5 py-3.5 bg-black/40 backdrop-blur-xl border border-white/10 hover:border-emerald-400/50 rounded-2xl text-white shadow-2xl transition-all group">
-                       <div class="flex items-center gap-3">
-                           <div :style="{ backgroundColor: eventoSeleccionado?.color_principal || '#10b981' }" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-lg">
-                              <span class="material-symbols-outlined text-white text-[16px] group-hover:animate-pulse">event_available</span>
-                           </div>
-                           <div class="text-left overflow-hidden">
-                               <p :style="{ color: eventoSeleccionado?.color_principal || '#10b981' }" class="text-[8px] font-black uppercase tracking-widest mb-0.5">Gestión Actual</p>
-                               <p class="text-xs font-black truncate max-w-[200px]">{{ eventoSeleccionado?.title || 'Seleccionar Evento' }}</p>
-                           </div>
-                       </div>
-                       <span class="material-symbols-outlined transition-transform duration-300 text-[18px]" :class="isDropdownOpen ? 'rotate-180 text-emerald-400' : 'text-slate-400'">expand_more</span>
-                   </button>
-                   
-                   <transition enter-active-class="transition duration-300 ease-out" enter-from-class="transform scale-95 opacity-0 -translate-y-2" enter-to-class="transform scale-100 opacity-100 translate-y-0" leave-active-class="transition duration-200 ease-in" leave-from-class="transform scale-100 opacity-100 translate-y-0" leave-to-class="transform scale-95 opacity-0 -translate-y-2">
-                       <div v-if="isDropdownOpen" class="absolute top-[110%] left-0 w-full sm:w-[350px] bg-black/80 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden z-[100]">
-                           <div class="max-h-[350px] overflow-y-auto thin-scrollbar p-3 group/list">
-                               <button v-for="evento in eventosActivos" :key="`drop-${evento.id}`" @click="seleccionarEvento(evento)" class="w-full text-left p-3 rounded-xl flex items-center gap-4 transition-all hover:bg-white/10 mb-1 border" :class="eventoSeleccionado?.id === evento.id ? 'bg-emerald-500/20 border-emerald-500/30' : 'border-transparent'">
-                                   <div class="w-10 h-10 rounded-full flex flex-shrink-0 items-center justify-center transition-all bg-opacity-80" :class="[evento.color, eventoSeleccionado?.id === evento.id ? 'scale-110 shadow-lg shadow-white/10 text-white' : 'text-white/80']">
-                                       <span class="material-symbols-outlined text-[20px]">{{ evento.icon }}</span>
-                                   </div>
-                                   <div class="min-w-0 flex-1">
-                                       <p class="text-[9px] font-black uppercase tracking-widest mb-0.5 transition-colors" :class="eventoSeleccionado?.id === evento.id ? 'text-emerald-400' : 'text-emerald-500/70'">Gestión {{ evento.gestion }}</p>
-                                       <p class="text-[13px] font-black text-white leading-tight truncate">{{ evento.title }}</p>
-                                   </div>
-                                   <span v-if="eventoSeleccionado?.id === evento.id" class="material-symbols-outlined text-emerald-400 shrink-0 text-[18px]">check_circle</span>
-                                </button>
-                           </div>
-                       </div>
-                   </transition>
-               </div>
-               
-               <!-- Etiqueta Oficial Dinámica -->
-                <span :style="{ backgroundColor: eventoSeleccionado?.color_principal || '#10b981' }" class="inline-flex items-center w-full sm:w-auto h-[56px] px-6 text-white border border-white/20 text-[10px] md:text-sm font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-black/20 animate-in slide-in-from-right-4 duration-700">
-                  <span class="material-symbols-outlined text-[18px] mr-2">public</span> {{ eventoSeleccionado?.institucion_badge || 'Evento Oficial OEA/SGEA' }}
+        <div class="relative z-30 mx-auto flex w-full max-w-[2500px] flex-col items-start px-6 md:px-16 lg:px-24">
+            <!-- Identidad del evento seleccionado -->
+            <div class="mb-8 flex w-full flex-col items-start justify-start gap-4 animate-in fade-in duration-500">
+                <span :style="{ backgroundColor: eventoSeleccionado?.color_principal || '#10b981' }" class="inline-flex min-h-[56px] w-full flex-wrap items-center gap-y-1 px-5 py-2 text-white sm:w-auto sm:px-6 border border-white/20 text-[10px] md:text-sm font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-black/20 animate-in slide-in-from-right-4 duration-700">
+                  <EventLogo :src="eventoSeleccionado.logo" :nombre="eventoSeleccionado.title" class="mr-2 h-8 w-8 rounded-full p-1" /> {{ eventoSeleccionado?.institucion_badge || 'Evento oficial' }}
+                  <span v-if="eventoSeleccionado?.sigla && !String(eventoSeleccionado?.institucion_badge || '').toLowerCase().includes(String(eventoSeleccionado.sigla).toLowerCase())" class="ml-3 border-l border-white/40 pl-3">{{ eventoSeleccionado.sigla }}</span>
                 </span>
             </div>
             
             <!-- ROW 2: TÍTULO PRINCIPAL -->
-            <h1 :key="`title-${eventoSeleccionado?.id}`" class="text-3xl sm:text-4xl md:text-6xl lg:text-[5rem] xl:text-[6.5rem] font-black text-white leading-[0.95] uppercase tracking-tighter mb-4 drop-shadow-2xl animate-in fade-in slide-in-from-bottom-5 duration-700 max-w-[95%] xl:max-w-[85%]">
+            <h1 :key="`title-${eventoSeleccionado?.id}`" class="max-w-full break-words text-3xl sm:text-4xl md:text-6xl lg:text-[4.5rem] xl:text-[5.25rem] font-black text-white leading-[1.03] uppercase tracking-tighter mb-4 drop-shadow-2xl animate-in fade-in slide-in-from-bottom-5 duration-700">
               {{ eventoSeleccionado?.title }}
             </h1>
             
@@ -215,13 +201,13 @@ const abrirMapa = (url: string) => {
             <!-- ROW 4: BADGES ADICIONALES (Versión, Fechas, Ubicación) -->
             <div :key="`tags-${eventoSeleccionado?.id}`" class="flex flex-row flex-wrap items-center justify-start gap-3 mb-6 relative z-40 animate-in fade-in slide-in-from-bottom-5 duration-700 delay-100">
                <span v-if="eventoSeleccionado?.version" :style="{ backgroundColor: eventoSeleccionado?.color_principal || '#0070b4' }" class="inline-flex items-center gap-1.5 px-4 py-2 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-black/20">
-                 <span class="material-symbols-outlined text-[16px]">workspace_premium</span> {{ eventoSeleccionado?.version }}
+                 <VIcon class="material-symbols-outlined text-[16px]">workspace_premium</VIcon> {{ eventoSeleccionado?.version }}
                </span>
                <span class="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-inner uppercase tracking-widest">
-                 <span class="material-symbols-outlined text-[18px] text-emerald-400">calendar_month</span> {{ eventoSeleccionado?.dateShort }}
+                 <VIcon class="material-symbols-outlined text-[18px] text-emerald-400">calendar_month</VIcon> {{ eventoSeleccionado?.dateShort }}
                </span>
                <span class="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-inner uppercase tracking-widest">
-                 <span class="material-symbols-outlined text-[18px] text-emerald-400">location_on</span> {{ eventoSeleccionado?.direccion || 'La Paz, Bolivia' }}
+                 <VIcon class="material-symbols-outlined text-[18px] text-emerald-400">location_on</VIcon> {{ eventoSeleccionado?.direccion || 'La Paz, Bolivia' }}
                </span>
             </div>
             
@@ -232,20 +218,27 @@ const abrirMapa = (url: string) => {
             
             <!-- ROW 6: BOTONES DE ACCIÓN -->
             <div class="flex flex-col sm:flex-row flex-wrap items-center justify-start gap-4 w-full relative z-40 animate-in fade-in slide-in-from-bottom-5 duration-700 delay-300">
-                <button @click="$router.push('/login')" :style="{ backgroundColor: eventoSeleccionado?.color_principal || '#10b981' }" class="w-full sm:w-auto text-white px-8 py-4 rounded-xl font-black text-xs md:text-sm uppercase tracking-widest transition-all shadow-xl hover:shadow-2xl hover:shadow-black/40 hover:-translate-y-1 flex items-center justify-center gap-2 border border-white/20">
-                    <span class="material-symbols-outlined text-[20px]">login</span>
+                <VBtn @click="$router.push('/login')" :style="{ backgroundColor: eventoSeleccionado?.color_principal || '#10b981' }" class="w-full sm:w-auto text-white px-8 py-4 rounded-xl font-black text-xs md:text-sm uppercase tracking-widest transition-all shadow-xl hover:shadow-2xl hover:shadow-black/40 hover:-translate-y-1 flex items-center justify-center gap-2 border border-white/20">
+                    <VIcon class="material-symbols-outlined text-[20px]">login</VIcon>
                     Ingresar al Portal
-                </button>
+                </VBtn>
                 <a href="#informacion" class="w-full sm:w-auto bg-white/10 backdrop-blur-md text-white hover:bg-white/20 px-8 py-4 rounded-xl font-black text-xs md:text-sm uppercase tracking-widest transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 border border-white/30 flex items-center justify-center gap-2">
-                    <span class="material-symbols-outlined text-[20px]">expand_circle_down</span>
+                    <VIcon class="material-symbols-outlined text-[20px]">expand_circle_down</VIcon>
                     Detalles del Evento
                 </a>
+                <a href="#cursos" class="w-full sm:w-auto bg-sky-600 text-white px-8 py-4 rounded-xl font-black text-xs md:text-sm uppercase tracking-widest flex items-center justify-center gap-2">Ver cursos del evento</a>
+                <RouterLink to="/eventos" class="w-full sm:w-auto bg-white/10 backdrop-blur-md text-white hover:bg-white/20 px-8 py-4 rounded-xl font-black text-xs md:text-sm uppercase tracking-widest transition-all border border-white/30 flex items-center justify-center gap-2">
+                    <VIcon class="material-symbols-outlined text-[20px]">grid_view</VIcon>
+                    Ver todos los eventos
+                </RouterLink>
             </div>
         </div>
     </section>
 
+    <PublicCatalog v-if="!esDetalleEvento || eventoSeleccionado" :key="String(route.params.eventoId || 'catalogo')" :eventos="esDetalleEvento ? [eventoSeleccionado] : eventosActivos" :cargando="cargandoEventos" :seleccionado="eventoSeleccionado" :solo-cursos="esDetalleEvento" />
+
     <!-- SECCIÓN DE INFORMACIÓN -->
-    <section id="informacion" class="py-24 bg-white dark:bg-black transition-colors duration-300 -mt-2">
+    <section v-if="eventoSeleccionado" id="informacion" class="py-24 bg-white dark:bg-black transition-colors duration-300 -mt-2">
       <div class="w-full px-6 md:px-16 lg:px-24 max-w-[2500px] mx-auto">
         <div class="flex flex-col md:flex-row items-center md:items-start gap-12">
           
@@ -268,7 +261,7 @@ const abrirMapa = (url: string) => {
                   <div class="flex items-start gap-4">
                     <!-- Icon Container -->
                     <div class="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
-                      <span class="material-symbols-outlined text-2xl">language</span>
+                      <VIcon class="material-symbols-outlined text-2xl">language</VIcon>
                     </div>
                     
                     <div class="flex-1 min-w-0">
@@ -279,10 +272,10 @@ const abrirMapa = (url: string) => {
                       <!-- Badges/Tags -->
                       <div class="flex flex-wrap gap-2 mt-3">
                         <span class="text-[9px] font-bold bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <span class="material-symbols-outlined text-[10px]">bolt</span> Acceso Rápido
+                          <VIcon class="material-symbols-outlined text-[10px]">bolt</VIcon> Acceso Rápido
                         </span>
                         <span class="text-[9px] font-bold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <span class="material-symbols-outlined text-[10px]">verified</span> Oficial
+                          <VIcon class="material-symbols-outlined text-[10px]">verified</VIcon> Oficial
                         </span>
                       </div>
                     </div>
@@ -316,10 +309,10 @@ const abrirMapa = (url: string) => {
                       <!-- Badges/Tags -->
                       <div class="flex flex-wrap gap-2 mt-3">
                         <span class="text-[9px] font-bold bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <span class="material-symbols-outlined text-[10px]">videocam</span> En Vivo
+                          <VIcon class="material-symbols-outlined text-[10px]">videocam</VIcon> En Vivo
                         </span>
                         <span class="text-[9px] font-bold bg-blue-50 dark:bg-blue-900/30 text-[#1877F2] dark:text-blue-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <span class="material-symbols-outlined text-[10px]">share</span> Comunidad
+                          <VIcon class="material-symbols-outlined text-[10px]">share</VIcon> Comunidad
                         </span>
                       </div>
                     </div>
@@ -348,7 +341,7 @@ const abrirMapa = (url: string) => {
     </section>
 
     <!-- SECCIÓN DEL CRONOGRAMA -->
-    <section v-if="eventoSeleccionado?.secciones?.cronograma !== false" class="py-24 bg-slate-50 dark:bg-gray-950 transition-colors duration-300 w-full">
+    <section v-if="eventoSeleccionado && eventoSeleccionado.secciones?.cronograma !== false" id="cronograma" class="py-24 bg-slate-50 dark:bg-gray-950 transition-colors duration-300 w-full">
       <div class="w-full px-6 md:px-16 lg:px-24 max-w-[2500px] mx-auto">
         <div class="flex items-center gap-4 mb-2">
             <div class="h-1 w-12 bg-emerald-500 rounded-full"></div>
@@ -360,7 +353,7 @@ const abrirMapa = (url: string) => {
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 max-w-[1400px] mx-auto">
-          <div v-for="day in (eventoSeleccionado?.cronograma || [])" :key="day.day" class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-3xl shadow-lg hover:-translate-y-4 hover:shadow-2xl hover:shadow-umsa-blue/10 dark:hover:shadow-black/50 hover:border-umsa-blue/30 transition-all duration-300 overflow-hidden flex flex-col group h-full">
+          <VCard v-for="day in (eventoSeleccionado?.cronograma || [])" :key="day.day" class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-3xl shadow-lg hover:-translate-y-4 hover:shadow-2xl hover:shadow-umsa-blue/10 dark:hover:shadow-black/50 hover:border-umsa-blue/30 transition-all duration-300 overflow-hidden flex flex-col group h-full">
             <div class="bg-slate-100 dark:bg-gray-900 text-primary-dark dark:text-white p-8 relative overflow-hidden group-hover:bg-gradient-to-br group-hover:from-slate-100 group-hover:to-slate-200 dark:group-hover:from-gray-800 dark:group-hover:to-gray-900 transition-colors">
                <div class="text-8xl font-black opacity-5 dark:opacity-5 absolute -top-4 -right-4 text-umsa-blue group-hover:opacity-10 transition-all">{{ day.day }}</div>
                <span class="block text-6xl font-black text-umsa-blue dark:text-blue-200 group-hover:text-blue-800 dark:group-hover:text-white relative z-10 font-serif leading-none mb-2">{{ day.day }}</span>
@@ -376,12 +369,12 @@ const abrirMapa = (url: string) => {
                  </div>
               </div>
             </div>
-          </div>
+          </VCard>
           
           <!-- Estado vacío para cronograma -->
           <div v-if="!(eventoSeleccionado?.cronograma?.length)" class="col-span-full py-20 flex flex-col items-center justify-center text-center opacity-60">
              <div class="w-20 h-20 bg-slate-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-6">
-                <span class="material-symbols-outlined text-4xl text-slate-400">calendar_today</span>
+                <VIcon class="material-symbols-outlined text-4xl text-slate-400">calendar_today</VIcon>
              </div>
              <h3 class="text-xl font-black text-slate-500 uppercase tracking-widest">Cronograma en Preparación</h3>
              <p class="text-sm text-slate-400 mt-2 max-w-md">Próximamente se publicarán las actividades detalladas para este evento. Manténgase informado a través de nuestras redes académicas.</p>
@@ -391,7 +384,7 @@ const abrirMapa = (url: string) => {
     </section>
 
     <!-- SECCIÓN DE EXPOSITORES -->
-    <section v-if="eventoSeleccionado?.secciones?.directorio !== false" id="organizacion" class="py-24 bg-white dark:bg-black transition-colors duration-300 border-t border-slate-100 dark:border-gray-800 w-full">
+    <section v-if="eventoSeleccionado && eventoSeleccionado.secciones?.directorio !== false" id="organizacion" class="py-24 bg-white dark:bg-black transition-colors duration-300 border-t border-slate-100 dark:border-gray-800 w-full">
       <div class="w-full px-6 md:px-16 lg:px-24 max-w-[2500px] mx-auto">
         <div class="flex items-center justify-center gap-4 mb-2">
             <span class="text-umsa-blue font-black uppercase tracking-widest text-xs md:text-sm">Red Especializada TWAS</span>
@@ -415,9 +408,9 @@ const abrirMapa = (url: string) => {
                      <!-- Floating Badge País / Correo -->
                      <div class="absolute top-4 right-4 z-20">
                         <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-black/60 dark:bg-black/80 backdrop-blur-md text-white border border-white/10 text-[9px] font-black uppercase tracking-widest rounded-lg">
-                           <span class="material-symbols-outlined text-[12px]" :class="spk.country && spk.country.includes('@') ? 'text-emerald-400' : 'text-blue-400'">
+                           <VIcon class="material-symbols-outlined text-[12px]" :class="spk.country && spk.country.includes('@') ? 'text-emerald-400' : 'text-blue-400'">
                               {{ spk.country && spk.country.includes('@') ? 'mail' : 'person' }}
-                           </span>
+                           </VIcon>
                            {{ spk.country || 'Expositor' }}
                         </span>
                      </div>
@@ -442,34 +435,34 @@ const abrirMapa = (url: string) => {
             <!-- Indicador visual e instrucciones para el usuario -->
             <div class="flex items-center justify-center gap-2 mt-4 text-[9px] font-black text-slate-400 dark:text-gray-500 uppercase tracking-widest">
                 <span>Desliza horizontalmente para explorar los {{ eventoSeleccionado.ponentes.length }} expositores</span>
-                <span class="material-symbols-outlined animate-bounce-horizontal text-xs">trending_flat</span>
+                <VIcon class="material-symbols-outlined animate-bounce-horizontal text-xs">trending_flat</VIcon>
             </div>
         </div>
         <div v-else-if="!eventoSeleccionado?.coordinadores?.length" class="text-center py-20 opacity-70">
-           <span class="material-symbols-outlined text-6xl text-slate-300 dark:text-gray-600 mb-4">groups</span>
+           <VIcon class="material-symbols-outlined text-6xl text-slate-300 dark:text-gray-600 mb-4">groups</VIcon>
            <p class="text-lg font-black text-slate-400 uppercase tracking-widest">Ponentes por confirmar</p>
         </div>
       </div>
     </section>
 
     <!-- SECCIÓN DE UBICACIÓN -->
-    <section v-if="eventoSeleccionado?.secciones?.ubicacion !== false" id="ubicacion" class="py-24 bg-slate-50 dark:bg-gray-950 transition-colors duration-300 border-t border-slate-100 dark:border-gray-900 w-full">
+    <section v-if="eventoSeleccionado && eventoSeleccionado.secciones?.ubicacion !== false" id="ubicacion" class="py-24 bg-slate-50 dark:bg-gray-950 transition-colors duration-300 border-t border-slate-100 dark:border-gray-900 w-full">
        <div class="w-full px-6 md:px-16 lg:px-24 max-w-[2500px] mx-auto">
           <div class="flex flex-col md:flex-row items-center justify-between mb-16 gap-8 px-4">
              <div>
                 <h2 class="text-4xl md:text-6xl font-black text-primary-dark dark:text-white uppercase italic tracking-tighter">Campus del Evento</h2>
                 <p class="text-sm font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
-                   <span class="material-symbols-outlined text-emerald-500">place</span> {{ eventoSeleccionado?.direccion || 'Av. Villazón Nro 1995, Plaza del Bicentenario - La Paz' }}
+                   <VIcon class="material-symbols-outlined text-emerald-500">place</VIcon> {{ eventoSeleccionado?.direccion || 'Av. Villazón Nro 1995, Plaza del Bicentenario - La Paz' }}
                 </p>
              </div>
              <div>
                 <a :href="eventoSeleccionado?.google_maps_link && !eventoSeleccionado.google_maps_link.startsWith('<') ? eventoSeleccionado.google_maps_link : 'https://maps.app.goo.gl/4fuD4Dd8XWc493VV6'" target="_blank" class="px-6 py-3.5 bg-umsa-blue dark:bg-gray-900 hover:bg-primary-dark dark:hover:bg-gray-800 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl hover:-translate-y-1 border border-transparent dark:border-gray-700 flex items-center gap-2">
-                    Visualizar Ubicación <span class="material-symbols-outlined text-[16px]">open_in_new</span>
+                    Visualizar Ubicación <VIcon class="material-symbols-outlined text-[16px]">open_in_new</VIcon>
                 </a>
              </div>
           </div>
           
-          <div class="w-full bg-white dark:bg-gray-900 p-3 md:p-4 rounded-[2rem] md:rounded-[3rem] shadow-2xl border border-slate-200 dark:border-gray-800 overflow-hidden relative group">
+          <VCard class="w-full bg-white dark:bg-gray-900 p-3 md:p-4 rounded-[2rem] md:rounded-[3rem] shadow-2xl border border-slate-200 dark:border-gray-800 overflow-hidden relative group">
              <!-- Google Maps Embed o Url directa procesada -->
              <div v-if="eventoSeleccionado?.google_maps_link?.startsWith('<')" v-html="eventoSeleccionado?.google_maps_link" class="google-maps-container w-full min-h-[300px] md:h-[500px] rounded-[1.5rem] md:rounded-[2.5rem] filter md:grayscale-[80%] dark:invert text-sm contrast-125 group-hover:grayscale-0 group-hover:invert-0 group-hover:contrast-100 transition-all duration-1000"></div>
              
@@ -488,13 +481,13 @@ const abrirMapa = (url: string) => {
              <!-- Imagen ilustrativa en caso de URL directa (No iframe embebible) -->
              <div v-else-if="eventoSeleccionado?.google_maps_link" class="w-full h-[400px] md:h-[500px] bg-slate-100 dark:bg-gray-800 flex items-center justify-center rounded-[1.5rem] md:rounded-[2.5rem] relative overflow-hidden group/link cursor-pointer" @click="abrirMapa(eventoSeleccionado.google_maps_link)">
                  <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?w=1200&q=80" class="absolute inset-0 w-full h-full object-cover filter grayscale contrast-125 opacity-40 group-hover/link:opacity-80 group-hover/link:grayscale-0 transition-all duration-1000" />
-                 <div class="relative z-10 flex flex-col items-center bg-white/90 dark:bg-black/80 backdrop-blur-md px-10 py-8 rounded-[2rem] shadow-2xl group-hover/link:scale-105 transition-transform duration-500">
-                     <span class="material-symbols-outlined text-6xl text-umsa-blue mb-4">map</span>
+                 <VCard class="relative z-10 flex flex-col items-center bg-white/90 dark:bg-black/80 backdrop-blur-md px-10 py-8 rounded-[2rem] shadow-2xl group-hover/link:scale-105 transition-transform duration-500">
+                     <VIcon class="material-symbols-outlined text-6xl text-umsa-blue mb-4">map</VIcon>
                      <h3 class="text-2xl font-black text-primary-dark dark:text-white uppercase">Abrir en Google Maps</h3>
                      <p class="text-xs font-bold text-slate-500 dark:text-gray-400 mt-2 uppercase tracking-widest text-center max-w-[200px] truncate">{{ eventoSeleccionado.google_maps_link }}</p>
                      
-                     <a :href="eventoSeleccionado.google_maps_link" target="_blank" class="mt-6 px-6 py-2.5 bg-emerald-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl hover:-translate-y-1 block max-w-max" @click.stop>IR AL MAPA O SEDE <span class="material-symbols-outlined text-[14px] align-middle ml-1">open_in_new</span></a>
-                 </div>
+                     <a :href="eventoSeleccionado.google_maps_link" target="_blank" class="mt-6 px-6 py-2.5 bg-emerald-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl hover:-translate-y-1 block max-w-max" @click.stop>IR AL MAPA O SEDE <VIcon class="material-symbols-outlined text-[14px] align-middle ml-1">open_in_new</VIcon></a>
+                 </VCard>
              </div>
 
              <!-- Fallback si NO hay link (Mapa UMSA por defecto) -->
@@ -503,7 +496,7 @@ const abrirMapa = (url: string) => {
              </div>
 
              <div class="absolute inset-0 pointer-events-none rounded-[2rem] md:rounded-[3rem] shadow-[inset_0_0_50px_rgba(0,0,0,0.1)] dark:shadow-[inset_0_0_50px_rgba(0,0,0,0.8)]"></div>
-          </div>
+          </VCard>
        </div>
     </section>
 

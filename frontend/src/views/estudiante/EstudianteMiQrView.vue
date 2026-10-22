@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6 max-w-lg mx-auto bg-white rounded-lg shadow-md text-center mt-10">
+  <VCard class="p-6 max-w-lg mx-auto bg-white rounded-lg shadow-md text-center mt-10">
     <h1 class="text-2xl font-bold mb-4 text-gray-800">Mi Código QR</h1>
     <p class="text-gray-600 mb-6">Muestra este código al docente o personal de logística para registrar tu asistencia.</p>
     
@@ -10,7 +10,7 @@
     <div v-else-if="error" class="text-red-500 my-10">
       {{ error }}
       <br>
-      <button @click="fetchQr" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Reintentar</button>
+      <VBtn @click="fetchQr" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Reintentar</VBtn>
     </div>
 
     <div v-else class="flex flex-col items-center">
@@ -19,7 +19,7 @@
       </div>
       <p class="text-sm text-gray-400 mt-4">Este código se actualiza automáticamente cada 5 minutos por seguridad.</p>
     </div>
-  </div>
+  </VCard>
 </template>
 
 <script setup lang="ts">

@@ -36,7 +36,7 @@ export default class EventosSeeder implements Seeder {
             tipo: 'Simposio',
             fecha_inicio: new Date('2025-05-16'),
             fecha_fin: new Date('2025-05-17'),
-            imagen: 'https://images.unsplash.com/photo-1530026405186-ed1f139313f8?w=800&q=80',
+            imagen: 'https://images.unsplash.com/photo-1530026405186-ed1f139313f8?w=1600&q=85',
             requisitos: { base: { nombres: true, primer_apellido: true, email: true, documento_identidad: true, celular: true }, custom: [] }
           },
           {
@@ -45,7 +45,7 @@ export default class EventosSeeder implements Seeder {
             tipo: 'Taller',
             fecha_inicio: new Date('2025-05-18'),
             fecha_fin: new Date('2025-05-18'),
-            imagen: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800&q=80',
+            imagen: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=1600&q=85',
             requisitos: { base: { nombres: true, primer_apellido: true, email: true }, custom: [{ label: 'Título del Articulo a Redactar', type: 'text' }] }
           },
           {
@@ -54,7 +54,7 @@ export default class EventosSeeder implements Seeder {
             tipo: 'Panel',
             fecha_inicio: new Date('2025-05-19'),
             fecha_fin: new Date('2025-05-19'),
-            imagen: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80',
+            imagen: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1600&q=85',
             requisitos: { base: { nombres: true, primer_apellido: true, email: true, pais_origen: true }, custom: [] }
           }
         ]
@@ -78,7 +78,7 @@ export default class EventosSeeder implements Seeder {
             tipo: 'Conferencia',
             fecha_inicio: new Date('2026-08-10'),
             fecha_fin: new Date('2026-08-10'),
-            imagen: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&q=80',
+            imagen: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=1600&q=85',
             requisitos: { base: { nombres: true, primer_apellido: true, email: true, documento_identidad: true }, custom: [] }
           },
           {
@@ -87,7 +87,7 @@ export default class EventosSeeder implements Seeder {
             tipo: 'Bootcamp',
             fecha_inicio: new Date('2026-08-11'),
             fecha_fin: new Date('2026-08-12'),
-            imagen: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&q=80',
+            imagen: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=1600&q=85',
             requisitos: { base: { nombres: true, primer_apellido: true, email: true, celular: true }, custom: [{ label: 'Nivel de Programación', type: 'select', options: ['Básico', 'Intermedio', 'Avanzado'] }] }
           }
         ]
@@ -111,7 +111,7 @@ export default class EventosSeeder implements Seeder {
             tipo: 'Diplomado',
             fecha_inicio: new Date('2025-06-01'),
             fecha_fin: new Date('2025-06-30'),
-            imagen: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80',
+            imagen: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1600&q=85',
             requisitos: { base: { nombres: true, primer_apellido: true, email: true, documento_identidad: true, grado_academico: true }, custom: [] }
           },
           {
@@ -120,7 +120,7 @@ export default class EventosSeeder implements Seeder {
             tipo: 'Diplomado',
             fecha_inicio: new Date('2025-07-01'),
             fecha_fin: new Date('2025-07-31'),
-            imagen: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=800&q=80',
+            imagen: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=1600&q=85',
             requisitos: { base: { nombres: true, primer_apellido: true, email: true, afiliacion: true }, custom: [{ label: '¿Tiene conocimientos de Cálculo?', type: 'select', options: ['Si', 'No'] }] }
           }
         ]
@@ -144,7 +144,7 @@ export default class EventosSeeder implements Seeder {
             tipo: 'Seminario',
             fecha_inicio: new Date('2025-09-10'),
             fecha_fin: new Date('2025-09-10'),
-            imagen: 'https://images.unsplash.com/photo-1536939459926-301728717817?w=800&q=80',
+            imagen: 'https://images.unsplash.com/photo-1536939459926-301728717817?w=1600&q=85',
             requisitos: { base: { nombres: true, primer_apellido: true, email: true, documento_identidad: true, pais_origen: true }, custom: [] }
           }
         ]
@@ -168,12 +168,25 @@ export default class EventosSeeder implements Seeder {
             tipo: 'Taller',
             fecha_inicio: new Date('2025-11-21'),
             fecha_fin: new Date('2025-11-23'),
-            imagen: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=800&q=80',
+            imagen: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=1600&q=85',
             requisitos: { base: { nombres: true, primer_apellido: true, email: true, celular: true, afiliacion: true, grado_academico: true }, custom: [{ label: 'Talla de Mandil', type: 'select', options: ['S', 'M', 'L', 'XL'] }] }
           }
         ]
       }
     ];
+
+    // Datos públicos de muestra. Se completan también en cursos creados por una ejecución anterior del seeder.
+    const presentaciones: Record<string, { objetivos: string; publico_objetivo: string }> = {
+      'Simposio sobre Biología Molecular': { objetivos: 'Identificar avances recientes en biología molecular.\nRelacionar métodos de laboratorio con aplicaciones de investigación.\nDebatir resultados científicos con especialistas.', publico_objetivo: 'Estudiantes, investigadores y profesionales de ciencias biológicas y de la salud.' },
+      'Taller de Redacción Científica': { objetivos: 'Estructurar un manuscrito científico.\nMejorar la claridad de resúmenes y resultados.\nReconocer criterios de selección de revistas académicas.', publico_objetivo: 'Estudiantes de posgrado, docentes e investigadores que preparan publicaciones.' },
+      'Panel: Cambio Climático en los Andes': { objetivos: 'Reconocer impactos del cambio climático en la región andina.\nComparar propuestas de adaptación.\nParticipar en un diálogo informado con especialistas.', publico_objetivo: 'Estudiantes, investigadores, gestores públicos y público interesado en sostenibilidad.' },
+      'Conferencia: IA en la educación': { objetivos: 'Identificar usos de inteligencia artificial en la enseñanza.\nReconocer oportunidades y límites de las herramientas actuales.', publico_objetivo: 'Docentes, estudiantes y responsables de innovación educativa.' },
+      'Bootcamp de Programación Reactiva': { objetivos: 'Construir componentes interactivos.\nOrganizar el estado de una aplicación web.\nComparar prácticas de desarrollo en Vue y React.', publico_objetivo: 'Estudiantes y desarrolladores con conocimientos básicos de programación web.' },
+      'Módulo I: Fundamentos de Python para Data Science': { objetivos: 'Preparar datos para su análisis.\nUsar estructuras y bibliotecas básicas de Python.\nCrear visualizaciones exploratorias.', publico_objetivo: 'Profesionales y estudiantes que inician su formación en ciencia de datos.' },
+      'Módulo II: Deep Learning y Redes Neuronales': { objetivos: 'Explicar la estructura de una red neuronal.\nEntrenar y evaluar modelos básicos.\nInterpretar métricas y riesgos de sobreajuste.', publico_objetivo: 'Estudiantes y profesionales con conocimientos iniciales de Python y datos.' },
+      'Seminario: El Potencial del Litio en la Región': { objetivos: 'Describir la cadena de valor del litio.\nComparar aplicaciones industriales y desafíos ambientales.\nAnalizar oportunidades regionales.', publico_objetivo: 'Estudiantes, investigadores y profesionales del sector energético.' },
+      'Taller: Aplicaciones de la Tecnología CRISPR': { objetivos: 'Explicar fundamentos de edición genética.\nReconocer etapas de un experimento con CRISPR.\nAnalizar aplicaciones y consideraciones éticas.', publico_objetivo: 'Estudiantes avanzados e investigadores de biotecnología y ciencias de la vida.' },
+    };
 
     const ponente = await userRepository.findOneBy({ email: 'ponente@gmail.com' });
 
@@ -193,8 +206,10 @@ export default class EventosSeeder implements Seeder {
         console.log(`Evento creado: ${evento.nombre}`);
 
         for (const act of actividades) {
+          const requisitos = { ...act.requisitos, presentacion: presentaciones[act.nombre] };
           const nuevaActividad = await actividadRepository.save(actividadRepository.create({
             ...act,
+            requisitos,
             evento: evento,
             horas: 40
           }));
@@ -211,6 +226,12 @@ export default class EventosSeeder implements Seeder {
         }
       } else {
         console.log(`El evento "${evento.nombre}" ya existe.`);
+        for (const act of actividades) {
+          const existente = await actividadRepository.findOne({ where: { nombre: act.nombre, evento: { id: evento.id } } });
+          if (!existente || existente.requisitos?.presentacion) continue;
+          existente.requisitos = { ...(existente.requisitos || {}), presentacion: presentaciones[act.nombre] };
+          await actividadRepository.save(existente);
+        }
       }
 
       if (coordinador && evento) {

@@ -2,7 +2,8 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
+import { prepararBanner } from '@/utils/bannerImage';
 
 const router = useRouter();
 const loading = ref(false);
@@ -48,12 +49,20 @@ const onLogoChange = (e: any) => {
     }
 };
 
-const onFondoChange = (e: any) => {
-    const file = e.target.files[0];
+const onFondoChange = async (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
     if (file) {
-        fondoFile.value = file;
-        fondoPreview.value = URL.createObjectURL(file);
+        try {
+            const preparado = await prepararBanner(file);
+            if (fondoPreview.value) URL.revokeObjectURL(fondoPreview.value);
+            fondoFile.value = preparado.file;
+            fondoPreview.value = URL.createObjectURL(preparado.file);
+        } catch (error) {
+            Swal.fire('Imagen insuficiente', error instanceof Error ? error.message : 'No se pudo procesar el banner.', 'warning');
+        }
     }
+    input.value = '';
 };
 
 const handleCreate = async () => {
@@ -105,7 +114,7 @@ const handleCreate = async () => {
             
             <!-- FORMULARIO DE EDICIÓN -->
             <div class="lg:col-span-7 space-y-6">
-                <div class="bg-white dark:bg-gray-900 rounded-[2rem] p-8 border border-slate-100 dark:border-gray-800 shadow-sm space-y-6">
+                <VCard class="bg-white dark:bg-gray-900 rounded-[2rem] p-8 border border-slate-100 dark:border-gray-800 shadow-sm space-y-6">
                     
                     <h3 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2 mb-4">
                         <span class="w-2 h-2 bg-blue-600 rounded-full"></span>
@@ -115,54 +124,54 @@ const handleCreate = async () => {
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
                         <div class="md:col-span-12">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Nombre Principal del Evento</label>
-                            <input v-model="form.nombre" type="text" placeholder="Ej: Congreso Internacional TWAS-TYAN" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-umsa-blue outline-none transition-all">
+                            <UiInput v-model="form.nombre" type="text" placeholder="Ej: Congreso Internacional TWAS-TYAN" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-umsa-blue outline-none transition-all" />
                         </div>
                         
                         <div class="md:col-span-6">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Sigla / Abreviación (Para el Header)</label>
-                            <input v-model="form.sigla" type="text" placeholder="Ej: TYAN" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold uppercase focus:ring-2 focus:ring-umsa-blue outline-none">
+                            <UiInput v-model="form.sigla" type="text" placeholder="Ej: TYAN" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold uppercase focus:ring-2 focus:ring-umsa-blue outline-none" />
                         </div>
 
                         <div class="md:col-span-6">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Texto del Badge (Botón Verde)</label>
-                            <input v-model="form.badge_text" type="text" placeholder="Evento Oficial..." class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-[10px] font-black uppercase focus:ring-2 focus:ring-emerald-500 outline-none text-emerald-600">
+                            <UiInput v-model="form.badge_text" type="text" placeholder="Evento Oficial..." class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-[10px] font-black uppercase focus:ring-2 focus:ring-emerald-500 outline-none text-emerald-600" />
                         </div>
 
                         <div class="md:col-span-4">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Gestión</label>
-                            <input v-model="form.gestion" type="text" placeholder="2025" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-umsa-blue outline-none">
+                            <UiInput v-model="form.gestion" type="text" placeholder="2025" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-umsa-blue outline-none" />
                         </div>
                         
                         <div class="md:col-span-8">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Versión / Slogan</label>
-                            <input v-model="form.version" type="text" placeholder="Ej: 4ta Edición" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-umsa-blue outline-none">
+                            <UiInput v-model="form.version" type="text" placeholder="Ej: 4ta Edición" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-umsa-blue outline-none" />
                         </div>
 
                         <div class="md:col-span-12">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Frase Destacada (Impacto en Banner)</label>
-                            <input v-model="form.frase_destacada" type="text" placeholder="Ej: Ciencia para el desarrollo sostenible" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-5 py-3.5 text-sm font-bold italic focus:ring-2 focus:ring-umsa-blue outline-none">
+                            <UiInput v-model="form.frase_destacada" type="text" placeholder="Ej: Ciencia para el desarrollo sostenible" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-5 py-3.5 text-sm font-bold italic focus:ring-2 focus:ring-umsa-blue outline-none" />
                         </div>
                     </div>
 
                     <div class="pt-4">
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Resumen del Evento (Narrativa)</label>
-                        <textarea v-model="form.descripcion" rows="4" placeholder="Escribe aquí el resumen que verán los estudiantes..." class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-2xl px-5 py-4 text-sm font-medium focus:ring-2 focus:ring-umsa-blue outline-none"></textarea>
+                        <VTextarea v-model="form.descripcion" rows="4" placeholder="Escribe aquí el resumen que verán los estudiantes..." class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-2xl px-5 py-4 text-sm font-medium focus:ring-2 focus:ring-umsa-blue outline-none"></VTextarea>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                         <div>
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Ciudad / Sede</label>
-                            <input v-model="form.ubicacion" type="text" placeholder="La Paz, Bolivia" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold">
+                            <UiInput v-model="form.ubicacion" type="text" placeholder="La Paz, Bolivia" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold" />
                         </div>
                         <div>
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Dirección Detallada</label>
-                            <input v-model="form.direccion" type="text" placeholder="Campus Central UMSA" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold">
+                            <UiInput v-model="form.direccion" type="text" placeholder="Campus Central UMSA" class="w-full bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold" />
                         </div>
                     </div>
-                </div>
+                </VCard>
 
                 <!-- Branding Visual -->
-                <div class="bg-white dark:bg-gray-900 rounded-[2rem] p-8 border border-slate-100 dark:border-gray-800 shadow-sm space-y-6">
+                <VCard class="bg-white dark:bg-gray-900 rounded-[2rem] p-8 border border-slate-100 dark:border-gray-800 shadow-sm space-y-6">
                     <h3 class="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
                         <span class="w-2 h-2 bg-emerald-500 rounded-full"></span>
                         Branding Visual
@@ -179,7 +188,7 @@ const handleCreate = async () => {
                                 <div class="aspect-square rounded-2xl bg-slate-50 dark:bg-gray-800 border-2 border-dashed border-slate-200 dark:border-gray-700 flex flex-col items-center justify-center p-4 overflow-hidden transition-all group-hover:border-blue-400">
                                     <img v-if="resolvedLogo" :src="resolvedLogo" class="w-full h-full object-contain">
                                     <template v-else>
-                                        <span class="material-symbols-outlined text-slate-300 text-4xl mb-2">image</span>
+                                        <VIcon class="material-symbols-outlined text-slate-300 text-4xl mb-2">image</VIcon>
                                         <span class="text-[9px] text-slate-400 font-bold uppercase">Subir Logo Oficial</span>
                                     </template>
                                     <input type="file" @change="onLogoChange" class="absolute inset-0 opacity-0 cursor-pointer">
@@ -197,15 +206,16 @@ const handleCreate = async () => {
                                 <div class="aspect-video rounded-2xl bg-slate-50 dark:bg-gray-800 border-2 border-dashed border-slate-200 dark:border-gray-700 flex flex-col items-center justify-center p-4 overflow-hidden transition-all group-hover:border-blue-400">
                                     <img v-if="resolvedBanner" :src="resolvedBanner" class="w-full h-full object-cover">
                                     <template v-else>
-                                        <span class="material-symbols-outlined text-slate-300 text-4xl mb-2">wallpaper</span>
+                                        <VIcon class="material-symbols-outlined text-slate-300 text-4xl mb-2">wallpaper</VIcon>
                                         <span class="text-[9px] text-slate-400 font-bold uppercase">Subir Fondo Hero</span>
                                     </template>
-                                    <input type="file" @change="onFondoChange" class="absolute inset-0 opacity-0 cursor-pointer">
+                                    <input type="file" accept="image/jpeg,image/png,image/webp" @change="onFondoChange" class="absolute inset-0 opacity-0 cursor-pointer">
                                 </div>
+                                <p class="text-xs text-slate-500">Mínimo 1280 × 720 px; recomendado 1920 × 1080 px.</p>
                             </div>
                         </div>
                     </div>
-                </div>
+                </VCard>
             </div>
 
             <!-- LIVE PREVIEW CARD (MINI-HOME FIDELITY) -->
@@ -221,7 +231,7 @@ const handleCreate = async () => {
                     </div>
 
                     <!-- Simulación Unificada -->
-                    <div class="bg-white dark:bg-gray-950 rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 dark:border-gray-800 group transition-all">
+                    <VCard class="bg-white dark:bg-gray-950 rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 dark:border-gray-800 group transition-all">
                         <!-- Banner Section -->
                         <div class="relative aspect-[16/10] bg-slate-900 overflow-hidden">
                             <img v-if="resolvedBanner" :src="resolvedBanner" class="absolute inset-0 w-full h-full object-cover opacity-60 animate-in fade-in duration-700">
@@ -229,10 +239,10 @@ const handleCreate = async () => {
                             
                             <!-- Mini Logo & Sigla -->
                             <div class="absolute top-4 left-4 z-20 flex items-center gap-2">
-                                <div class="w-10 h-10 bg-white/95 backdrop-blur rounded-lg p-1.5 shadow-lg flex items-center justify-center">
+                                <VCard class="w-10 h-10 bg-white/95 backdrop-blur rounded-lg p-1.5 shadow-lg flex items-center justify-center">
                                     <img v-if="resolvedLogo" :src="resolvedLogo" class="w-full h-full object-contain">
-                                    <span v-else class="material-symbols-outlined text-slate-300 text-lg">image</span>
-                                </div>
+                                    <VIcon v-else class="material-symbols-outlined text-slate-300 text-lg">image</VIcon>
+                                </VCard>
                                 <span class="text-[10px] font-black text-white uppercase tracking-tighter drop-shadow-md">{{ form.sigla || 'Sigla' }}</span>
                             </div>
 
@@ -253,9 +263,9 @@ const handleCreate = async () => {
                                     <div class="px-2 py-0.5 bg-sky-500/20 backdrop-blur border border-sky-400/30 text-sky-200 rounded text-[7px] font-black uppercase">
                                         {{ form.gestion || '202X' }}
                                     </div>
-                                    <div class="px-2 py-0.5 bg-white/10 backdrop-blur border border-white/20 text-white rounded text-[7px] font-black uppercase">
+                                    <VCard class="px-2 py-0.5 bg-white/10 backdrop-blur border border-white/20 text-white rounded text-[7px] font-black uppercase">
                                         {{ form.ubicacion || 'Sede' }}
-                                    </div>
+                                    </VCard>
                                 </div>
                             </div>
                         </div>
@@ -284,11 +294,11 @@ const handleCreate = async () => {
                                 <div class="h-8 border border-slate-200 dark:border-gray-800 rounded-full flex items-center justify-center text-[7px] font-black text-slate-400 uppercase">Detalles</div>
                             </div>
                         </div>
-                    </div>
+                    </VCard>
 
                     <div class="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
                         <p class="text-[8px] text-emerald-600 font-bold leading-relaxed uppercase tracking-tighter">
-                            <span class="material-symbols-outlined text-[14px] align-middle mr-1">check_circle</span>
+                            <VIcon class="material-symbols-outlined text-[14px] align-middle mr-1">check_circle</VIcon>
                             Simulación en tiempo real. Todos los cambios se reflejan al instante.
                         </p>
                     </div>
@@ -298,10 +308,10 @@ const handleCreate = async () => {
 
         <!-- BOTONES DE ACCIÓN -->
         <div class="flex flex-col md:flex-row justify-end items-center gap-4 mt-12 pt-8 border-t border-slate-100 dark:border-gray-800 pb-12">
-            <button @click="router.back()" class="px-8 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors">Cancelar</button>
-            <button @click="handleCreate" :disabled="loading" class="w-full md:w-auto bg-slate-900 dark:bg-blue-600 hover:bg-black dark:hover:bg-blue-700 text-white font-black px-16 py-4 rounded-2xl text-[11px] uppercase tracking-[0.2em] shadow-xl active:scale-95 disabled:opacity-50 transition-all">
+            <VBtn @click="router.back()" class="px-8 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors">Cancelar</VBtn>
+            <VBtn @click="handleCreate" :disabled="loading" class="w-full md:w-auto bg-slate-900 dark:bg-blue-600 hover:bg-black dark:hover:bg-blue-700 text-white font-black px-16 py-4 rounded-2xl text-[11px] uppercase tracking-[0.2em] shadow-xl active:scale-95 disabled:opacity-50 transition-all">
                 {{ loading ? 'Publicando...' : 'Crear y Publicar Gestión' }}
-            </button>
+            </VBtn>
         </div>
     </div>
 </template>

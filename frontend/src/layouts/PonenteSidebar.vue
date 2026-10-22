@@ -2,7 +2,7 @@
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useUIStore } from '@/stores/ui';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -101,7 +101,7 @@ const cambiarRol = async () => {
 </script>
 
 <template>
-  <aside :class="[
+  <VSheet tag="aside" :class="[
       uiStore.isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
       'w-64 lg:w-72 bg-white dark:bg-gray-950 text-slate-600 dark:text-gray-300 flex flex-col px-4 py-8 fixed left-0 bottom-0 top-[75px] z-[110] border-r border-slate-200 dark:border-gray-800 overflow-y-auto transition-transform duration-300'
     ]">
@@ -121,40 +121,40 @@ const cambiarRol = async () => {
       <p class="text-[10px] text-umsa-blue dark:text-blue-400 mt-2 uppercase tracking-widest font-black bg-blue-50 w-max px-2 py-1 rounded-md dark:bg-gray-800 border border-blue-100 dark:border-gray-700">Expositor</p>
     </div>
 
-    <nav class="space-y-1 flex-1">
+    <VSheet tag="nav" class="space-y-1 flex-1">
       <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 mt-2 pl-2 border-b border-slate-100 dark:border-gray-800 pb-2">Mi área de Trabajo</p>
 
-      <button @click="navigate('ponente-eventos'); uiStore.closeSidebar()"
+      <VBtn @click="navigate('ponente-eventos'); uiStore.closeSidebar()"
         :class="[ $route.name === 'ponente-eventos' || $route.name === 'ponente-evento-detalle' ? 'nav-active bg-umsa-blue text-white shadow-lg shadow-umsa-blue/30' : 'hover:bg-slate-50 dark:hover:bg-gray-900 text-slate-500 hover:text-umsa-blue hover:translate-x-1' ]"
         class="w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all group mt-1">
         <span class="text-xs uppercase tracking-widest font-bold">Mis Eventos Asignados</span>
-        <span class="material-symbols-outlined text-[18px] transition-colors" :class="[ $route.name === 'ponente-eventos' || $route.name === 'ponente-evento-detalle' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">event</span>
-      </button>
+        <VIcon class="material-symbols-outlined text-[18px] transition-colors" :class="[ $route.name === 'ponente-eventos' || $route.name === 'ponente-evento-detalle' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">event</VIcon>
+      </VBtn>
 
-      <button @click="navigate('ponente-historial-notas'); uiStore.closeSidebar()"
+      <VBtn @click="navigate('ponente-historial-notas'); uiStore.closeSidebar()"
         :class="[ $route.name === 'ponente-historial-notas' ? 'nav-active bg-umsa-blue text-white shadow-lg shadow-umsa-blue/30' : 'hover:bg-slate-50 dark:hover:bg-gray-900 text-slate-500 hover:text-umsa-blue hover:translate-x-1' ]"
         class="w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all group mt-1">
         <span class="text-xs uppercase tracking-widest font-bold">Historial de Notas</span>
-        <span class="material-symbols-outlined text-[18px] transition-colors" :class="[ $route.name === 'ponente-historial-notas' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">history_edu</span>
-      </button>
+        <VIcon class="material-symbols-outlined text-[18px] transition-colors" :class="[ $route.name === 'ponente-historial-notas' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">history_edu</VIcon>
+      </VBtn>
 
 
-      <button @click="navigate('ponente-certificados'); uiStore.closeSidebar()"
+      <VBtn @click="navigate('ponente-certificados'); uiStore.closeSidebar()"
         :class="[ $route.name === 'ponente-certificados' ? 'nav-active bg-umsa-blue text-white shadow-lg shadow-umsa-blue/30' : 'hover:bg-slate-50 dark:hover:bg-gray-900 text-slate-500 hover:text-umsa-blue hover:translate-x-1' ]"
         class="w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all group mt-1">
         <span class="text-xs uppercase tracking-widest font-bold">Mis Certificados</span>
-        <span class="material-symbols-outlined text-[18px] transition-colors" :class="[ $route.name === 'ponente-certificados' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">workspace_premium</span>
-      </button>
-    </nav>
+        <VIcon class="material-symbols-outlined text-[18px] transition-colors" :class="[ $route.name === 'ponente-certificados' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">workspace_premium</VIcon>
+      </VBtn>
+    </VSheet>
 
     <!-- CAMBIO DE CONTEXTO DE ROL -->
     <div v-if="authStore.tieneMultiplesRoles" class="mt-6 pt-4 border-t border-slate-100 dark:border-gray-800">
-      <button @click="cambiarRol"
+      <VBtn @click="cambiarRol"
         class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-bold text-slate-500 hover:bg-slate-50 dark:hover:bg-gray-900 border border-transparent">
         <span class="text-[10px] uppercase tracking-widest">Cambiar Rol</span>
-        <span class="material-symbols-outlined text-[18px]">cached</span>
-      </button>
+        <VIcon class="material-symbols-outlined text-[18px]">cached</VIcon>
+      </VBtn>
     </div>
 
-  </aside>
+  </VSheet>
 </template>

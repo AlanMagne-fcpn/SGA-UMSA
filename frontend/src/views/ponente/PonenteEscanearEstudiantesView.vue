@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6 max-w-2xl mx-auto mt-6 bg-white rounded-lg shadow-md">
+  <VCard class="p-6 max-w-2xl mx-auto mt-6 bg-white rounded-lg shadow-md">
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-2xl font-bold text-gray-800">Escanear Asistencia (Sesión #{{ idSesion }})</h1>
       <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium border border-green-200">
@@ -39,7 +39,7 @@
         💡 <strong class="text-gray-700">Tip:</strong> Asegúrate de que el código QR esté bien iluminado.
       </p>
     </div>
-  </div>
+  </VCard>
 </template>
 
 <script setup lang="ts">
@@ -47,7 +47,7 @@ import { ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { QrcodeStream } from 'vue-qrcode-reader';
 import { asistenciasService } from '@/services/asistencias.service';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 const route = useRoute();
 const idSesion = Number(route.params.id);

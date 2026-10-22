@@ -4,7 +4,7 @@ import { ref } from 'vue';
 export const useUIStore = defineStore('ui', () => {
     const isSidebarOpen = ref(window.innerWidth > 1024);
     const isMobile = ref(window.innerWidth <= 1024);
-    const isDark = ref(localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches));
+    const isDark = ref(localStorage.getItem('theme') === 'dark');
 
     const toggleSidebar = () => {
         isSidebarOpen.value = !isSidebarOpen.value;

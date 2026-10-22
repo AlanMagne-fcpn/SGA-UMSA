@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { usuariosService } from '@/services/usuarios.service';
 import { useRouter } from 'vue-router';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -58,13 +58,13 @@ const handleLogout = () => {
 </script>
 
 <template>
-  <div v-if="showOverlay" class="fixed inset-0 z-[1050] flex items-center justify-center bg-slate-900/95 backdrop-blur-md p-4">
-    <div class="bg-white dark:bg-[#0d0d14] w-full max-w-md rounded-[2.5rem] shadow-2xl border border-white/10 overflow-hidden animate-in zoom-in duration-500">
+  <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" v-if="showOverlay" >
+    <VCard class="bg-white dark:bg-[#0d0d14] w-full max-w-md rounded-[2.5rem] shadow-2xl border border-white/10 overflow-hidden animate-in zoom-in duration-500">
       <div class="p-8 md:p-10 text-center">
         
         <!-- ICON -->
         <div class="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-amber-500/10">
-          <span class="material-symbols-outlined text-amber-600 text-4xl">lock_reset</span>
+          <VIcon class="material-symbols-outlined text-amber-600 text-4xl">lock_reset</VIcon>
         </div>
 
         <h2 class="text-2xl font-black text-slate-800 dark:text-white uppercase italic tracking-tight mb-2">Actualización Obligatoria</h2>
@@ -74,8 +74,8 @@ const handleLogout = () => {
           <div class="space-y-1">
             <label class="text-[10px] font-black text-slate-500 uppercase ml-4 tracking-widest">Nueva Contraseña</label>
             <div class="relative">
-              <span class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400">lock</span>
-              <input v-model="password" type="password" required placeholder="Mínimo 8 caracteres"
+              <VIcon class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400">lock</VIcon>
+              <UiInput v-model="password" type="password" required placeholder="Mínimo 8 caracteres"
                      class="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm focus:border-amber-500/50 outline-none transition-all" />
             </div>
           </div>
@@ -83,27 +83,27 @@ const handleLogout = () => {
           <div class="space-y-1">
             <label class="text-[10px] font-black text-slate-500 uppercase ml-4 tracking-widest">Confirmar Contraseña</label>
             <div class="relative">
-              <span class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400">verified_user</span>
-              <input v-model="confirmPassword" type="password" required placeholder="Repite tu contraseña"
+              <VIcon class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400">verified_user</VIcon>
+              <UiInput v-model="confirmPassword" type="password" required placeholder="Repite tu contraseña"
                      class="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm focus:border-amber-500/50 outline-none transition-all" />
             </div>
           </div>
 
           <div class="pt-4 flex flex-col gap-3">
-            <button type="submit" :disabled="isSubmitting"
+            <VBtn type="submit" :disabled="isSubmitting"
                     class="w-full py-4 bg-amber-600 text-white font-black uppercase text-xs tracking-widest rounded-2xl shadow-lg shadow-amber-600/20 hover:bg-amber-700 transition-all">
               {{ isSubmitting ? 'Actualizando...' : 'Establecer Nueva Contraseña' }}
-            </button>
-            <button @click="handleLogout" type="button"
+            </VBtn>
+            <VBtn @click="handleLogout" type="button"
                     class="w-full py-4 bg-transparent text-slate-400 font-bold uppercase text-[10px] tracking-widest hover:text-slate-600 transition-all">
               Cerrar Sesión
-            </button>
+            </VBtn>
           </div>
         </form>
 
       </div>
-    </div>
-  </div>
+    </VCard>
+  </VDialog>
 </template>
 
 <style scoped>

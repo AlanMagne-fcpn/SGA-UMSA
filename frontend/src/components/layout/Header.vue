@@ -6,8 +6,8 @@ const eventoStore = useEventoStore()
 </script>
 
 <template>
-  <header class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm font-sans">
-    <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  <VSheet tag="header" class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm font-sans">
+    <VSheet tag="nav" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex flex-col md:flex-row justify-between items-center h-auto md:h-24 py-2">
         
         <!-- Logos IZQUIERDA (DISEÑO INSTITUCIONAL DINÁMICO) -->
@@ -46,7 +46,7 @@ const eventoStore = useEventoStore()
           <!-- ACCCIONES DERECHA -->
           <div class="flex items-center gap-4 mt-2 md:mt-0">
             <RouterLink to="/login" class="bg-umsa-blue hover:bg-primary-dark text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2">
-              <span class="material-symbols-outlined text-sm">login</span> Ingresar
+              <VIcon class="material-symbols-outlined text-sm">login</VIcon> Ingresar
             </RouterLink>
 
             <div class="flex items-center gap-2 border-l pl-4 border-slate-200">
@@ -60,6 +60,6 @@ const eventoStore = useEventoStore()
           </div>
 
       </div>
-    </nav>
-  </header>
+    </VSheet>
+  </VSheet>
 </template>

@@ -36,8 +36,9 @@ La aplicacion estara disponible en: [http://localhost:5173](http://localhost:517
 | vue-router | Gestion de rutas y navegacion |
 | pinia | Almacenamiento y gestion del estado global |
 | axios | Cliente HTTP para peticiones al Backend |
-| sweetalert2 | Dialogos y alertas visuales |
-| tailwindcss | Framework de utilidades CSS |
+| vuetify 3.10 | Componentes visuales, temas claro/oscuro y dialogos |
+| tailwindcss | Utilidades CSS para distribucion y ajustes existentes |
+| @playwright/test | Pruebas de los flujos visuales principales |
 
 ---
 
@@ -47,6 +48,12 @@ Para generar el paquete optimizado para despliegue:
 
 ```bash
 npm run build
+```
+
+Para ejecutar las pruebas de interfaz con Google Chrome instalado:
+
+```bash
+npm run test:ui
 ```
 
 El resultado se encontrara en la carpeta dist/.

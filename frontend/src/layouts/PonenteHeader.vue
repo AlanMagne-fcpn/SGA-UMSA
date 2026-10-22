@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
 
 import api, { getBaseUrl } from '@/services/api'
-import Swal from 'sweetalert2'
+import Swal from '@/services/dialogs'
 
 
 const router = useRouter()
@@ -181,7 +181,7 @@ const closeAll = (e: MouseEvent) => {
 
 onMounted(async () => {
   const savedTheme = localStorage.getItem('theme')
-  if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+  if (savedTheme === 'dark') {
     isDark.value = true
     document.documentElement.classList.add('dark')
   }
@@ -220,12 +220,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <header class="fixed top-0 left-0 right-0 h-[75px] bg-white dark:bg-gray-900 border-b border-slate-200 dark:border-gray-800 z-[100] px-4 md:px-8 flex items-center justify-between shadow-sm transition-colors duration-300">       
+  <VSheet tag="header" class="fixed top-0 left-0 right-0 h-[75px] bg-white dark:bg-gray-900 border-b border-slate-200 dark:border-gray-800 z-[100] px-4 md:px-8 flex items-center justify-between shadow-sm transition-colors duration-300">
     <div class="flex items-center flex-1 min-w-0">
       <!-- Botón Menú Móvil -->
-      <button @click="uiStore.toggleSidebar()" class="lg:hidden p-2 -ml-2 text-slate-500 hover:text-umsa-blue transition-colors shrink-0">
-        <span class="material-symbols-outlined text-3xl">menu</span>
-      </button>
+      <VBtn @click="uiStore.toggleSidebar()" class="lg:hidden p-2 -ml-2 text-slate-500 hover:text-umsa-blue transition-colors shrink-0">
+        <VIcon class="material-symbols-outlined text-3xl">menu</VIcon>
+      </VBtn>
 
       <div class="hidden sm:flex flex-col flex-shrink-0 cursor-pointer border-r border-slate-200 dark:border-gray-800 pr-4 md:pr-6 ml-2 justify-center" @click="$router.push('/ponente')">
         <h2 class="text-black dark:text-white font-clarendon font-black text-[10px] md:text-xs tracking-tighter leading-none">Sistema de Gestión de Eventos</h2>
@@ -239,24 +239,24 @@ onUnmounted(() => {
 
     <div class="flex items-center space-x-1 md:space-x-4 pl-2 md:pl-4 shrink-0">        
       <!-- Botón Modo Oscuro -->
-      <button
+      <VBtn
         @click="toggleDark"
         class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-gray-800 text-slate-500 dark:text-gray-400 hover:text-umsa-blue dark:hover:text-blue-500 transition-colors shadow-sm border border-slate-200 dark:border-gray-700"
       >
-        <span class="material-symbols-outlined text-[20px]">{{ isDark ? 'light_mode' : 'dark_mode' }}</span>
-      </button>
+        <VIcon class="material-symbols-outlined text-[20px]">{{ isDark ? 'light_mode' : 'dark_mode' }}</VIcon>
+      </VBtn>
 
       <!-- Campanita de Notificaciones -->
       <div class="relative" ref="notificationsRef">
-        <button
+        <VBtn
           @click="toggleNotifications"
           class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-gray-800 text-slate-500 dark:text-gray-400 hover:text-umsa-blue dark:hover:text-blue-500 transition-all shadow-sm border border-slate-200 dark:border-gray-700 relative"
         >
-          <span class="material-symbols-outlined text-[22px]" :class="ponenteNotifications.some(n => n.prioridad === 'alta') ? 'animate-pulse text-primary-dark dark:text-white' : ''">notifications</span>
+          <VIcon class="material-symbols-outlined text-[22px]" :class="ponenteNotifications.some(n => n.prioridad === 'alta') ? 'animate-pulse text-primary-dark dark:text-white' : ''">notifications</VIcon>
           <span v-if="ponenteNotifications.length > 0" class="absolute -top-1 -right-1 min-w-[16px] h-4 bg-red-500 rounded-full border border-white dark:border-gray-950 flex items-center justify-center text-[9px] font-bold text-white px-1">
             {{ ponenteNotifications.length }}
           </span>
-        </button>
+        </VBtn>
 
         <!-- Dropdown Notificaciones -->
         <div v-if="showNotifications" @click.stop @mousemove="resetAutoClose"
@@ -275,7 +275,7 @@ onUnmounted(() => {
                   'w-9 h-9 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 shrink-0',
                   notif.tipo === 'success' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
                 ]">
-                  <span class="material-symbols-outlined text-[20px]">{{ notif.tipo === 'success' ? 'verified' : 'info' }}</span>
+                  <VIcon class="material-symbols-outlined text-[20px]">{{ notif.tipo === 'success' ? 'verified' : 'info' }}</VIcon>
                 </div>
                 <div class="flex-1 min-w-0">
                   <p class="text-[10px] font-black text-primary-dark dark:text-white uppercase leading-tight truncate">{{ notif.titulo }}</p>
@@ -285,7 +285,7 @@ onUnmounted(() => {
             </div>
 
             <div v-if="ponenteNotifications.length === 0" class="p-10 text-center">
-              <span class="material-symbols-outlined text-4xl text-slate-200 dark:text-gray-800 mb-2">notifications_off</span>
+              <VIcon class="material-symbols-outlined text-4xl text-slate-200 dark:text-gray-800 mb-2">notifications_off</VIcon>
               <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">No hay nuevas alertas</p>
             </div>
           </div>
@@ -294,10 +294,10 @@ onUnmounted(() => {
 
       <!-- Menú Perfil SSA Style -->
       <div class="relative" ref="profileDropdownRef" @click.stop>
-        <button @click="isProfileOpen = !isProfileOpen" class="flex items-center gap-2 md:gap-3 bg-slate-50 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors rounded-xl pr-2 md:pr-3 py-1 pl-1 shadow-sm">
+        <VBtn @click="isProfileOpen = !isProfileOpen" class="flex items-center gap-2 md:gap-3 bg-slate-50 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors rounded-xl pr-2 md:pr-3 py-1 pl-1 shadow-sm">
           <div class="h-8 w-8 rounded-full overflow-hidden bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 p-0 flex items-center justify-center shrink-0">
             <img v-if="profilePhotoUrl" :src="profilePhotoUrl" alt="Foto" class="w-full h-full object-cover" />
-            <span v-else class="material-symbols-outlined text-2xl text-slate-400">account_circle</span>
+            <VIcon v-else class="material-symbols-outlined text-2xl text-slate-400">account_circle</VIcon>
           </div>
           <div class="hidden lg:flex flex-col items-start pr-1">
             <span class="text-xs font-black text-primary-dark dark:text-white leading-tight">
@@ -305,39 +305,39 @@ onUnmounted(() => {
             </span>
             <span class="text-[9px] uppercase tracking-widest text-slate-400 dark:text-gray-500 font-bold">SSA - Mi Perfil</span>
           </div>
-          <span class="material-symbols-outlined text-slate-400 text-sm transition-transform duration-200 hidden sm:block" :class="[isProfileOpen ? 'rotate-180' : '']">expand_more</span>
-        </button>
+          <VIcon class="material-symbols-outlined text-slate-400 text-sm transition-transform duration-200 hidden sm:block" :class="[isProfileOpen ? 'rotate-180' : '']">expand_more</VIcon>
+        </VBtn>
 
         <!-- Dropdown flotante -->
         <div v-if="isProfileOpen" @mousemove="resetAutoClose" class="absolute right-0 top-full mt-2 w-[220px] bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
           
           <div class="p-2 space-y-1">
-            <button @click="router.push('/ponente/datos')" class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-800 hover:text-umsa-blue transition-colors flex items-center gap-2">
-              <span class="material-symbols-outlined text-[18px]">badge</span>
+            <VBtn @click="router.push('/ponente/datos')" class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-800 hover:text-umsa-blue transition-colors flex items-center gap-2">
+              <VIcon class="material-symbols-outlined text-[18px]">badge</VIcon>
               Ver Perfil de Datos
-            </button>
+            </VBtn>
 
-            <button v-if="authStore.tieneMultiplesRoles && authStore.esEstudiante" @click="cambiarAEstudiante" class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-800 hover:text-umsa-blue transition-colors flex items-center gap-2">
-              <span class="material-symbols-outlined text-[18px] text-blue-500">swap_horiz</span>
+            <VBtn v-if="authStore.tieneMultiplesRoles && authStore.esEstudiante" @click="cambiarAEstudiante" class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-800 hover:text-umsa-blue transition-colors flex items-center gap-2">
+              <VIcon class="material-symbols-outlined text-[18px] text-blue-500">swap_horiz</VIcon>
               Cambiar a Estudiante
-            </button>
+            </VBtn>
 
-            <button @click="abrirSoporte" class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-800 hover:text-blue-600 transition-colors flex items-center gap-2">
-              <span class="material-symbols-outlined text-[18px] text-slate-400">help</span>
+            <VBtn @click="abrirSoporte" class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-800 hover:text-blue-600 transition-colors flex items-center gap-2">
+              <VIcon class="material-symbols-outlined text-[18px] text-slate-400">help</VIcon>
               Ayuda y Soporte
-            </button>
+            </VBtn>
 
             <div class="h-[1px] bg-slate-100 dark:bg-gray-800 my-1"></div>
 
-            <button @click="handleLogout" class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
-              <span class="material-symbols-outlined text-[18px]">logout</span>
+            <VBtn @click="handleLogout" class="w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2">
+              <VIcon class="material-symbols-outlined text-[18px]">logout</VIcon>
               Cerrar Sesión
-            </button>
+            </VBtn>
           </div>
         </div>
       </div>
     </div>
-  </header>
+  </VSheet>
 </template>
 
 <style scoped>

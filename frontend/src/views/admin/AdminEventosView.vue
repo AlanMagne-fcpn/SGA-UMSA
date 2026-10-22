@@ -5,7 +5,7 @@ import { useAdminHistorialStore } from '@/stores/adminHistorial';
 import { coordinacionesService } from '@/services/coordinaciones.service';
 import { usuariosService } from '@/services/usuarios.service';
 import api from '@/services/api';
-import Swal from 'sweetalert2';
+import Swal from '@/services/dialogs';
 
 const authStore = useAuthStore();
 const userRoles = computed(() => authStore.userRoles);
@@ -282,7 +282,7 @@ onMounted(fetchEventos);
       <div>
         <div class="flex items-center gap-3 mb-2">
           <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#003B71] to-[#0070BB] flex items-center justify-center shadow-lg">
-            <span class="material-symbols-outlined text-white text-[22px]">corporate_fare</span>
+            <VIcon class="material-symbols-outlined text-white text-[22px]">corporate_fare</VIcon>
           </div>
           <div>
             <p class="text-[10px] font-black text-umsa-blue dark:text-sky-400 uppercase tracking-widest leading-none">Módulo SGEA</p>
@@ -292,43 +292,43 @@ onMounted(fetchEventos);
         <p class="text-slate-500 text-sm ml-1">Control total de eventos del sistema SGEA · {{ eventosFiltrados.length }} registros</p>
       </div>
 
-      <button @click="abrirCrear()"
+      <VBtn @click="abrirCrear()"
               class="flex items-center gap-2 px-6 py-3 bg-umsa-blue text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-[#005a96] transition-all shadow-lg shadow-[#0070BB]/20 group">
-        <span class="material-symbols-outlined text-[18px] group-hover:rotate-90 transition-transform">add</span>
+        <VIcon class="material-symbols-outlined text-[18px] group-hover:rotate-90 transition-transform">add</VIcon>
         Nuevo Evento
-      </button>
+      </VBtn>
     </div>
 
     <!-- FILTROS -->
-    <div class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-2xl p-4 shadow-sm">
+    <VCard class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-2xl p-4 shadow-sm">
       <div class="flex flex-wrap gap-4 items-center">
         <div class="flex-1 min-w-[220px] relative">
-          <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
-          <input v-model="filtroTexto" type="text" placeholder="Buscar evento..."
+          <VIcon class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</VIcon>
+          <UiInput v-model="filtroTexto" type="text" placeholder="Buscar evento..."
                  class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm outline-none focus:border-umsa-blue/50 transition-all text-slate-800 dark:text-white" />
         </div>
         <div class="flex gap-2 flex-wrap">
-          <button v-for="(cfg, estado) in estadoConfig" :key="estado"
+          <VBtn v-for="(cfg, estado) in estadoConfig" :key="estado"
                   @click="filtroEstado = filtroEstado === String(estado) ? '' : String(estado)"
                   :class="filtroEstado === String(estado) ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-slate-100 dark:bg-white/5 text-slate-500 hover:bg-slate-200'"
                   class="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all">
             {{ cfg.label }}
-          </button>
+          </VBtn>
         </div>
       </div>
-    </div>
+    </VCard>
 
     <!-- TABLA -->
-    <div class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2.5rem] overflow-hidden shadow-sm">
+    <VCard class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-[2.5rem] overflow-hidden shadow-sm">
       <div v-if="isLoading" class="py-20 flex justify-center">
         <div class="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
       </div>
       <div v-else-if="eventosFiltrados.length === 0" class="py-20 flex flex-col items-center text-slate-400">
-        <span class="material-symbols-outlined text-5xl mb-2 opacity-20">corporate_fare</span>
+        <VIcon class="material-symbols-outlined text-5xl mb-2 opacity-20">corporate_fare</VIcon>
         <p class="text-xs font-black uppercase tracking-widest">No hay eventos</p>
       </div>
       <div v-else class="overflow-x-auto">
-        <table class="w-full">
+        <VTable class="w-full">
           <thead class="bg-slate-50 dark:bg-white/5">
             <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
               <th class="px-6 py-4 text-left">Evento</th>
@@ -344,7 +344,7 @@ onMounted(fetchEventos);
               <td class="px-6 py-4">
                 <div class="flex items-center gap-3">
                   <div class="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/20 flex items-center justify-center shrink-0 border border-red-200 dark:border-red-900/30">
-                    <span class="material-symbols-outlined text-red-600 text-[18px]">corporate_fare</span>
+                    <VIcon class="material-symbols-outlined text-red-600 text-[18px]">corporate_fare</VIcon>
                   </div>
                   <div>
                     <p class="text-sm font-black text-slate-800 dark:text-white">{{ evento.nombre }}</p>
@@ -370,77 +370,77 @@ onMounted(fetchEventos);
               <td class="px-6 py-4 text-right">
                 <div class="flex items-center justify-end gap-1">
                   <!-- Inscripción Masiva (Excel) -->
-                  <button @click="$router.push({ name: 'admin-inscripciones-excel', query: { eventoId: evento.id } })"
+                  <VBtn @click="$router.push({ name: 'admin-inscripciones-excel', query: { eventoId: evento.id } })"
                           title="Inscripción Masiva (Excel)"
                           class="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 hover:bg-emerald-100 transition-all border border-emerald-100 dark:border-emerald-800/30 shadow-sm">
-                    <span class="material-symbols-outlined text-[20px]">grid_on</span>
-                  </button>
+                    <VIcon class="material-symbols-outlined text-[20px]">grid_on</VIcon>
+                  </VBtn>
 
                   <!-- Emitir Certificados -->
-                  <button @click="$router.push({ name: 'admin-certificados-envio', query: { search: evento.nombre } })"
+                  <VBtn @click="$router.push({ name: 'admin-certificados-envio', query: { search: evento.nombre } })"
                           title="Emitir Certificados"
                           class="p-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 hover:bg-amber-100 transition-all border border-amber-100 dark:border-amber-800/30 shadow-sm">
-                    <span class="material-symbols-outlined text-[20px]">verified_user</span>
-                  </button>
+                    <VIcon class="material-symbols-outlined text-[20px]">verified_user</VIcon>
+                  </VBtn>
 
                   <!-- Botón Gestión de Coordinadores -->
-                  <button @click="abrirCoordinadores(evento)" 
+                  <VBtn @click="abrirCoordinadores(evento)"
                           title="Asignar Responsables (Coordinadores/Logística)"
                           class="p-2 rounded-xl bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 transition-all border border-red-100 dark:border-red-800/30 shadow-sm">
-                    <span class="material-symbols-outlined text-[20px]">group_add</span>
-                  </button>
-                  <button @click="abrirEditar(evento)" title="Editar"
+                    <VIcon class="material-symbols-outlined text-[20px]">group_add</VIcon>
+                  </VBtn>
+                  <VBtn @click="abrirEditar(evento)" title="Editar"
                           class="p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-slate-400 hover:text-blue-600 transition-all">
-                    <span class="material-symbols-outlined text-[18px]">edit</span>
-                  </button>
-                  <button @click="inhabilitarEvento(evento)" title="Inhabilitar"
+                    <VIcon class="material-symbols-outlined text-[18px]">edit</VIcon>
+                  </VBtn>
+                  <VBtn @click="inhabilitarEvento(evento)" title="Inhabilitar"
                           class="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-600 transition-all">
-                    <span class="material-symbols-outlined text-[18px]">do_not_disturb_on</span>
-                  </button>
+                    <VIcon class="material-symbols-outlined text-[18px]">do_not_disturb_on</VIcon>
+                  </VBtn>
                 </div>
               </td>
             </tr>
           </tbody>
-        </table>
+        </VTable>
       </div>
-    </div>
+    </VCard>
 
     <!-- MODAL CREAR / EDITAR -->
     <Teleport to="body">
-      <div v-if="showModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
-        <div class="bg-white dark:bg-[#0d0d14] w-full max-w-xl rounded-[2.5rem] border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+      <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" v-if="showModal" >
+        <VCard class="bg-white dark:bg-[#0d0d14] w-full max-w-xl rounded-[2.5rem] border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden animate-in zoom-in duration-300">
           <div class="p-8">
             <div class="flex justify-between items-center mb-8">
               <h2 class="text-xl font-black text-slate-800 dark:text-white uppercase italic">
                 {{ isEditing ? 'Editar Evento' : 'Nuevo Evento' }}
               </h2>
-              <button @click="showModal = false" class="text-slate-400 hover:text-red-600 transition-colors">
-                <span class="material-symbols-outlined">close</span>
-              </button>
+              <VBtn @click="showModal = false" class="text-slate-400 hover:text-red-600 transition-colors">
+                <VIcon class="material-symbols-outlined">close</VIcon>
+              </VBtn>
             </div>
 
             <div class="space-y-4">
               <div class="space-y-1">
                 <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Nombre del Evento</label>
-                <input v-model="formEvento.nombre" type="text"
+                <UiInput v-model="formEvento.nombre" type="text"
                        class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-umsa-blue/50 transition-all" />
               </div>
 
               <div class="space-y-1">
                 <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Descripción</label>
-                <textarea v-model="formEvento.descripcion" rows="3"
-                          class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-umsa-blue/50 transition-all resize-none"></textarea>
+                <VTextarea v-model="formEvento.descripcion" rows="3"
+                          class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-umsa-blue/50 transition-all resize-none"></VTextarea>
               </div>
 
               <div class="grid grid-cols-2 gap-4">
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Fecha Inicio</label>
-                  <input v-model="formEvento.fecha_inicio" type="date"
+                  <UiInput v-model="formEvento.fecha_inicio" type="date"
                          class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-umsa-blue/50 transition-all" />
                 </div>
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Fecha Fin</label>
-                  <input v-model="formEvento.fecha_fin" type="date"
+                  <UiInput v-model="formEvento.fecha_fin" type="date"
                          class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-umsa-blue/50 transition-all" />
                 </div>
               </div>
@@ -448,15 +448,15 @@ onMounted(fetchEventos);
               <div class="grid grid-cols-2 gap-4">
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Ubicación</label>
-                  <input v-model="formEvento.ubicacion" type="text"
+                  <UiInput v-model="formEvento.ubicacion" type="text"
                          class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-umsa-blue/50 transition-all" />
                 </div>
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Estado</label>
-                  <select v-model="formEvento.estado"
+                  <UiSelect v-model="formEvento.estado"
                           class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-umsa-blue/50 transition-all font-bold">
                     <option v-for="(cfg, est) in estadoConfig" :key="est" :value="Number(est)">{{ cfg.label }}</option>
-                  </select>
+                  </UiSelect>
                 </div>
               </div>
 
@@ -464,54 +464,53 @@ onMounted(fetchEventos);
               <div class="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-white/5 mt-2">
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-red-600 uppercase ml-2">Teléfono de Contacto</label>
-                  <input v-model="formEvento.telefono" type="text" placeholder="+591 ..."
+                  <UiInput v-model="formEvento.telefono" type="text" placeholder="+591 ..."
                          class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-umsa-blue/50 transition-all" />
                 </div>
                 <div class="space-y-1">
                   <label class="text-[10px] font-black text-red-600 uppercase ml-2">Email de Contacto</label>
-                  <input v-model="formEvento.email" type="email" placeholder="ejemplo@correo.com"
+                  <UiInput v-model="formEvento.email" type="email" placeholder="ejemplo@correo.com"
                          class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-umsa-blue/50 transition-all" />
                 </div>
               </div>
 
               <div class="space-y-1">
                 <label class="text-[10px] font-black text-red-600 uppercase ml-2">Dirección Exacta (Para el Footer)</label>
-                <input v-model="formEvento.direccion" type="text" placeholder="Calle, Número, Edificio..."
+                <UiInput v-model="formEvento.direccion" type="text" placeholder="Calle, Número, Edificio..."
                        class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-umsa-blue/50 transition-all" />
               </div>
 
               <div class="space-y-1">
                 <label class="text-[10px] font-black text-red-600 uppercase ml-2">Organización y Auspicio (Lista de nombres)</label>
-                <textarea v-model="formEvento.organizadores" rows="2" placeholder="TWAS, TYAN, UMSA, FCPN..."
-                          class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-umsa-blue/50 transition-all resize-none"></textarea>
+                <VTextarea v-model="formEvento.organizadores" rows="2" placeholder="TWAS, TYAN, UMSA, FCPN..."
+                          class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 text-sm text-slate-800 dark:text-white outline-none focus:border-umsa-blue/50 transition-all resize-none"></VTextarea>
               </div>
 
               <div class="space-y-1">
                 <label class="text-[10px] font-black text-umsa-blue uppercase ml-2">Logo del Evento (Imagen)</label>
-                <input type="file" @change="(e: any) => formEvento.logo_file = e.target.files[0]" accept="image/*"
-                       class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-red-50 file:text-red-700 hover:file:bg-red-100 transition-all cursor-pointer" />
+                <UiFileInput @change="(e: any) => formEvento.logo_file = e.target.files[0]" accept="image/*" class="w-full" />
               </div>
             </div>
 
             <div class="mt-8 flex gap-3">
-              <button @click="showModal = false"
+              <VBtn @click="showModal = false"
                       class="flex-1 py-4 bg-slate-100 dark:bg-white/5 text-[10px] font-black text-slate-400 uppercase rounded-2xl hover:bg-slate-200 transition-all">
                 Cancelar
-              </button>
-              <button @click="guardar()"
+              </VBtn>
+              <VBtn @click="guardar()"
                       class="flex-1 py-4 bg-umsa-blue text-[10px] font-black text-white uppercase rounded-2xl shadow-lg shadow-[#0070BB]/20 hover:bg-[#005a96] transition-all">
                 {{ isEditing ? 'Guardar Cambios' : 'Crear Evento' }}
-              </button>
+              </VBtn>
             </div>
           </div>
-        </div>
-      </div>
+        </VCard>
+      </VDialog>
     </Teleport>
 
     <!-- MODAL: GESTIÓN DE COORDINADORES (Solo Super Usuario) -->
     <Teleport to="body">
-      <div v-if="showModalCoordinadores" class="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md">
-        <div class="bg-white dark:bg-[#0d0d14] w-full max-w-2xl rounded-[3rem] border border-white/10 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 duration-500">
+      <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" v-if="showModalCoordinadores" >
+        <VCard class="bg-white dark:bg-[#0d0d14] w-full max-w-2xl rounded-[3rem] border border-white/10 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 duration-500">
           
           <div class="p-10">
             <!-- Header Modal -->
@@ -520,9 +519,9 @@ onMounted(fetchEventos);
                 <h2 class="text-2xl font-black text-slate-800 dark:text-white uppercase italic tracking-tight">Personal Responsable</h2>
                 <p class="text-xs text-red-600 font-bold uppercase mt-1">Evento: {{ eventoParaCoordinadores?.nombre }}</p>
               </div>
-              <button @click="showModalCoordinadores = false" class="p-2 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-600 transition-all">
-                <span class="material-symbols-outlined">close</span>
-              </button>
+              <VBtn @click="showModalCoordinadores = false" class="p-2 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-600 transition-all">
+                <VIcon class="material-symbols-outlined">close</VIcon>
+              </VBtn>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -532,15 +531,15 @@ onMounted(fetchEventos);
                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-white/5 pb-2">Asignados Actualmente</p>
                 
                 <div v-if="cargandoCoordinadores" class="flex justify-center py-10">
-                  <span class="material-symbols-outlined animate-spin text-red-600">progress_activity</span>
+                  <VIcon class="material-symbols-outlined animate-spin text-red-600">progress_activity</VIcon>
                 </div>
 
-                <div v-else-if="coordinadoresActuales.length === 0" class="py-10 text-center bg-slate-50 dark:bg-white/3 rounded-3xl border-2 border-dashed border-slate-200 dark:border-white/5">
+                <VCard v-else-if="coordinadoresActuales.length === 0" class="py-10 text-center bg-slate-50 dark:bg-white/3 rounded-3xl border-2 border-dashed border-slate-200 dark:border-white/5">
                   <p class="text-[10px] font-bold text-slate-400 uppercase">Sin personal asignado</p>
-                </div>
+                </VCard>
 
                 <div v-else class="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                  <div v-for="coord in coordinadoresActuales" :key="coord.id" 
+                  <VCard v-for="coord in coordinadoresActuales" :key="coord.id"
                        class="flex items-center justify-between p-3 bg-white dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5 group">
                     <div class="flex items-center gap-3">
                       <div class="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 flex items-center justify-center text-xs font-black">
@@ -556,11 +555,11 @@ onMounted(fetchEventos);
                         </div>
                       </div>
                     </div>
-                    <button @click="quitarCoordinador(coord)" 
+                    <VBtn @click="quitarCoordinador(coord)"
                             class="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-600 transition-all">
-                      <span class="material-symbols-outlined text-[18px]">person_remove</span>
-                    </button>
-                  </div>
+                      <VIcon class="material-symbols-outlined text-[18px]">person_remove</VIcon>
+                    </VBtn>
+                  </VCard>
                 </div>
               </div>
 
@@ -569,8 +568,8 @@ onMounted(fetchEventos);
                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-white/5 pb-2">Añadir Nuevo Responsable</p>
                 
                 <div class="relative">
-                  <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</span>
-                  <input v-model="queryCandidato" type="text" placeholder="Buscar por nombre o email..."
+                  <VIcon class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</VIcon>
+                  <UiInput v-model="queryCandidato" type="text" placeholder="Buscar por nombre o email..."
                          class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-[11px] outline-none focus:border-umsa-blue/50 transition-all" />
                 </div>
 
@@ -593,7 +592,7 @@ onMounted(fetchEventos);
                         </div>
                       </div>
                     </div>
-                    <span class="material-symbols-outlined text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">add_circle</span>
+                    <VIcon class="material-symbols-outlined text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">add_circle</VIcon>
                   </div>
                   
                   <div v-if="candidatosFiltrados.length === 0" class="py-10 text-center italic text-slate-400 text-[10px]">
@@ -605,15 +604,15 @@ onMounted(fetchEventos);
             </div>
 
             <div class="mt-10 pt-6 border-t border-slate-100 dark:border-white/5 flex justify-end">
-              <button @click="showModalCoordinadores = false"
+              <VBtn @click="showModalCoordinadores = false"
                       class="px-8 py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:-translate-y-1 transition-all">
                 Finalizar Gestión
-              </button>
+              </VBtn>
             </div>
 
           </div>
-        </div>
-      </div>
+        </VCard>
+      </VDialog>
     </Teleport>
   </div>
 </template>

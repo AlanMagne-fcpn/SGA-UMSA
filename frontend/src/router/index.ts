@@ -5,37 +5,57 @@ import RegisterView from '../views/auth/RegisterView.vue'
 import DashboardLayout from '../layouts/DashboardLayout.vue'
 import AdminLayout from '../layouts/AdminLayout.vue'
 import HomeView from '../views/HomeView.vue'
+import WelcomeView from '../views/WelcomeView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
+      name: 'welcome',
+      meta: { generalBranding: true },
+      component: WelcomeView,
+    },
+    {
+      path: '/eventos',
       name: 'home',
       component: HomeView,
     },
     {
+      path: '/eventos/:eventoId',
+      name: 'evento-publico',
+      component: HomeView,
+    },
+    {
+      path: '/cursos/:id',
+      name: 'curso-publico',
+      component: () => import('../views/public/CursoPublicoDetalleView.vue'),
+    },
+    {
       path: '/login',
       name: 'login',
+      meta: { generalBranding: true },
       component: LoginView,
     },
     {
       path: '/restablecer-contrasena',
       name: 'restablecer-contrasena',
+      meta: { generalBranding: true },
       component: () => import('../views/auth/RestablecerContrasenaView.vue'),
     },
     {
       path: '/register',
       name: 'register',
+      meta: { generalBranding: true },
       component: RegisterView,
     },
     {
       path: '/evento',
-      redirect: '/',
+      redirect: '/eventos',
     },
     {
       path: '/eventos/index',
-      redirect: '/',
+      redirect: '/eventos',
     },
     {
       path: '/verificar-certificado/:uuid',
@@ -71,6 +91,7 @@ const router = createRouter({
           name: 'coordinador-gestion-eventos-detalle',
           component: () => import('../views/actividades/ActividadDetalleView.vue'),
         },
+        { path: 'cursos/:id/aula', name: 'coordinador-aula-editor', component: () => import('../views/actividades/CursoVirtualView.vue') },
         {
           path: 'eventos/:id/certificado/workplace',
           name: 'coordinador-certificado-workplace-evento',
@@ -174,6 +195,7 @@ const router = createRouter({
           name: 'admin-gestion-eventos-detalle',
           component: () => import('../views/actividades/ActividadDetalleView.vue'),
         },
+        { path: 'cursos/:id/aula', name: 'admin-aula-editor', component: () => import('../views/actividades/CursoVirtualView.vue') },
         {
           path: 'eventos/:id/certificado/workplace',
           name: 'admin-certificado-workplace-evento',
@@ -266,6 +288,7 @@ const router = createRouter({
           name: 'ponente-curso-detalle',
           component: () => import('../views/ponente/PonenteCursoDetalleView.vue'),
         },
+        { path: 'curso/:id/aula', name: 'ponente-aula-editor', component: () => import('../views/actividades/CursoVirtualView.vue') },
         {
           path: 'actividad/:actividadId/calificaciones',
           name: 'ponente-actividad-calificaciones',
@@ -317,6 +340,7 @@ const router = createRouter({
           name: 'estudiante-actividades-detalle',
           component: () => import('../views/estudiante/EstudianteActividadDetalleView.vue'),
         },
+        { path: 'actividades/:id/aula', name: 'estudiante-aula', component: () => import('../views/actividades/CursoVirtualView.vue') },
         {
           path: 'calificaciones',
           name: 'estudiante-calificaciones',
