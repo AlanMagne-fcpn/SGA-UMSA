@@ -1,21 +1,23 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, onMounted, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import api, { getImageUrl, imagenActividad, logoEvento, resolveMediaUrl } from '@/services/api';
 import { useEventoStore } from '@/stores/eventoStore';
 import PublicCatalog from '@/components/PublicCatalog.vue';
 import EventLogo from '@/components/eventos/EventLogo.vue';
+import { enlaceEvento, idDeEnlace } from '@/utils/enlacePublico';
 
 const defaultAvatar = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2394a3b8"><rect width="24" height="24" fill="%23e2e8f0"/><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
 
 const eventoStore = useEventoStore();
 const route = useRoute();
+const router = useRouter();
 const esDetalleEvento = computed(() => route.params.eventoId !== undefined);
 
 const eventosActivos = ref<any[]>([]);
 const ponentesDB = ref<any[]>([]);
 const eventoSeleccionado = computed(() => esDetalleEvento.value
-  ? eventosActivos.value.find(evento => String(evento.id) === String(route.params.eventoId)) || null
+  ? eventosActivos.value.find(evento => evento.id === idDeEnlace(route.params.eventoId)) || null
   : null);
 const cargandoEventos = ref(true);
 const heroImageSmall = ref(false);
@@ -147,7 +149,13 @@ onMounted(() => {
 
 watch(eventoSeleccionado, async (evento) => {
   heroImageSmall.value = false;
-  if (evento) eventoStore.setVersion(evento.id);
+  if (evento) {
+    eventoStore.setVersion(evento.id);
+    const canonico = enlaceEvento({ id: evento.id, nombre: evento.title || evento.nombre });
+    if (`/eventos/${route.params.eventoId}` !== canonico) {
+      await router.replace(canonico + (route.hash || ''));
+    }
+  }
   await nextTick();
   if (route.hash) document.getElementById(route.hash.slice(1))?.scrollIntoView();
   else if (evento) window.scrollTo({ top: 0 });

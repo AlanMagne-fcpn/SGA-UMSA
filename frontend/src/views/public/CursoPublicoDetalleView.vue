@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import api, { getImageUrl, imagenActividad } from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
 import { useEventoStore } from '@/stores/eventoStore';
+import { enlaceCurso, enlaceEvento, idDeEnlace } from '@/utils/enlacePublico';
 
 type Modalidad = { id: number; tipo: string; min_nota: number | null; min_asistencia: number | null };
 type CursoPublico = {
@@ -19,11 +20,15 @@ type CursoPublico = {
 };
 
 const route = useRoute();
+const router = useRouter();
 const auth = useAuthStore();
 const eventoStore = useEventoStore();
 const curso = ref<CursoPublico | null>(null);
 watch(curso, (actual) => {
   if (actual?.evento?.id) eventoStore.registrarEventoDeCurso(actual.id, actual.evento.id);
+  if (!actual?.id) return;
+  const canonico = enlaceCurso(actual);
+  if (route.path !== canonico) router.replace(canonico);
 });
 const cargando = ref(true);
 const error = ref('');
@@ -34,12 +39,14 @@ const asistenciaMinima = computed(() => curso.value?.modalidades?.find(item => i
 const imagen = computed(() => imagenActividad(curso.value));
 const cupoDisponible = computed(() => !curso.value?.cupo || curso.value.inscritos < curso.value.cupo);
 const disponible = computed(() => curso.value?.estado === 1 && curso.value?.evento?.estado === 1 && cupoDisponible.value);
+const cursoId = computed(() => idDeEnlace(route.params.id));
 const destinoInscripcion = computed(() => auth.isAuthenticated && auth.esEstudiante
-  ? { name: 'estudiante-actividades-detalle', params: { id: route.params.id } }
+  ? { name: 'estudiante-actividades-detalle', params: { id: cursoId.value } }
   : { name: 'register' });
 const fecha = (value: string | null | undefined) => value ? new Intl.DateTimeFormat('es-BO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(value)) : 'Por confirmar';
 
-watch(() => route.params.id, async (id) => {
+watch(() => route.params.id, async () => {
+  const id = cursoId.value;
   curso.value = null;
   error.value = '';
   cargando.value = true;
@@ -51,7 +58,7 @@ watch(() => route.params.id, async (id) => {
     const mensaje = String(cause?.response?.data?.message || '');
     if (cause?.response?.status === 404 && mensaje.startsWith('Cannot GET ')) {
       try {
-        const { data: act } = await api.get(`/actividades-academicas/${id}`);
+        const { data: act } = await api.get(`/actividades-academicas/${cursoId.value}`);
         const modalidades = Array.isArray(act.modalidades) && act.modalidades.length ? act.modalidades : [{
           id: 0, tipo: act.modalidad || 'Presencial', min_nota: act.min_nota ?? 51, min_asistencia: act.min_asistencia ?? 80,
         }];
@@ -94,7 +101,7 @@ watch(() => route.params.id, async (id) => {
           <div>
             <nav aria-label="Ruta" class="mb-8 flex flex-wrap items-center gap-2 text-sm text-sky-200">
               <RouterLink to="/eventos" class="hover:underline">Eventos y cursos</RouterLink><span aria-hidden="true">›</span>
-              <RouterLink v-if="curso.evento" :to="`/eventos/${curso.evento.id}`" class="max-w-full truncate hover:underline">{{ curso.evento.nombre }}</RouterLink><span v-else>Evento</span><span aria-hidden="true">›</span><span>Curso</span>
+              <RouterLink v-if="curso.evento" :to="enlaceEvento(curso.evento)" class="max-w-full truncate hover:underline">{{ curso.evento.nombre }}</RouterLink><span v-else>Evento</span><span aria-hidden="true">›</span><span>Curso</span>
             </nav>
             <p class="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-sky-300">{{ curso.tipo || 'Curso académico' }} · {{ modalidad }}</p>
             <h1 class="max-w-4xl text-3xl font-black leading-tight tracking-tight sm:text-5xl">{{ curso.nombre }}</h1>
@@ -162,7 +169,7 @@ watch(() => route.params.id, async (id) => {
           <h2 class="text-lg font-black text-[#062548] dark:text-white">Sobre el evento</h2>
           <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{{ curso.evento?.nombre || 'Actividad académica' }}</p>
           <p v-if="curso.evento?.gestion" class="mt-2 text-sm text-slate-500 dark:text-slate-300">Gestión {{ curso.evento.gestion }}</p>
-          <RouterLink :to="curso.evento ? `/eventos/${curso.evento.id}#cursos` : '/eventos#cursos'" class="mt-5 inline-flex items-center gap-1 text-sm font-bold text-[#0070BB] dark:text-sky-300">Ver cursos del evento <VIcon size="17">arrow_forward</VIcon></RouterLink>
+          <RouterLink :to="curso.evento ? `${enlaceEvento(curso.evento)}#cursos` : '/eventos#cursos'" class="mt-5 inline-flex items-center gap-1 text-sm font-bold text-[#0070BB] dark:text-sky-300">Ver cursos del evento <VIcon size="17">arrow_forward</VIcon></RouterLink>
           <div v-if="curso.requisitos?.length" class="mt-6 border-t border-slate-200 pt-5 dark:border-slate-700"><h3 class="font-bold">Requisitos de inscripción</h3><ul class="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300"><li v-for="(requisito, index) in curso.requisitos" :key="index" class="flex gap-2"><VIcon size="17" class="text-[#0070BB]">check_circle</VIcon>{{ requisito }}</li></ul></div>
         </div>
       </section>

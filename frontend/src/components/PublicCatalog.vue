@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import EventLogo from '@/components/eventos/EventLogo.vue';
+import { enlaceCurso, enlaceEvento } from '@/utils/enlacePublico';
 
 const props = defineProps<{ eventos: any[]; seleccionado: any; cargando: boolean; soloCursos?: boolean }>();
 
@@ -46,16 +47,16 @@ watch([busquedaCurso, modalidad, eventoCurso], () => { paginaCurso.value = 1; })
       <div v-if="eventos.length === 1" class="mx-auto max-w-[1600px]">
         <p class="text-xs font-bold uppercase tracking-[0.22em] text-[#0070bb] dark:text-sky-300">Explora este evento</p>
         <div class="mt-4 flex flex-col gap-6 rounded-2xl border border-slate-200 bg-slate-50 dark:border-white/15 dark:bg-white/[0.06] p-5 lg:flex-row lg:items-center lg:justify-between lg:p-7">
-          <RouterLink :to="`/eventos/${eventos[0].id}`" class="flex min-w-0 items-center gap-4 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
+          <RouterLink :to="enlaceEvento({ id: eventos[0].id, nombre: eventos[0].title })" class="flex min-w-0 items-center gap-4 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
             <EventLogo :src="eventos[0].logo" :nombre="eventos[0].title" class="h-16 w-16 rounded-xl p-2" />
             <span class="min-w-0"><span class="block text-xs font-bold uppercase tracking-wider text-[#0070bb] dark:text-sky-300">{{ eventos[0].sigla || 'Evento actual' }} · Gestión {{ eventos[0].gestion }}</span><span class="mt-1 block text-lg font-black leading-tight sm:text-xl">{{ eventos[0].title }}</span><span class="mt-2 block text-sm text-slate-600 dark:text-slate-300">{{ eventos[0].dateShort }} · {{ eventos[0].cursos.length }} {{ eventos[0].cursos.length === 1 ? 'curso' : 'cursos' }}</span></span>
           </RouterLink>
           <div class="flex flex-wrap gap-2 text-sm font-semibold">
-            <RouterLink :to="`/eventos/${eventos[0].id}#informacion`" class="rounded-full border border-slate-300 dark:border-slate-300 dark:border-white/20 px-4 py-2.5 transition hover:bg-white/10">Información</RouterLink>
-            <RouterLink v-if="seleccionado?.secciones?.cronograma !== false" :to="`/eventos/${eventos[0].id}#cronograma`" class="rounded-full border border-slate-300 dark:border-slate-300 dark:border-white/20 px-4 py-2.5 transition hover:bg-white/10">Cronograma</RouterLink>
-            <RouterLink :to="`/eventos/${eventos[0].id}#cursos`" class="rounded-full border border-slate-300 dark:border-slate-300 dark:border-white/20 px-4 py-2.5 transition hover:bg-white/10">Cursos</RouterLink>
-            <RouterLink v-if="seleccionado?.secciones?.directorio !== false" :to="`/eventos/${eventos[0].id}#organizacion`" class="rounded-full border border-slate-300 dark:border-slate-300 dark:border-white/20 px-4 py-2.5 transition hover:bg-white/10">Ponentes</RouterLink>
-            <RouterLink v-if="seleccionado?.secciones?.ubicacion !== false" :to="`/eventos/${eventos[0].id}#ubicacion`" class="rounded-full border border-slate-300 dark:border-slate-300 dark:border-white/20 px-4 py-2.5 transition hover:bg-white/10">Ubicación</RouterLink>
+            <RouterLink :to="`${enlaceEvento({ id: eventos[0].id, nombre: eventos[0].title })}#informacion`" class="rounded-full border border-slate-300 dark:border-slate-300 dark:border-white/20 px-4 py-2.5 transition hover:bg-white/10">Información</RouterLink>
+            <RouterLink v-if="seleccionado?.secciones?.cronograma !== false" :to="`${enlaceEvento({ id: eventos[0].id, nombre: eventos[0].title })}#cronograma`" class="rounded-full border border-slate-300 dark:border-slate-300 dark:border-white/20 px-4 py-2.5 transition hover:bg-white/10">Cronograma</RouterLink>
+            <RouterLink :to="`${enlaceEvento({ id: eventos[0].id, nombre: eventos[0].title })}#cursos`" class="rounded-full border border-slate-300 dark:border-slate-300 dark:border-white/20 px-4 py-2.5 transition hover:bg-white/10">Cursos</RouterLink>
+            <RouterLink v-if="seleccionado?.secciones?.directorio !== false" :to="`${enlaceEvento({ id: eventos[0].id, nombre: eventos[0].title })}#organizacion`" class="rounded-full border border-slate-300 dark:border-slate-300 dark:border-white/20 px-4 py-2.5 transition hover:bg-white/10">Ponentes</RouterLink>
+            <RouterLink v-if="seleccionado?.secciones?.ubicacion !== false" :to="`${enlaceEvento({ id: eventos[0].id, nombre: eventos[0].title })}#ubicacion`" class="rounded-full border border-slate-300 dark:border-slate-300 dark:border-white/20 px-4 py-2.5 transition hover:bg-white/10">Ubicación</RouterLink>
           </div>
         </div>
       </div>
@@ -81,7 +82,7 @@ watch([busquedaCurso, modalidad, eventoCurso], () => { paginaCurso.value = 1; })
         </div>
         <div class="mt-5 flex items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400"><span>{{ eventosFiltrados.length }} {{ eventosFiltrados.length === 1 ? 'resultado' : 'resultados' }}</span><span v-if="paginasEvento > 1">Página {{ paginaEvento }} de {{ paginasEvento }}</span></div>
         <div v-if="eventosVisibles.length" class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <RouterLink v-for="evento in eventosVisibles" :key="evento.id" :to="`/eventos/${evento.id}`"
+          <RouterLink v-for="evento in eventosVisibles" :key="evento.id" :to="enlaceEvento({ id: evento.id, nombre: evento.title })"
             class="group relative min-h-[250px] overflow-hidden rounded-2xl border text-left text-white shadow-xl transition duration-300 hover:-translate-y-1 hover:shadow-sky-950/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300"
             :class="seleccionado?.id === evento.id ? 'border-sky-300 ring-2 ring-sky-300/70' : 'border-white/15 hover:border-sky-400/70'">
             <img :src="evento.imagen_fondo" data-fallback-src="/logo/fondoejeml.jpg" :alt="evento.title" class="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
@@ -115,7 +116,7 @@ watch([busquedaCurso, modalidad, eventoCurso], () => { paginaCurso.value = 1; })
           <label v-if="!soloCursos"><span class="sr-only">Filtrar cursos por evento</span><select v-model="eventoCurso" class="h-12 w-full rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-[#12283c] px-4 text-sm font-semibold text-[#102e4c] dark:text-white outline-none focus:border-sky-400"><option>Todos los eventos</option><option v-for="evento in eventos" :key="evento.id" :value="String(evento.id)">{{ evento.title }}</option></select></label>
         </div>
         <div v-if="cursosVisibles.length" class="mt-6 flex flex-wrap gap-5">
-          <RouterLink v-for="curso in cursosVisibles" :key="curso.id" :to="`/cursos/${curso.id}`" class="group flex w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-[#102e4c] shadow-sm transition duration-300 hover:-translate-y-1 hover:border-sky-400 hover:shadow-xl dark:border-white/10 dark:bg-[#142a40] dark:text-white dark:hover:shadow-sky-950/50 sm:w-[calc(50%-10px)] xl:w-[calc(25%-15px)]">
+          <RouterLink v-for="curso in cursosVisibles" :key="curso.id" :to="enlaceCurso({ id: curso.id, nombre: curso.nombre })" class="group flex w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-[#102e4c] shadow-sm transition duration-300 hover:-translate-y-1 hover:border-sky-400 hover:shadow-xl dark:border-white/10 dark:bg-[#142a40] dark:text-white dark:hover:shadow-sky-950/50 sm:w-[calc(50%-10px)] xl:w-[calc(25%-15px)]">
             <div class="relative aspect-[16/9] overflow-hidden bg-slate-800"><img :src="curso.imagen" data-course-image :alt="curso.nombre" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" /><span class="absolute inset-0 bg-gradient-to-t from-[#142a40]/70 to-transparent"></span><span class="absolute bottom-3 left-3 rounded-full bg-[#0070bb] px-3 py-1 text-[11px] font-bold text-white">{{ curso.modalidad }}</span></div>
             <div class="flex flex-1 flex-col p-5"><p class="line-clamp-1 text-[11px] font-bold uppercase tracking-wider text-[#0070bb] dark:text-sky-300">{{ curso.eventoTitulo }}</p><h3 class="mt-2 line-clamp-2 min-h-12 text-lg font-bold leading-snug">{{ curso.nombre }}</h3><p class="mt-2 line-clamp-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{{ curso.descripcion || 'Consulta los detalles y requisitos de este curso.' }}</p><div class="mt-3 text-xs text-amber-700 dark:text-amber-300"><VIcon size="16">{{ curso.valoracion?.cantidad ? 'star' : 'star_outline' }}</VIcon> {{ curso.valoracion?.cantidad ? `${curso.valoracion.promedio}/5 · ${curso.valoracion.cantidad} valoraciones` : 'Aún sin valoraciones' }}</div><div class="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-200 dark:border-white/10 pt-4 text-xs text-slate-600 dark:text-slate-300"><span v-if="curso.horas" class="inline-flex items-center gap-1"><VIcon size="16">schedule</VIcon>{{ curso.horas }} h</span><span>{{ curso.estado === 1 ? 'Disponible' : 'Finalizado' }}</span></div><span class="mt-4 inline-flex items-center gap-1 text-sm font-bold text-[#0070bb] dark:text-sky-300">Ver curso <VIcon size="18">arrow_forward</VIcon></span></div>
           </RouterLink>

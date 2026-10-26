@@ -30,7 +30,7 @@
 
     <!-- Button -->
     <div class="p-4 pt-0">
-        <RouterLink :to="`/eventos/${event.id_evento || event.id_eventos}`" class="btn btn-primary w-full text-center block">
+        <RouterLink :to="enlaceEvento({ id: event.id || event.id_evento || event.id_eventos, nombre: event.nombre })" class="btn btn-primary w-full text-center block">
         Ver Detalles
         </RouterLink>
     </div>
@@ -39,6 +39,7 @@
 
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
+import { enlaceEvento } from '@/utils/enlacePublico';
 // Importamos el tipo 'Evento' o usamos 'any' si preferimos flexibilidad por ahora
 import type { Evento } from '@/types'; 
 
