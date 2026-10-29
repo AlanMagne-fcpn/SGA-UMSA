@@ -51,7 +51,7 @@ const statsComputed = computed(() => {
     const evts = eventosFiltrados.value;
     const acts = actividadesFiltradas.value;
     
-    const activosCount = evts.filter((e: any) => e.estado === 1).length.toString();
+    const activosCount = evts.filter((e: any) => Number(e.estado) === 1).length.toString();
     const actividadesCount = acts.length.toString();
     
     const inscritosIds = new Set();
@@ -59,8 +59,9 @@ const statsComputed = computed(() => {
     acts.forEach((a: any) => {
         if (Array.isArray(a.inscripciones)) {
             a.inscripciones.forEach((i: any) => {
-                if (i.id_usuario) inscritosIds.add(i.id_usuario);
-                if (i.estado === 0) pendingInscripCount++;
+                const usuarioId = i.id_usuario || i.usuario?.id;
+                if (usuarioId) inscritosIds.add(usuarioId);
+                if (Number(i.estado) === 0) pendingInscripCount++;
             });
         }
     });
@@ -84,30 +85,6 @@ const actividadesGrafico = computed(() => {
             nombre:    a.nombre || 'Sin nombre',
             inscritos: a.inscripciones?.length ?? 0,
         }));
-});
-
-const barChartUrl = computed(() => {
-    const labels = actividadesGrafico.value.map((_, idx) => `#${idx + 1}`);
-    const data = actividadesGrafico.value.map(a => a.inscritos);
-    const config = {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Inscritos',
-                backgroundColor: '#0ea5e9',
-                maxBarThickness: 45,
-                data
-            }]
-        },
-        options: {
-            title: { display: true, text: 'Inscritos por Actividad', fontColor: '#64748b' },
-            scales: {
-                yAxes: [{ ticks: { beginAtZero: true } }]
-            }
-        }
-    };
-    return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(config))}&w=500&h=250`;
 });
 
 // ─────────────────────────────────────────────── Carga de datos ──
@@ -197,11 +174,12 @@ onMounted(cargarDatos);
           Monitoreo en tiempo real · SGEA Gestión Académica UMSA
         </p>
       </div>
-      <div class="flex items-center gap-3 flex-wrap">
-        <VBtn @click="abrirModal('general')"
-          class="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-sm hover:shadow-md hover:border-sky-400 transition-all">
-          <VIcon class="material-symbols-outlined text-[17px]">summarize</VIcon> Reporte General
-        </VBtn>
+      <div class="flex items-center gap-3">
+        <button type="button" @click="abrirModal('general')"
+          class="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-sky-200 bg-white px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-sky-600 shadow-sm transition hover:border-sky-400 hover:shadow-md dark:border-sky-800 dark:bg-gray-800 dark:text-sky-400">
+          <VIcon class="material-symbols-outlined text-[17px]">summarize</VIcon>
+          Reporte general
+        </button>
       </div>
     </div>
 
@@ -251,9 +229,17 @@ onMounted(cargarDatos);
         </div>
 
         <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center relative z-10 w-full">
-          <!-- Gráfico (col-span-2) -->
-          <div class="md:col-span-2 flex justify-center p-2 bg-slate-50 dark:bg-black/20 rounded-[2rem] border border-slate-100 dark:border-white/5">
-            <img :src="barChartUrl" alt="Top Participación" class="max-w-full h-auto rounded-xl hover:scale-105 transition-transform duration-700" />
+          <div class="md:col-span-2 space-y-4 rounded-[2rem] border border-slate-100 bg-slate-50 p-5 dark:border-white/5 dark:bg-black/20">
+            <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Inscritos por actividad</p>
+            <div v-for="(a, idx) in actividadesGrafico" :key="`barra-${idx}`" class="space-y-1.5">
+              <div class="flex items-center justify-between gap-3 text-xs">
+                <span class="truncate font-semibold text-slate-700 dark:text-slate-200">{{ a.nombre }}</span>
+                <span class="shrink-0 font-bold text-sky-600">{{ a.inscritos }}</span>
+              </div>
+              <div class="h-3 overflow-hidden rounded-full bg-white dark:bg-gray-800">
+                <div class="h-full rounded-full bg-sky-500" :style="{ width: `${escala(a.inscritos)}%` }"></div>
+              </div>
+            </div>
           </div>
           
           <!-- Ranking (col-span-1) -->

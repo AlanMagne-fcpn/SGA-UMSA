@@ -1236,48 +1236,49 @@ const eliminarPonente = async (id: number) => {
   </VDialog>
 
   <!-- Modal Ponente -->
-  <VDialog v-if="activeModal === 'modal-ponente'" :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)">
-      <VCard class="bg-white dark:bg-gray-900 rounded-[2rem] w-full max-w-lg p-10 shadow-2xl">
-          <div class="flex justify-between items-center mb-8 border-b border-slate-100 dark:border-gray-800 pb-4">
-              <h3 class="text-2xl font-black text-primary-dark dark:text-white italic uppercase">Formulario Ponente</h3>
-              <VBtn @click="closeModal('modal-ponente')" class="text-slate-400 hover:text-red-500 transition-colors"><VIcon class="material-symbols-outlined">close</VIcon></VBtn>
+  <VDialog v-if="activeModal === 'modal-ponente'" :model-value="true" persistent class="sgea-dialog" width="100%" max-width="640">
+      <div class="w-full max-w-[640px] overflow-hidden rounded-[2rem] bg-white p-6 text-slate-900 shadow-2xl dark:bg-gray-900 dark:text-white sm:p-8">
+          <div class="mb-6 flex items-start justify-between gap-4 border-b border-slate-100 pb-4 dark:border-gray-800">
+              <h3 class="min-w-0 text-xl font-black uppercase italic text-primary-dark dark:text-white sm:text-2xl">Formulario Ponente</h3>
+              <button type="button" class="shrink-0 text-slate-400 transition-colors hover:text-red-500" aria-label="Cerrar formulario" @click="closeModal('modal-ponente')"><VIcon class="material-symbols-outlined">close</VIcon></button>
           </div>
           <div class="space-y-5">
               <div>
-                  <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Seleccionar Ponente Existente (Opcional)</label>
-                  <UiSelect v-model="ponenteSeleccionado" @change="cargarDatosPonente" class="w-full bg-slate-100 dark:bg-gray-800 border-2 border-slate-200 dark:border-gray-700 rounded-xl py-3 px-4 font-bold text-xs text-primary-dark dark:text-white outline-none focus:ring-2 focus:ring-umsa-gold">
-                      <option value="">-- Nuevo Ponente (Escribir datos) --</option>
+                  <label for="ponente-existente" class="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Seleccionar ponente existente (opcional)</label>
+                  <select id="ponente-existente" v-model="ponenteSeleccionado" class="w-full max-w-full rounded-xl border-2 border-slate-200 bg-slate-100 px-4 py-3 text-xs font-bold text-primary-dark outline-none focus:ring-2 focus:ring-umsa-gold dark:border-gray-700 dark:bg-gray-800 dark:text-white" @change="cargarDatosPonente">
+                      <option value="">Nuevo ponente (escribir datos)</option>
                       <option v-for="p in ponentesExistentes" :key="p.id" :value="p.email">
                           {{ p.persona?.primer_apellido }} {{ p.persona?.nombres }} ({{ p.email }})
                       </option>
-                  </UiSelect>
+                  </select>
               </div>
 
-              <div class="border-t border-slate-100 dark:border-gray-800 pt-4">
-                  <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Correo Electrónico</label>
-                  <UiInput v-model="ponenteForm.email" type="email" placeholder="ejemplo@correo.com" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl py-3 px-4 font-bold text-primary-dark dark:text-white focus:border-umsa-gold outline-none focus:ring-4 focus:ring-umsa-gold/10" />
+              <div class="border-t border-slate-100 pt-4 dark:border-gray-800">
+                  <label for="ponente-email" class="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Correo electrónico</label>
+                  <input id="ponente-email" v-model="ponenteForm.email" type="email" placeholder="ejemplo@correo.com" class="w-full max-w-full rounded-xl border-2 border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-primary-dark outline-none focus:border-umsa-gold dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
               </div>
-              <div class="grid grid-cols-2 gap-4">
-                  <div>
-                      <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nombres</label>
-                      <UiInput v-model="ponenteForm.nombres" type="text" placeholder="Nombres" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl py-3 px-4 font-bold text-primary-dark dark:text-white focus:border-umsa-gold outline-none focus:ring-4 focus:ring-umsa-gold/10" />
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div class="min-w-0">
+                      <label for="ponente-nombres" class="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Nombres</label>
+                      <input id="ponente-nombres" v-model="ponenteForm.nombres" type="text" placeholder="Nombres" class="w-full max-w-full rounded-xl border-2 border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-primary-dark outline-none focus:border-umsa-gold dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
-                  <div>
-                      <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Apellido Paterno</label>
-                      <UiInput v-model="ponenteForm.primer_apellido" type="text" placeholder="Apellido" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl py-3 px-4 font-bold text-primary-dark dark:text-white focus:border-umsa-gold outline-none focus:ring-4 focus:ring-umsa-gold/10" />
+                  <div class="min-w-0">
+                      <label for="ponente-apellido" class="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Apellido paterno</label>
+                      <input id="ponente-apellido" v-model="ponenteForm.primer_apellido" type="text" placeholder="Apellido" class="w-full max-w-full rounded-xl border-2 border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-primary-dark outline-none focus:border-umsa-gold dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
                   </div>
               </div>
               <div>
-                  <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Temática / Título de la Presentación <span class="font-normal text-slate-300">(Opcional, se usará en el certificado)</span></label>
-                  <VTextarea v-model="ponenteForm.tematica" placeholder="Ej: Avances en biología molecular aplicada a cultivos andinos..." rows="2" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl py-3 px-4 font-bold text-primary-dark dark:text-white focus:border-umsa-gold outline-none focus:ring-4 focus:ring-umsa-gold/10 resize-none text-sm"></VTextarea>
+                  <label for="ponente-tematica" class="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Temática / título de la presentación</label>
+                  <p class="mb-2 text-[10px] text-slate-400">Opcional. Se usará en el certificado.</p>
+                  <textarea id="ponente-tematica" v-model="ponenteForm.tematica" rows="2" placeholder="Ej: Avances en biología molecular aplicada a cultivos andinos..." class="w-full max-w-full resize-none rounded-xl border-2 border-slate-100 bg-slate-50 px-4 py-3 text-sm font-bold text-primary-dark outline-none focus:border-umsa-gold dark:border-gray-700 dark:bg-gray-800 dark:text-white"></textarea>
               </div>
-              <p class="text-[9px] text-slate-400 font-bold italic">* Si el docente no existe, se creará una cuenta con una contraseña segura temporal.</p>
+              <p class="text-[11px] font-bold italic text-slate-400">Si el docente no existe, se creará una cuenta con una contraseña temporal.</p>
           </div>
-          <div class="mt-8 flex justify-end gap-4 pt-4 border-t border-slate-100 dark:border-gray-800">
-              <VBtn @click="closeModal('modal-ponente')" class="px-6 py-3 text-slate-500 font-black uppercase text-[10px] hover:bg-slate-50 dark:hover:bg-gray-800 rounded-xl">Cancelar</VBtn>
-              <VBtn @click="asignarPonente" class="px-8 py-3 bg-primary-dark text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-emerald-500 shadow-lg transition-all">Vinculación Automática</VBtn>
+          <div class="mt-8 flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-gray-800">
+              <button type="button" class="rounded-xl px-4 py-3 text-[11px] font-black uppercase text-slate-500 hover:bg-slate-50 dark:hover:bg-gray-800" @click="closeModal('modal-ponente')">Cancelar</button>
+              <button type="button" class="max-w-full rounded-xl bg-primary-dark px-5 py-3 text-center text-[11px] font-black uppercase text-white shadow-lg hover:bg-emerald-500" @click="asignarPonente">Vinculación automática</button>
           </div>
-      </VCard>
+      </div>
   </VDialog>
 
   <!-- Modal Detalle Postulante (Premium) -->

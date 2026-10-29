@@ -1448,9 +1448,9 @@ const changeStep = (delta: number) => {
               </div>
 
               <div class="flex flex-wrap items-center justify-start md:justify-end gap-2 z-30 relative">
-                <VBtn v-if="authStore.esSuperUsuario" @click="editarEvento(evento)" class="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 px-3 py-2.5 rounded-xl transition-all shadow-lg flex items-center justify-center cursor-pointer" title="Configurar Eventos">
+                <button type="button" @click="editarEvento(evento)" class="inline-flex items-center justify-center rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-white shadow-lg backdrop-blur-md transition hover:bg-white/20" title="Configurar evento">
                    <VIcon class="material-symbols-outlined text-[18px]">settings</VIcon>
-                </VBtn>
+                </button>
                 <VBtn v-if="authStore.esSuperUsuario" @click="inhabilitarEvento(evento.id, evento.nombreCorto)" class="bg-red-500/20 hover:bg-red-500/40 backdrop-blur-md text-white border border-red-500/30 px-3 py-2.5 rounded-xl transition-all shadow-lg flex items-center justify-center cursor-pointer" title="Inhabilitar Evento">
                    <VIcon class="material-symbols-outlined text-[18px]">block</VIcon>
                 </VBtn>
@@ -1689,7 +1689,7 @@ const changeStep = (delta: number) => {
       </div>
 
       <div v-show="currentStep === 1" class="activity-creation space-y-8 animate-in slide-in-from-right-8 duration-500">
-          <ActivityContentAccess v-model="nuevaActividad.requisitos" :activity-type="nuevaActividad.tipo === 'Otro' ? nuevaActividad.tipoPersonalizado : nuevaActividad.tipo" :busy="isLoading" />
+          <ActivityContentAccess v-model="nuevaActividad.requisitos" :activity-type="nuevaActividad.tipo" :modalidad="nuevaActividad.modalidad" :busy="isLoading" />
           <VCard class="bg-white dark:bg-gray-900 p-8 rounded-[2rem] shadow-sm border border-slate-100 dark:border-gray-800">
               <div class="flex items-center justify-between mb-8">
                   <h3 class="text-xl font-black text-primary-dark dark:text-white uppercase italic">1. Diseño de la Actividad</h3>
@@ -1714,6 +1714,7 @@ const changeStep = (delta: number) => {
                               <option value="Especialidad">Especialidad</option>
                               <option value="Taller">Taller</option>
                               <option value="Seminario">Seminario</option>
+                              <option value="Simposio">Simposio</option>
                               <option value="Curso">Curso</option>
                               <option value="Otro">Otro (Especificar)</option>
                           </select>

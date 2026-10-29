@@ -1585,7 +1585,7 @@ const exportarPDFSegmentado = async (categoria: string) => {
 
     <!-- MODAL COORDINADORES -->
     <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" v-if="showModalCoordinadores" >
-      <VCard class="bg-white dark:bg-[#0d0d14] w-full max-w-2xl rounded-[2.5rem] border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+      <VCard class="bg-white dark:bg-[#0d0d14] w-full max-w-3xl rounded-[2.5rem] border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden animate-in zoom-in duration-300">
         <div class="p-8">
           <div class="flex justify-between items-center mb-8">
             <div class="flex items-center gap-3">
@@ -1604,64 +1604,60 @@ const exportarPDFSegmentado = async (categoria: string) => {
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <!-- Actuales -->
-            <div class="space-y-4">
+            <div class="min-w-0 space-y-4">
               <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <VIcon class="material-symbols-outlined text-sm">groups</VIcon> Responsables Actuales
               </h3>
               <div v-if="cargandoCoordinadores" class="py-10 flex justify-center"><div class="w-6 h-6 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin"></div></div>
               <div v-else-if="coordinadoresActuales.length === 0" class="py-10 text-center border-2 border-dashed border-slate-100 rounded-2xl text-[10px] font-bold text-slate-300 uppercase">Sin responsables asignados</div>
               <div v-else class="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                <VCard v-for="c in coordinadoresActuales" :key="c.id" class="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5">
-                  <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-gray-700 flex items-center justify-center text-[10px] font-black text-slate-500">
-                      {{ c.usuario?.persona?.nombres?.charAt(0) }}{{ c.usuario?.persona?.primer_apellido?.charAt(0) }}
-                    </div>
-                    <div>
-                      <div class="flex items-center gap-2">
-                        <p class="text-[10px] font-black text-slate-800 dark:text-white uppercase">{{ c.usuario?.persona?.nombres }} {{ c.usuario?.persona?.primer_apellido }}</p>
-                        <span class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-white/10 text-[8px] font-black text-slate-500 uppercase">
-                          {{ getRoleName(c.usuario) }}
-                        </span>
-                      </div>
-                      <p class="text-[8px] text-slate-400 font-bold uppercase tracking-tighter">{{ c.usuario?.email }}</p>
-                    </div>
+                <div v-for="c in coordinadoresActuales" :key="c.id" class="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-white/5 dark:bg-white/5">
+                  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-black text-slate-500 dark:bg-gray-700">
+                    {{ c.usuario?.persona?.nombres?.charAt(0) }}{{ c.usuario?.persona?.primer_apellido?.charAt(0) }}
                   </div>
-                  <VBtn @click="quitarCoordinador(c)" class="text-slate-300 hover:text-red-500 transition-colors"><VIcon class="material-symbols-outlined text-lg">remove_circle</VIcon></VBtn>
-                </VCard>
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-[10px] font-black uppercase text-slate-800 dark:text-white">{{ c.usuario?.persona?.nombres }} {{ c.usuario?.persona?.primer_apellido }}</p>
+                    <span class="mt-1 inline-block rounded bg-slate-200 px-1.5 py-0.5 text-[8px] font-black uppercase text-slate-500 dark:bg-white/10">
+                      {{ getRoleName(c.usuario) }}
+                    </span>
+                    <p class="truncate text-[8px] font-bold uppercase tracking-tighter text-slate-400">{{ c.usuario?.email }}</p>
+                  </div>
+                  <button type="button" class="shrink-0 text-slate-300 transition-colors hover:text-red-500" aria-label="Quitar responsable" @click="quitarCoordinador(c)">
+                    <VIcon class="material-symbols-outlined text-lg">remove_circle</VIcon>
+                  </button>
+                </div>
               </div>
             </div>
 
             <!-- Candidatos -->
-            <div class="space-y-4">
+            <div class="min-w-0 space-y-4">
               <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <VIcon class="material-symbols-outlined text-sm">person_search</VIcon> Asignar Nuevo
               </h3>
               <UiInput v-model="queryCandidato" type="text" placeholder="BUSCAR POR NOMBRE O EMAIL..." class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-[10px] font-bold uppercase outline-none focus:border-slate-800/50 transition-all" />
-              <div class="flex gap-1">
-                <VBtn v-for="op in [{ id: 'todos', label: 'Todos' }, { id: 'libre', label: 'Libres' }, { id: 'restringido', label: 'Restringidos' }]" :key="op.id" type="button" @click="filtroAlcance = op.id as any" class="px-2 py-1 rounded-lg text-[8px] font-black uppercase" :class="filtroAlcance === op.id ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500'">{{ op.label }}</VBtn>
+              <div class="flex flex-wrap gap-1">
+                <button v-for="op in [{ id: 'todos', label: 'Todos' }, { id: 'libre', label: 'Libres' }, { id: 'restringido', label: 'Restringidos' }]" :key="op.id" type="button" class="rounded-lg px-2.5 py-1 text-[10px] font-black uppercase" :class="filtroAlcance === op.id ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500'" @click="filtroAlcance = op.id as any">{{ op.label }}</button>
               </div>
               <div class="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
                 <p v-if="candidatosFiltrados.length === 0" class="py-6 text-center text-[10px] font-bold uppercase text-slate-300">No hay coordinadores con ese filtro</p>
-                <VCard v-for="u in candidatosFiltrados" :key="u.id" class="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-colors border border-transparent hover:border-slate-100">
-                  <VBtn type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" @click="asignarCoordinador(u)">
-                    <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-gray-800 flex items-center justify-center text-[10px] font-black text-slate-400">
+                <div v-for="u in candidatosFiltrados" :key="u.id" class="min-w-0 rounded-xl border border-transparent p-3 transition-colors hover:border-slate-100 hover:bg-slate-50 dark:hover:bg-white/5">
+                  <button type="button" class="flex w-full min-w-0 items-center gap-3 text-left" @click="asignarCoordinador(u)">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-400 dark:bg-gray-800">
                       <VIcon class="material-symbols-outlined text-sm">person</VIcon>
                     </div>
-                    <div class="min-w-0">
-                      <div class="flex items-center gap-2">
-                        <p class="text-[10px] font-black text-slate-700 dark:text-gray-200 uppercase truncate">{{ nombreCompleto(u) }}</p>
-                        <span class="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-[7px] font-black text-blue-600 uppercase border border-blue-100 dark:border-blue-800/30">
-                          {{ getRoleName(u) }}
-                        </span>
-                      </div>
-                      <p class="text-[8px] text-slate-400 truncate">{{ u.email }}</p>
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-[10px] font-black uppercase text-slate-700 dark:text-gray-200">{{ nombreCompleto(u) }}</p>
+                      <p class="truncate text-[8px] text-slate-400">{{ u.email }}</p>
+                      <span class="mt-1 inline-block rounded border border-blue-100 bg-blue-50 px-1.5 py-0.5 text-[8px] font-black uppercase text-blue-600 dark:border-blue-800/30 dark:bg-blue-900/20">
+                        {{ getRoleName(u) }}
+                      </span>
                     </div>
-                  </VBtn>
-                  <div v-if="esCoordinador(u)" class="flex shrink-0 flex-col gap-1">
-                    <VBtn type="button" class="rounded px-1.5 py-0.5 text-[7px] font-black uppercase" :class="u.alcance_eventos === 'libre' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'" @click="definirAlcance(u, 'libre')">Libre</VBtn>
-                    <VBtn type="button" class="rounded px-1.5 py-0.5 text-[7px] font-black uppercase" :class="u.alcance_eventos !== 'libre' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-400'" @click="definirAlcance(u, 'restringido')">Restringido</VBtn>
+                  </button>
+                  <div v-if="esCoordinador(u)" class="mt-2 flex flex-wrap gap-2 pl-11">
+                    <button type="button" class="rounded-lg px-2.5 py-1 text-[10px] font-black uppercase" :class="u.alcance_eventos === 'libre' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'" @click="definirAlcance(u, 'libre')">Libre</button>
+                    <button type="button" class="rounded-lg px-2.5 py-1 text-[10px] font-black uppercase" :class="u.alcance_eventos !== 'libre' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-400'" @click="definirAlcance(u, 'restringido')">Restringido</button>
                   </div>
-                </VCard>
+                </div>
               </div>
             </div>
           </div>

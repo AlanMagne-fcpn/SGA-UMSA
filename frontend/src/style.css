@@ -111,9 +111,10 @@ body {
     flex-shrink: 0;
   }
 
-  .sgea-dialog .v-overlay__content {
+  .sgea-dialog > .v-overlay__content {
     display: flex;
     align-items: center;
+    justify-content: center;
     max-height: calc(100vh - 32px);
   }
 

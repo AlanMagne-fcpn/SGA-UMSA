@@ -3,14 +3,12 @@ import { ref, onMounted, computed, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter, useRoute } from 'vue-router';
 import { useEventoStore } from '@/stores/eventoStore';
-import { useAuthStore } from '@/stores/auth';
 import { getImageUrl } from '@/services/api';
 
 const { t, locale } = useI18n();
 const router = useRouter();
 const route = useRoute();
 const eventoStore = useEventoStore();
-const authStore = useAuthStore();
 
 // La identidad del sistema no depende del evento seleccionado.
 const brandTitle = 'SGEA';
@@ -66,7 +64,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <VSheet tag="nav" v-if="!authStore.isAuthenticated || ['/', '/login', '/register'].includes(route.path)"
+  <VSheet tag="nav"
        class="fixed top-0 left-0 right-0 z-[100] transition-all duration-500 bg-white/90 dark:bg-[#020810]/95 backdrop-blur-lg border-b border-slate-200/50 dark:border-slate-800/50 shadow-md">
     <div class="w-full px-4 md:px-6">
       <div class="flex justify-between items-center h-16 md:h-18">

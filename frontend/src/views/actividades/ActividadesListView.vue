@@ -1313,7 +1313,7 @@ const habilitarActividad = async (id: number, nombre: string) => {
 
       <!-- Contenido del Step 1 -->
       <div v-show="currentStep === 1" class="activity-creation space-y-8 animate-in slide-in-from-right-8 duration-500">
-          <ActivityContentAccess v-model="nuevaActividad.requisitos" :activity-type="nuevaActividad.tipo === 'Otro' ? nuevaActividad.tipoPersonalizado : nuevaActividad.tipo" :busy="isLoading" />
+          <ActivityContentAccess v-model="nuevaActividad.requisitos" :activity-type="nuevaActividad.tipo" :modalidad="nuevaActividad.modalidad" :busy="isLoading" />
           <VCard class="bg-white dark:bg-gray-900 p-8 rounded-[2rem] shadow-sm border border-slate-100 dark:border-gray-800">
               <div class="flex items-center justify-between mb-8">
                   <h3 class="text-xl font-black text-primary-dark dark:text-white uppercase italic">1. Diseño de la Actividad</h3>
@@ -1338,6 +1338,7 @@ const habilitarActividad = async (id: number, nombre: string) => {
                               <option value="Especialidad">Especialidad</option>
                               <option value="Taller">Taller</option>
                               <option value="Seminario">Seminario</option>
+                              <option value="Simposio">Simposio</option>
                               <option value="Curso">Curso</option>
                               <option value="Otro">Otro (Especificar)</option>
                           </select>

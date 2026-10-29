@@ -88,6 +88,29 @@ const documentosSubidos = computed(() => {
   return docs;
 });
 
+const materialesPorFecha = computed(() => {
+  const grupos = new Map<string, any[]>();
+  for (const mat of actividad.value.materiales || []) {
+    const cruda = String(mat.fechaClase || '');
+    const partes = String(mat.fecha || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    const clave = /^\d{4}-\d{2}-\d{2}$/.test(cruda)
+      ? cruda
+      : partes
+        ? `${partes[3]}-${partes[2].padStart(2, '0')}-${partes[1].padStart(2, '0')}`
+        : 'sin-fecha';
+    grupos.set(clave, [...(grupos.get(clave) || []), mat]);
+  }
+  return [...grupos.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([clave, items]) => ({
+      clave,
+      titulo: clave === 'sin-fecha'
+        ? 'Sin fecha de clase'
+        : new Date(`${clave}T12:00:00`).toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+      items,
+    }));
+});
+
 const openMaterial = (mat: any) => {
     if (!mat.url) return;
     const url = resolveMediaUrl(mat.url);
@@ -545,12 +568,14 @@ const tabs = computed(() => {
 
   const baseTabs = [
     { id: 'resumen', label: 'Resumen', icon: 'info' },
-    { id: 'ponentes', label: 'Ponentes', icon: 'group' }
   ];
 
   if (isAprobado) {
+    baseTabs.push({ id: 'material', label: 'Materiales', icon: 'auto_stories' });
+  }
+  baseTabs.push({ id: 'ponentes', label: 'Ponentes', icon: 'group' });
+  if (isAprobado) {
     baseTabs.push(
-      { id: 'material', label: 'Materiales', icon: 'auto_stories' },
       { id: 'asistencia', label: 'Asistencia', icon: 'fact_check' },
       { id: 'notas', label: 'Notas', icon: 'grading' },
       { id: 'certificados', label: 'Certificados', icon: 'workspace_premium' }
@@ -720,21 +745,26 @@ const goBack = () => {
       </div>
 
       <!-- Tab: Material (Real desde BDT) -->
-      <div v-if="activeTab === 'material'" class="animate-in slide-in-from-bottom-4 duration-500 fade-in">
-          <h3 class="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight mb-6">Material Didáctico</h3>
-          <div v-if="actividad.materiales.length === 0" class="text-sm font-bold text-slate-500 bg-slate-50 dark:bg-gray-800 p-8 rounded-2xl border border-slate-200 dark:border-gray-700 text-center">Aún no hay material subido para esta actividad.</div>
-          <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div v-for="mat in actividad.materiales" :key="mat.id" @click="openMaterial(mat)" class="border border-slate-200 dark:border-gray-800 hover:border-umsa-blue rounded-2xl p-5 hover:shadow-lg transition-all group cursor-pointer dark:bg-gray-950 flex flex-col justify-between min-h-[140px]">
-                  <div>
-                      <div class="flex justify-between items-start mb-4">
-                          <VIcon class="material-symbols-outlined text-3xl" :class="['PDF', 'Archivo'].includes(mat.tipo) ? 'text-red-500' : 'text-blue-500'">{{ ['PDF', 'Archivo'].includes(mat.tipo) ? 'picture_as_pdf' : 'link' }}</VIcon>
-                          <span class="text-[10px] bg-slate-100 dark:bg-gray-800 px-2 py-1 rounded font-bold uppercase tracking-widest text-slate-500 dark:text-gray-400">{{ mat.tamaño || mat.tipo }}</span>
-                      </div>
-                      <h4 class="font-bold text-slate-800 dark:text-white mb-1 line-clamp-2 group-hover:text-umsa-blue transition-colors">{{ mat.titulo }}</h4>
-                  </div>
-                  <p class="text-xs text-slate-500 font-medium mt-2">{{ mat.fecha }}</p>
-              </div>
+      <div v-if="activeTab === 'material'" class="space-y-6">
+          <div>
+            <h3 class="text-xl font-semibold text-[#003B71] dark:text-white">Material de la actividad</h3>
+            <p class="mt-1 text-sm text-slate-500">Los recursos están agrupados por la fecha de la clase.</p>
           </div>
+          <p v-if="!actividad.materiales.length" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">Aún no hay material publicado.</p>
+          <section v-for="grupo in materialesPorFecha" :key="grupo.clave" class="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+            <h4 class="bg-sky-50 px-4 py-3 text-sm font-semibold capitalize text-[#003B71] dark:bg-slate-800 dark:text-sky-100">{{ grupo.titulo }}</h4>
+            <ul>
+              <li v-for="mat in grupo.items" :key="mat.id">
+                <button type="button" class="flex w-full items-center gap-3 border-t border-slate-100 px-4 py-3 text-left hover:bg-sky-50 dark:border-slate-800" @click="openMaterial(mat)">
+                  <VIcon class="material-symbols-outlined shrink-0 text-2xl" :class="mat.tipo === 'Enlace' ? 'text-[#0070BB]' : 'text-rose-600'">{{ mat.tipo === 'Enlace' ? 'link' : 'description' }}</VIcon>
+                  <span class="min-w-0">
+                    <span class="block truncate text-sm font-semibold text-slate-800 dark:text-white">{{ mat.titulo }}</span>
+                    <span class="block truncate text-xs text-slate-500">{{ mat.tipo === 'Enlace' ? 'Abrir enlace' : (mat.nombreArchivo || 'Abrir documento') }}<template v-if="mat.tamaño"> · {{ mat.tamaño }}</template></span>
+                  </span>
+                </button>
+              </li>
+            </ul>
+          </section>
       </div>
 
        <!-- Tab: Ponentes -->

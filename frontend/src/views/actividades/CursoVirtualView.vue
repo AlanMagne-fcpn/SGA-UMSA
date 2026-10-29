@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api, { resolveMediaUrl } from '@/services/api';
-import { esCurso, type ContentType } from '@/utils/activityLearning';
+import { esCurso, esPresencial, type ContentType } from '@/utils/activityLearning';
 
 type Pregunta = { enunciado: string; opciones: string[]; correcta?: number };
 type Recurso = { nombre: string; url: string };
-type Leccion = { id: number; tipo: 'video' | 'examen' | 'material' | 'practica'; titulo: string; descripcion: string; orden: number; video_url: string | null; preguntas: Pregunta[]; recursos?: Recurso[]; peso?: number; publicado?: boolean; completado_en?: string | null; nota?: number | null; entrega?: { texto: string; archivo?: { nombre: string } }; retroalimentacion?: string };
+type Leccion = { id: number; tipo: 'video' | 'examen' | 'material' | 'practica' | 'laboratorio'; titulo: string; descripcion: string; orden: number; video_url: string | null; preguntas: Pregunta[]; recursos?: Recurso[]; peso?: number; plazo?: string | null; tiempo_limite_minutos?: number | null; publicado?: boolean; completado_en?: string | null; nota?: number | null; entrega?: { texto: string; archivo?: { nombre: string } }; retroalimentacion?: string };
 const props = defineProps<{ activityId?: number; embedded?: boolean; initialType?: Leccion['tipo'] }>();
 const route = useRoute();
 const router = useRouter();
 const id = computed(() => props.activityId || Number(route.params.id));
-const tipoInicial = (): Leccion['tipo'] => props.initialType || (['video', 'material', 'practica', 'examen'].includes(String(route.query.tipo)) ? route.query.tipo as Leccion['tipo'] : 'video');
+const tipoInicial = (): Leccion['tipo'] => props.initialType || (['video', 'material', 'practica', 'examen', 'laboratorio'].includes(String(route.query.tipo)) ? route.query.tipo as Leccion['tipo'] : 'video');
 const editor = computed(() => !route.path.startsWith('/estudiante/'));
 const lecciones = ref<Leccion[]>([]);
 const seleccionada = ref<Leccion | null>(null);
@@ -22,18 +22,36 @@ const aviso = ref('');
 const videoTerminado = ref(false);
 const respuestas = ref<number[]>([]);
 const archivo = ref<File | null>(null);
-const formulario = ref({ id: 0, tipo: tipoInicial(), titulo: '', descripcion: '', orden: 0, video_url: '', publicado: false, preguntas: [] as Pregunta[], recursos: [] as Recurso[], peso: 1 });
+const formulario = ref({ id: 0, tipo: tipoInicial(), titulo: '', descripcion: '', orden: 0, video_url: '', publicado: false, preguntas: [] as Pregunta[], recursos: [] as Recurso[], peso: 1, plazo: '', tiempo_limite_minutos: null as number | null });
 const archivosRecursos = ref<File[]>([]);
 const archivoPractica = ref<File | null>(null);
 const textoEntrega = ref('');
 const entregas = ref<any[]>([]);
 const resumen = ref<any>(null);
-const tipos = { video: 'Video y cuestionario', examen: 'Cuestionario / examen', material: 'Material de estudio', practica: 'Práctica entregable' };
-const permisos = ref<Record<ContentType, boolean>>({ video: false, material: false, practica: false, examen: false });
+const tipos = { video: 'Video y cuestionario', examen: 'Cuestionario / examen', material: 'Material de estudio', practica: 'Práctica entregable', laboratorio: 'Laboratorio' };
+const permisos = ref<Record<ContentType, boolean>>({ video: false, material: false, practica: false, examen: false, laboratorio: false });
 const tipoActividad = ref('');
-const tiposDisponibles = computed(() => Object.fromEntries(Object.entries(tipos).filter(([tipo]) => permisos.value[tipo as ContentType]).map(([tipo, nombre]) => [tipo, tipo === 'video' && !permisos.value.examen ? 'Video' : nombre])));
+const modalidadActividad = ref('');
+const evaluacion = ref<any>(null);
+const evaluable = computed(() => evaluacion.value?.modo === 'curso' || evaluacion.value?.modo === 'configurable' || (!evaluacion.value && esCurso(tipoActividad.value)));
+const segundos = ref(0);
+let reloj: ReturnType<typeof setInterval> | undefined;
+const tiposDisponibles = computed(() => Object.fromEntries(Object.entries(tipos).filter(([tipo]) => permisos.value[tipo as ContentType] === true).map(([tipo, nombre]) => [tipo, tipo === 'video' && !permisos.value.examen ? 'Video' : nombre])));
 const puedeCrear = computed(() => Object.keys(tiposDisponibles.value).length > 0);
-const esEvaluacion = (leccion: { tipo: string; preguntas: Pregunta[] }) => leccion.tipo === 'practica' || !!leccion.preguntas.length;
+const esEntrega = (tipo: string) => tipo === 'practica' || tipo === 'laboratorio';
+const esEvaluacion = (leccion: { tipo: string; preguntas: Pregunta[] }) => esEntrega(leccion.tipo) || !!leccion.preguntas.length;
+function detenerReloj() { if (reloj) clearInterval(reloj); reloj = undefined; }
+function iniciarReloj(leccion: Leccion | null) {
+  detenerReloj();
+  const minutos = Number(leccion?.tiempo_limite_minutos || 0);
+  if (editor.value || !leccion || leccion.tipo !== 'examen' || !minutos || leccion.completado_en) { segundos.value = 0; return; }
+  segundos.value = minutos * 60;
+  reloj = setInterval(() => {
+    segundos.value = Math.max(0, segundos.value - 1);
+    if (segundos.value === 0) { detenerReloj(); if (!respuestas.value.some(r => r < 0)) completar(); }
+  }, 1000);
+}
+onUnmounted(detenerReloj);
 const pesoTotal = computed(() => lecciones.value.filter(l => l.publicado && esEvaluacion(l)).reduce((sum, l) => sum + Number(l.peso ?? 1), 0));
 const porcentaje = (l: Leccion) => l.publicado && esEvaluacion(l) && pesoTotal.value ? Math.round(Number(l.peso ?? 1) * 10000 / pesoTotal.value) / 100 : 0;
 const completadas = computed(() => lecciones.value.filter(item => !!item.completado_en).length);
@@ -55,12 +73,15 @@ async function cargar() {
     if (editor.value) {
       const config = (await api.get(`/actividades-academicas/${id.value}/aula/configuracion`)).data;
       tipoActividad.value = config.tipo_actividad || '';
-      permisos.value = config.permisos || { video: false, material: false, practica: false, examen: false };
-      if (!esCurso(tipoActividad.value)) { permisos.value.practica = false; permisos.value.examen = false; }
+      modalidadActividad.value = config.modalidad || '';
+      evaluacion.value = config.evaluacion || null;
+      permisos.value = { video: false, material: false, practica: false, examen: false, laboratorio: false, ...(config.permisos || {}) };
+      if (!evaluable.value) { permisos.value.practica = false; permisos.value.examen = false; permisos.value.laboratorio = false; }
       if (!permisos.value[formulario.value.tipo]) formulario.value.tipo = (Object.keys(tiposDisponibles.value)[0] || 'material') as ContentType;
-      entregas.value = esCurso(tipoActividad.value) ? (await api.get(`/actividades-academicas/${id.value}/entregas`)).data : [];
+      entregas.value = evaluable.value ? (await api.get(`/actividades-academicas/${id.value}/entregas`)).data : [];
     }
     else resumen.value = (await api.get(`/actividades-academicas/${id.value}/aula/resumen`)).data;
+    iniciarReloj(seleccionada.value);
   } catch (e: any) {
     error.value = e.response?.data?.message || 'No se pudo cargar el aula del curso.';
   } finally {
@@ -76,17 +97,18 @@ function elegir(leccion: Leccion) {
   aviso.value = '';
   textoEntrega.value = leccion.entrega?.texto || '';
   archivoPractica.value = null;
+  iniciarReloj(leccion);
 }
 
 function nueva() {
   const tipo = permisos.value[tipoInicial()] ? tipoInicial() : (Object.keys(tiposDisponibles.value)[0] || 'material') as ContentType;
-  formulario.value = { id: 0, tipo, titulo: '', descripcion: '', orden: lecciones.value.length + 1, video_url: '', publicado: false, preguntas: [], recursos: [], peso: 1 };
+  formulario.value = { id: 0, tipo, titulo: '', descripcion: '', orden: lecciones.value.length + 1, video_url: '', publicado: false, preguntas: [], recursos: [], peso: 1, plazo: '', tiempo_limite_minutos: null };
   archivo.value = null;
   archivosRecursos.value = [];
 }
 
 function editar(leccion: Leccion) {
-  formulario.value = { id: leccion.id, tipo: leccion.tipo, titulo: leccion.titulo, descripcion: leccion.descripcion || '', orden: leccion.orden, video_url: leccion.video_url || '', publicado: !!leccion.publicado, preguntas: JSON.parse(JSON.stringify(leccion.preguntas || [])), recursos: JSON.parse(JSON.stringify(leccion.recursos || [])), peso: Number(leccion.peso ?? 1) };
+  formulario.value = { id: leccion.id, tipo: leccion.tipo, titulo: leccion.titulo, descripcion: leccion.descripcion || '', orden: leccion.orden, video_url: leccion.video_url || '', publicado: !!leccion.publicado, preguntas: JSON.parse(JSON.stringify(leccion.preguntas || [])), recursos: JSON.parse(JSON.stringify(leccion.recursos || [])), peso: Number(leccion.peso ?? 1), plazo: leccion.plazo ? String(leccion.plazo).slice(0, 10) : '', tiempo_limite_minutos: leccion.tiempo_limite_minutos ?? null };
   archivo.value = null;
   archivosRecursos.value = [];
 }
@@ -116,9 +138,14 @@ async function guardar() {
       archivosRecursos.value.shift();
     }
     const { id: leccionId, ...body } = formulario.value;
-    if (body.tipo === 'material' || body.tipo === 'practica') body.preguntas = [];
-    if (leccionId) await api.put(`/actividades-academicas/${id.value}/lecciones/${leccionId}`, body);
-    else await api.post(`/actividades-academicas/${id.value}/lecciones`, body);
+    const payload = {
+      ...body,
+      preguntas: body.tipo === 'material' || body.tipo === 'practica' || body.tipo === 'laboratorio' ? [] : body.preguntas,
+      tiempo_limite_minutos: body.tipo === 'examen' ? body.tiempo_limite_minutos : null,
+      plazo: body.plazo || null,
+    };
+    if (leccionId) await api.put(`/actividades-academicas/${id.value}/lecciones/${leccionId}`, payload);
+    else await api.post(`/actividades-academicas/${id.value}/lecciones`, payload);
     await cargar();
     nueva();
     aviso.value = 'Lección guardada correctamente.';
@@ -211,7 +238,8 @@ function quitarOpcion(pregunta: Pregunta, index: number) {
     <header v-if="!embedded" class="rounded-2xl bg-[#062548] p-6 text-white sm:p-8">
       <p class="text-xs font-bold uppercase tracking-widest text-sky-300">{{ editor ? 'Contenidos y evaluaciones' : 'Mi aprendizaje' }}</p>
       <h1 class="mt-2 text-3xl font-black">Aula de la actividad</h1>
-      <p class="mt-3 text-sm text-slate-200">{{ editor ? (esCurso(tipoActividad) ? 'Publica videos, archivos, cuestionarios, exámenes y prácticas entregables.' : 'Publica los videos y archivos habilitados por la organización.') : `${completadas} de ${lecciones.length} contenidos completados` }}</p>
+      <p class="mt-3 text-sm text-slate-200">{{ editor ? (evaluable ? 'Publica los bloques habilitados: videos, archivos, secciones, prácticas, laboratorios y exámenes con tiempo límite.' : 'Publica los videos y archivos habilitados por la organización. La nota es la asistencia.') : `${completadas} de ${lecciones.length} contenidos completados` }}</p>
+      <p v-if="editor && esPresencial(modalidadActividad)" class="mt-2 text-sm text-slate-200">Modalidad presencial: aquí se publican los materiales. El aula de lecciones con exámenes y prácticas corresponde a una modalidad virtual o híbrida.</p>
     </header>
     <p v-if="error" role="alert" class="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-800">{{ error }}</p>
     <p v-if="aviso" role="status" class="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-800">{{ aviso }}</p>
@@ -229,7 +257,7 @@ function quitarOpcion(pregunta: Pregunta, index: number) {
         <p v-if="!lecciones.length" class="mt-4 text-sm text-slate-500">{{ editor ? 'Añade el primer contenido de la actividad.' : 'Aún no hay contenidos publicados.' }}</p>
         <button v-for="leccion in lecciones" :key="leccion.id" type="button" class="mt-2 w-full rounded-xl p-3 text-left text-sm hover:bg-sky-50 dark:hover:bg-slate-800" :class="seleccionada?.id === leccion.id ? 'bg-sky-50 dark:bg-slate-800' : ''" @click="elegir(leccion)">
           <strong class="block break-words">{{ leccion.completado_en ? '✓ ' : '' }}{{ leccion.titulo }}</strong>
-          <span class="mt-1 block text-xs text-slate-600 dark:text-slate-300">{{ tipos[leccion.tipo] }} · {{ porcentaje(leccion) }}% de la nota<span v-if="editor"> · {{ leccion.publicado ? 'Publicado' : 'Borrador' }}</span></span>
+          <span class="mt-1 block text-xs text-slate-600 dark:text-slate-300">{{ tipos[leccion.tipo] }} · {{ evaluacion ? `${leccion.peso || 0} pts` : `${porcentaje(leccion)}% de la nota` }}<span v-if="editor"> · {{ leccion.publicado ? 'Publicado' : 'Borrador' }}</span></span>
         </button>
       </aside>
       <div class="min-w-0 space-y-6">
@@ -250,9 +278,11 @@ function quitarOpcion(pregunta: Pregunta, index: number) {
                 <legend class="px-2 font-bold">{{ index + 1 }}. {{ pregunta.enunciado }}</legend>
                 <label v-for="(opcion, opcionIndex) in pregunta.opciones" :key="opcionIndex" class="mt-3 flex items-center gap-3 text-sm"><input v-model="respuestas[index]" type="radio" :name="`pregunta-${index}`" :value="opcionIndex">{{ opcion }}</label>
               </fieldset>
+              <p v-if="seleccionada.tipo === 'examen' && segundos" class="text-sm font-bold" role="timer">Tiempo restante: {{ Math.floor(segundos / 60) }}:{{ String(segundos % 60).padStart(2, '0') }}</p>
+              <p v-if="seleccionada.tipo === 'examen' && seleccionada.tiempo_limite_minutos && segundos === 0 && !seleccionada.completado_en" class="text-sm text-red-700">El tiempo del examen terminó.</p>
               <p class="text-sm text-slate-600 dark:text-slate-300">Puedes volver a responder; se conserva la mejor nota.</p>
             </div>
-            <form v-if="seleccionada.tipo === 'practica'" class="space-y-4 p-6" @submit.prevent="entregar">
+            <form v-if="esEntrega(seleccionada.tipo)" class="space-y-4 p-6" @submit.prevent="entregar">
               <h3 class="font-bold">Mi entrega</h3>
               <p v-if="seleccionada.entrega" class="text-sm">{{ seleccionada.nota == null ? 'Entrega enviada. Pendiente de calificación.' : `Calificación: ${seleccionada.nota}/100` }}</p>
               <p v-if="seleccionada.entrega?.archivo" class="text-sm">Archivo enviado: {{ seleccionada.entrega.archivo.nombre }}</p>
@@ -300,13 +330,15 @@ function quitarOpcion(pregunta: Pregunta, index: number) {
                 <div class="flex flex-wrap gap-5"><button v-if="pregunta.opciones.length < 8" type="button" class="text-sm font-bold text-blue-700 dark:text-sky-300" @click="pregunta.opciones.push('')">+ Opción</button><button type="button" class="text-sm text-red-700 dark:text-red-300" @click="formulario.preguntas.splice(index, 1)">Quitar pregunta</button></div>
               </fieldset>
             </div>
-            <label v-if="esCurso(tipoActividad) && esEvaluacion(formulario)" class="block text-sm font-bold">Peso de esta evaluación<input v-model.number="formulario.peso" type="number" min="0" max="100" step="0.01" required></label>
-            <p v-if="esCurso(tipoActividad)" class="text-sm text-slate-600 dark:text-slate-300">Los pesos se convierten a porcentajes de la nota final: por ejemplo, 30 para prácticas y 70 para examen. Un peso de 0 excluye la evaluación de la nota. Solo cuentan los contenidos publicados.</p>
+            <label v-if="evaluable && esEvaluacion(formulario)" class="block text-sm font-bold">Peso de esta evaluación<input v-model.number="formulario.peso" type="number" min="0" max="100" step="0.01" required></label>
+            <label v-if="evaluable && esEvaluacion(formulario)" class="block text-sm font-bold">Plazo<input v-model="formulario.plazo" type="date" aria-label="Plazo de la evaluación"></label>
+            <label v-if="evaluable && formulario.tipo === 'examen'" class="block text-sm font-bold">Tiempo límite (minutos)<input v-model.number="formulario.tiempo_limite_minutos" type="number" min="1" max="600" step="1" required aria-label="Tiempo límite del examen"></label>
+            <p v-if="evaluable" class="text-sm text-slate-600 dark:text-slate-300">El peso es el puntaje de esta evaluación dentro de los 100 puntos de la actividad, junto con la asistencia. Un peso de 0 no suma a la nota. El examen exige un tiempo límite.</p>
             <label class="flex items-center gap-3 text-sm font-bold"><input v-model="formulario.publicado" type="checkbox">Publicar contenido</label>
             <button type="submit" :disabled="guardando || !permisos[formulario.tipo]" class="action">{{ guardando ? 'Guardando...' : 'Guardar contenido' }}</button>
           </form>
         </section>
-        <section v-if="editor && esCurso(tipoActividad) && permisos.practica" aria-label="Entregas de prácticas" class="rounded-2xl border border-slate-300 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
+        <section v-if="editor && evaluable && (permisos.practica || permisos.laboratorio)" aria-label="Entregas de prácticas" class="rounded-2xl border border-slate-300 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
           <h2 class="text-xl font-bold">Entregas y calificaciones</h2>
           <p v-if="!entregas.length" class="mt-3 text-sm text-slate-600 dark:text-slate-300">Aún no hay prácticas entregadas.</p>
           <form v-for="entrega in entregas" :key="entrega.id" class="mt-5 space-y-4 rounded-xl border border-slate-300 p-4 dark:border-slate-700" @submit.prevent="calificar(entrega)">

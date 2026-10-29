@@ -1,4 +1,6 @@
 import { ActividadesAcademicasService } from './actividades-academicas.service';
+import { resumenAula } from './aula-resumen';
+import { puntosAsistencia } from './aula-permisos';
 
 describe('Ficha pública del curso', () => {
   const usuario = {
@@ -131,6 +133,20 @@ describe('Permisos de contenidos por tipo de actividad', () => {
     query.mockResolvedValue([{ id: 8 }]);
     expect(await service.guardarLeccion(7, { tipo: 'examen', titulo: 'Examen', preguntas: [pregunta] }, ponente)).toEqual({ id: 8 });
   });
+  it('exige tiempo límite cuando el esquema del curso o de Otro incluye exámenes', async () => {
+    const esquema = { modo: 'curso', asistencia: 100, bloques: { contenido: true, secciones: true, practica: true, laboratorio: false, examen: true }, items: [] };
+    repository.findOne.mockResolvedValue({ tipo: 'Curso', modalidades: [{ tipo: 'Virtual' }], requisitos: { evaluacion: esquema, aula: { examen: true } } });
+    await expect(service.guardarLeccion(7, { tipo: 'examen', titulo: 'Examen', preguntas: [pregunta] }, ponente)).rejects.toThrow('tiempo límite');
+    repository.findOne.mockResolvedValue({ tipo: 'Webinar', modalidades: [{ tipo: 'Virtual' }], requisitos: { evaluacion: { ...esquema, modo: 'configurable' }, aula: { examen: true } } });
+    query.mockResolvedValue([{ id: 9 }]);
+    expect(await service.guardarLeccion(7, { tipo: 'examen', titulo: 'Examen', preguntas: [pregunta], tiempo_limite_minutos: 40, plazo: '2026-11-01' }, ponente)).toEqual({ id: 9 });
+  });
+  it('rechaza un esquema que no suma 100 y acepta el ejemplo de la pizarra', async () => {
+    const base = { tipo: 'Curso', requisitos: { evaluacion: { modo: 'curso', asistencia: 20, bloques: { contenido: true, secciones: true, practica: true, laboratorio: true, examen: true }, items: [{ tipo: 'examen', nombre: '1er parcial', puntaje: 40, plazo: '2026-11-01' }, { tipo: 'examen', nombre: '2do parcial', puntaje: 40, plazo: null }] } } };
+    expect(service['aplicarEsquema'](base.tipo, base.requisitos).evaluacion.asistencia).toBe(20);
+    expect(() => service['aplicarEsquema']('Curso', { evaluacion: { ...base.requisitos.evaluacion, asistencia: 10 } })).toThrow('sumar 100');
+    expect(() => service['aplicarEsquema']('Simposio', { evaluacion: { modo: 'asistencia', asistencia: 100, bloques: { secciones: true }, items: [] } })).toThrow('solo califica asistencia');
+  });
 });
 
 describe('Acceso al aula por rol y asignación', () => {
@@ -156,5 +172,23 @@ describe('Acceso al aula por rol y asignación', () => {
   it('rechaza al coordinador restringido de otro evento', async () => {
     query.mockResolvedValueOnce([{ alcance_eventos: 'restringido' }]).mockResolvedValue([]);
     await expect(service.verificarPermisosEdicion(7, { id: 9, roles: ['Coordinador'] })).rejects.toThrow('No tienes permisos');
+  });
+});
+
+describe('Nota con asistencia', () => {
+  it('suma los puntajes de las lecciones y la asistencia de una o varias sesiones', async () => {
+    expect(puntosAsistencia(1, 1, 20)).toBe(20);
+    expect(puntosAsistencia(1, 0, 100)).toBe(0);
+    expect(puntosAsistencia(4, 1, 20)).toBe(5);
+    const query = jest.fn().mockResolvedValueOnce([{
+      total: 2, completadas: 1, pendientes: 0, evaluaciones: 2, evaluadas: 1, promedio: null,
+      modo: 'curso', puntaje_asistencia: '20', sesiones: 1, presentes: 1, puntos_lecciones: '32',
+    }]);
+    expect(await resumenAula({ query }, 7, 9)).toMatchObject({ promedio: 52, asistencia: 20, esquema: true });
+    query.mockResolvedValueOnce([{
+      total: 1, completadas: 1, pendientes: 0, evaluaciones: 1, evaluadas: 0, promedio: null,
+      modo: 'asistencia', puntaje_asistencia: 0, sesiones: 2, presentes: 1, puntos_lecciones: 80,
+    }]);
+    expect(await resumenAula({ query }, 7, 9)).toMatchObject({ promedio: 50, evaluaciones: 0, asistencia: 50 });
   });
 });

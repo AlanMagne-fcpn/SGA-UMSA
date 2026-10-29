@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { SesionAcademica } from './entities/sesion-academica.entity';
 import { CreateSesionAcademicaDto } from './dto/create-sesion-academica.dto';
@@ -15,6 +15,7 @@ export class SesionesAcademicasService {
   constructor(
     @InjectRepository(SesionAcademica)
     private readonly sesionRepository: Repository<SesionAcademica>,
+    private readonly dataSource: DataSource,
   ) {}
 
   // ── Coordinador ─────────────────────────────────────────────
@@ -68,6 +69,65 @@ export class SesionesAcademicasService {
     return this.sesionRepository.find({
       relations: ['cursoModalidad'],
     });
+  }
+
+  /**
+   * Mientras la actividad está activa y dentro de su periodo, la asistencia
+   * no depende de un horario previo: abre la sesión del día si aún no existe.
+   */
+  async abrirSesionDelDia(actividadId: number) {
+    const acts = await this.dataSource.query(
+      `SELECT id, estado, fecha_inicio, fecha_fin FROM actividades_academicas WHERE id = $1`,
+      [actividadId],
+    );
+    if (!acts.length) throw new NotFoundException(`Actividad ${actividadId} no encontrada`);
+
+    const act = acts[0];
+    if (Number(act.estado) !== 1) {
+      throw new BadRequestException('La asistencia solo está abierta mientras la actividad está activa.');
+    }
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    const inicio = act.fecha_inicio ? String(act.fecha_inicio).slice(0, 10) : null;
+    const fin = act.fecha_fin ? String(act.fecha_fin).slice(0, 10) : null;
+    if ((inicio && hoy < inicio) || (fin && hoy > fin)) {
+      throw new BadRequestException('La actividad está fuera de su periodo. La asistencia queda abierta solo mientras esté vigente.');
+    }
+
+    let mods = await this.dataSource.query(
+      `SELECT id, tipo FROM curso_modalidades WHERE id_actividad_academica = $1 ORDER BY id LIMIT 1`,
+      [actividadId],
+    );
+    if (!mods.length) {
+      mods = await this.dataSource.query(
+        `INSERT INTO curso_modalidades (id_actividad_academica, tipo, min_nota, min_asistencia)
+         VALUES ($1, 'Presencial', 51, 80) RETURNING id, tipo`,
+        [actividadId],
+      );
+    }
+
+    const modId = mods[0].id;
+    const tipo = mods[0].tipo || 'Presencial';
+    const existentes = await this.dataSource.query(
+      `SELECT s.id, s.dia, s.fecha, s.hora_inicio, s.hora_fin
+       FROM sesiones_academicas s
+       WHERE s.id_curso_modalidad = $1 AND s.fecha = $2
+       ORDER BY s.id LIMIT 1`,
+      [modId, hoy],
+    );
+    if (existentes.length) {
+      return { ...existentes[0], modalidad_nombre: tipo };
+    }
+
+    const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const dia = dias[new Date().getUTCDay()];
+    const creada = await this.dataSource.query(
+      `INSERT INTO sesiones_academicas (id_curso_modalidad, dia, fecha, hora_inicio, hora_fin, modalidad)
+       VALUES ($1, $2, $3, '08:00', '18:00', $4)
+       RETURNING id, dia, fecha, hora_inicio, hora_fin`,
+      [modId, dia, hoy, tipo],
+    );
+    return { ...creada[0], modalidad_nombre: tipo };
   }
 
   // ══════════════════════════════════════════════════════════

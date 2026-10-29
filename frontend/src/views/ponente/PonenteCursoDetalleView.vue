@@ -14,12 +14,15 @@ const authStore = useAuthStore();
 
 // Materiales
 const materiales = ref<any[]>([]);
+const fechaDeHoy = () => new Date().toISOString().slice(0, 10);
 const nuevoMaterial = ref({
     titulo: '',
-    tipo: 'Enlace', // 'Enlace' | 'Archivo'
+    tipo: 'Archivo',
     url: '',
-    tamano: ''
+    tamano: '',
+    fecha: fechaDeHoy(),
 });
+const archivoInput = ref<HTMLInputElement | null>(null);
 const selectedFile = ref<File | null>(null);
 const subiendoMaterial = ref(false);
 const mostrarFormMaterial = ref(false);
@@ -30,10 +33,31 @@ const actividadId = route.params.id;
 
 const curso = ref<any>(null);
 const puedeSubirMaterial = computed(() => curso.value && permisosContenido(curso.value.tipo, curso.value.requisitos).material);
+const claveFecha = (mat: any) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(mat.fechaClase || ''))) return mat.fechaClase;
+    const partes = String(mat.fecha || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (partes) return `${partes[3]}-${partes[2].padStart(2, '0')}-${partes[1].padStart(2, '0')}`;
+    return 'sin-fecha';
+};
+const tituloFecha = (clave: string) => {
+    if (clave === 'sin-fecha') return 'Sin fecha de clase';
+    return new Date(`${clave}T12:00:00`).toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+};
+const materialesPorFecha = computed(() => {
+    const grupos = new Map<string, any[]>();
+    for (const mat of materiales.value) {
+        const clave = claveFecha(mat);
+        grupos.set(clave, [...(grupos.get(clave) || []), mat]);
+    }
+    return [...grupos.entries()]
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .map(([clave, items]) => ({ clave, titulo: tituloFecha(clave), items }));
+});
 const estudiantes = ref<any[]>([]);
 
 // Sesiones y QR
 const sesiones = ref<any[]>([]);
+const avisoAsistencia = ref('');
 const activeSessionId = ref<number | null>(null);
 const qrMode = ref<'project' | 'scan'>('project');
 const registrosRequeridos = ref(1); // "registros para el dia de hoy"
@@ -127,38 +151,37 @@ const fetchDetalleActividad = async () => {
         estudiantes.value = (data.inscripciones || []).map((ins: any) => ({
             id: ins.id,
             nombre: `${ins.usuario?.persona?.nombres || 'Estudiante'} ${ins.usuario?.persona?.primer_apellido || ''}`,
-            correo: ins.usuario.email,
+            correo: ins.usuario?.email || '',
             asistencia: '---', 
             estado: ins.nota_principal >= (data.min_nota ?? 51) ? 'Excelente' : 'Regular'
         }));
 
-        // Extraer Sesiones
         const allSesiones: any[] = [];
-        if (data.modalidades) {
+        if (Array.isArray(data.modalidades)) {
             data.modalidades.forEach((mod: any) => {
-                if (mod.sesiones) {
+                if (Array.isArray(mod.sesiones)) {
                     mod.sesiones.forEach((s: any) => {
                         allSesiones.push({
                             ...s,
-                            modalidad_nombre: mod.nombre || 'General'
+                            modalidad_nombre: mod.tipo || 'Presencial'
                         });
                     });
                 }
             });
         }
-        
-        // SI NO HAY SESIONES, AGREGAMOS UNAS MOCK PARA PRUEBAS
-        if (allSesiones.length === 0) {
-            allSesiones.push({
-                id: 101,
-                fecha: new Date().toISOString(),
-                modalidad_nombre: 'Teoría (Presencial)'
-            });
-            allSesiones.push({
-                id: 102,
-                fecha: new Date(Date.now() + 86400000).toISOString(),
-                modalidad_nombre: 'Práctica (Virtual)'
-            });
+
+        avisoAsistencia.value = '';
+        if (allSesiones.length === 0 && Number(data.estado) === 1) {
+            try {
+                const abierta = await api.post(`/ponente/sesiones-academicas/actividad/${actividadId}/abierta`);
+                allSesiones.push(abierta.data);
+            } catch (error: any) {
+                const mensaje = error?.response?.data?.message;
+                avisoAsistencia.value = Array.isArray(mensaje) ? mensaje.join(' ') : (mensaje || 'La asistencia se abre mientras la actividad está vigente.');
+            }
+        }
+        if (allSesiones.length === 0 && !avisoAsistencia.value) {
+            avisoAsistencia.value = 'No hay sesiones configuradas para esta actividad.';
         }
         
         sesiones.value = allSesiones;
@@ -303,11 +326,9 @@ const simularEscaneo = async () => {
     }
 };
 
-const handleFileChange = (e: any) => {
-    const file = e.target.files[0];
-    if (file) {
-        selectedFile.value = file;
-    }
+const handleFileChange = (e: Event) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    selectedFile.value = file || null;
 };
 
 const guardarMaterial = async () => {
@@ -349,13 +370,16 @@ const guardarMaterial = async () => {
         }
 
         // Agregar al array local
+        const fechaClase = nuevoMaterial.value.fecha || fechaDeHoy();
         const nuevo = {
             id: Date.now().toString(),
             titulo: nuevoMaterial.value.titulo.trim(),
-            tipo: nuevoMaterial.value.tipo === 'Archivo' ? 'PDF' : 'Enlace',
+            tipo: nuevoMaterial.value.tipo === 'Archivo' ? 'Archivo' : 'Enlace',
+            nombreArchivo: selectedFile.value?.name || '',
             url: finalUrl,
-            tamaño: finalSize || '---',
-            fecha: new Date().toLocaleDateString('es-ES')
+            tamaño: finalSize || '',
+            fechaClase,
+            fecha: new Date(`${fechaClase}T12:00:00`).toLocaleDateString('es-BO')
         };
 
         const listaActualizada = [...materiales.value, nuevo];
@@ -370,11 +394,13 @@ const guardarMaterial = async () => {
         // Resetear form
         nuevoMaterial.value = {
             titulo: '',
-            tipo: 'Enlace',
+            tipo: 'Archivo',
             url: '',
-            tamano: ''
+            tamano: '',
+            fecha: fechaDeHoy(),
         };
         selectedFile.value = null;
+        if (archivoInput.value) archivoInput.value.value = '';
         mostrarFormMaterial.value = false;
 
         Swal.fire({
@@ -466,17 +492,16 @@ const openMaterial = (mat: any) => {
         </p>
       </div>
 
-      <!-- Acciones Rápidas: SOLAMENTE SI TIENE PERMISOS -->
-      <div v-if="tienePermisos" class="relative z-10 flex flex-col sm:flex-row lg:flex-col gap-3 w-full lg:w-auto lg:min-w-[220px]">
+      <div v-if="tienePermisos" class="relative z-10 flex w-full flex-col gap-3 sm:flex-row lg:w-auto lg:min-w-[220px] lg:flex-col">
         <RouterLink :to="`/ponente/curso/${actividadId}/aula`" class="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-[#003B71]"><VIcon size="20">video_library</VIcon>Editar aula virtual</RouterLink>
-        <VBtn @click="switchTab('qr')" class="group bg-white text-umsa-blue hover:bg-slate-50 font-black text-[10px] md:text-xs uppercase tracking-widest px-6 py-3.5 rounded-xl md:rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 flex-1 lg:w-full">
-            <VIcon class="material-symbols-outlined text-[18px] md:text-[20px] group-hover:scale-110 transition-transform">qr_code_scanner</VIcon>
-            Generar QR
-        </VBtn>
-        <VBtn @click="navigateToCalificaciones()" class="group bg-umsa-gold hover:bg-yellow-600 text-white font-black text-[10px] md:text-xs uppercase tracking-widest px-6 py-3.5 rounded-xl md:rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl hover:shadow-2xl shadow-umsa-gold/20 hover:-translate-y-1 flex-1 lg:w-full">
-            <VIcon class="material-symbols-outlined text-[18px] md:text-[20px] group-hover:scale-110 transition-transform">grading</VIcon>
-            Notas
-        </VBtn>
+        <button type="button" class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-white px-6 text-xs font-black uppercase tracking-widest text-umsa-blue shadow-xl lg:w-full" @click="switchTab('qr')">
+          <VIcon class="material-symbols-outlined text-[20px]">qr_code_scanner</VIcon>
+          Generar QR
+        </button>
+        <button type="button" class="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-umsa-gold px-6 text-xs font-black uppercase tracking-widest text-white shadow-xl lg:w-full" @click="navigateToCalificaciones()">
+          <VIcon class="material-symbols-outlined text-[20px]">grading</VIcon>
+          Notas
+        </button>
       </div>
       
       <!-- Si no tiene permisos, mostrar badge de catálogo -->
@@ -487,58 +512,52 @@ const openMaterial = (mat: any) => {
       </VCard>
     </div>
 
-    <!-- Pestañas Modernas -->
-    <div class="flex gap-2 overflow-x-auto no-scrollbar p-1.5 bg-slate-100 dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 scroll-smooth">
-      <VBtn v-for="tab in ['resumen', 'estudiantes']" :key="tab" @click="switchTab(tab)" :class="[activeTab === tab ? 'bg-white dark:bg-gray-800 text-umsa-blue dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700']" class="px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2 flex-shrink-0">
-        <VIcon class="material-symbols-outlined text-[18px]" :class="{'text-umsa-gold': activeTab === tab}">{{ tab === 'resumen' ? 'dashboard' : 'groups' }}</VIcon>
-        {{ tab === 'resumen' ? 'Panel Central' : `Nómina (${curso.estudiantesInscritos})` }}
-      </VBtn>
-      
-      <!-- Pestañas Extras solo si tiene permisos -->
+    <div class="flex gap-2 overflow-x-auto rounded-2xl border border-sky-100 bg-sky-50/70 p-1.5 dark:border-slate-700 dark:bg-slate-900">
+      <button type="button" class="flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold" :class="activeTab === 'resumen' ? 'bg-white text-[#003B71] shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-600 hover:text-[#003B71]'" @click="switchTab('resumen')">
+        <VIcon class="material-symbols-outlined text-[18px] text-[#0070BB]">dashboard</VIcon>
+        Panel central
+      </button>
       <template v-if="tienePermisos">
-          <VBtn @click="switchTab('materiales')" :class="[activeTab === 'materiales' ? 'bg-white dark:bg-gray-800 text-umsa-blue dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700']" class="px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2 flex-shrink-0">
-            <VIcon class="material-symbols-outlined text-[18px]" :class="{'text-umsa-gold': activeTab === 'materiales'}">auto_stories</VIcon>
-            Materiales
-          </VBtn>
-          <VBtn @click="switchTab('qr')" :class="[activeTab === 'qr' ? 'bg-white dark:bg-gray-800 text-umsa-blue dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700']" class="px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2 flex-shrink-0 relative">
-            <VIcon class="material-symbols-outlined text-[18px]" :class="{'text-umsa-gold': activeTab === 'qr'}">qr_code_2</VIcon>
-            Asistencia
-          </VBtn>
-          <VBtn @click="switchTab('certificados')" :class="[activeTab === 'certificados' ? 'bg-white dark:bg-gray-800 text-umsa-blue dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700']" class="px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2 flex-shrink-0">
-            <VIcon class="material-symbols-outlined text-[18px]" :class="{'text-umsa-gold': activeTab === 'certificados'}">workspace_premium</VIcon>
-            Mis Certificados
-          </VBtn>
+        <button type="button" class="flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold" :class="activeTab === 'materiales' ? 'bg-white text-[#003B71] shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-600 hover:text-[#003B71]'" @click="switchTab('materiales')">
+          <VIcon class="material-symbols-outlined text-[18px] text-[#0070BB]">auto_stories</VIcon>
+          Materiales
+        </button>
+      </template>
+      <button type="button" class="flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold" :class="activeTab === 'estudiantes' ? 'bg-white text-[#003B71] shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-600 hover:text-[#003B71]'" @click="switchTab('estudiantes')">
+        <VIcon class="material-symbols-outlined text-[18px] text-[#0070BB]">groups</VIcon>
+        Nómina ({{ curso.estudiantesInscritos }})
+      </button>
+      <template v-if="tienePermisos">
+        <button type="button" class="flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold" :class="activeTab === 'qr' ? 'bg-white text-[#003B71] shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-600 hover:text-[#003B71]'" @click="switchTab('qr')">
+          <VIcon class="material-symbols-outlined text-[18px] text-[#0070BB]">qr_code_2</VIcon>
+          Asistencia
+        </button>
+        <button type="button" class="flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold" :class="activeTab === 'certificados' ? 'bg-white text-[#003B71] shadow-sm dark:bg-slate-800 dark:text-white' : 'text-slate-600 hover:text-[#003B71]'" @click="router.push({ name: 'ponente-certificados' })">
+          <VIcon class="material-symbols-outlined text-[18px] text-[#0070BB]">workspace_premium</VIcon>
+          Mis certificados
+        </button>
       </template>
     </div>
 
-    <!-- Contenido dinámico según permisos -->
-    <div v-show="activeTab === 'resumen'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-       <VCard class="col-span-1 md:col-span-2 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2.5rem] p-8 shadow-sm flex items-center justify-between group hover:border-umsa-blue/30 transition-all">
-            <div>
-                <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2 flex items-center gap-2">Modalidad y Fechas</p>
-                <h4 class="text-xl md:text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tighter italic">{{ curso.modalidad }} - {{ curso.fechas }}</h4>
-            </div>
-            <div class="w-14 h-14 bg-blue-50 dark:bg-gray-800 rounded-2xl flex items-center justify-center text-umsa-blue">
-                <VIcon class="material-symbols-outlined text-3xl">event_upcoming</VIcon>
-            </div>
-       </VCard>
-
-       <VCard class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2.5rem] p-8 shadow-sm group hover:border-umsa-gold/50 transition-all text-center md:text-left">
-           <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">Participantes Inscritos</p>
-           <h4 class="text-4xl font-black text-slate-800 dark:text-white leading-none">{{ curso.estudiantesInscritos }}</h4>
-       </VCard>
-
-       <div v-if="tienePermisos" class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2.5rem] p-8 shadow-lg flex flex-col justify-between text-white group cursor-pointer" @click="switchTab('qr')">
-            <p class="text-[10px] font-black uppercase tracking-widest text-umsa-gold mb-1">Módulo Docente</p>
-            <h4 class="text-lg font-black leading-tight italic">Registrar Asistencia Hoy</h4>
-            <div class="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
-                Lanzar <VIcon class="material-symbols-outlined text-sm">qr_code</VIcon>
-            </div>
-       </div>
-       <div v-else class="bg-slate-50 dark:bg-gray-800/20 rounded-[2.5rem] p-8 border border-dashed border-slate-200 flex items-center justify-center flex-col text-center opacity-60">
-            <VIcon class="material-symbols-outlined text-3xl text-slate-300">lock</VIcon>
-            <p class="text-[10px] font-black text-slate-400 uppercase mt-2">Funciones restringidas</p>
-       </div>
+    <div v-show="activeTab === 'resumen'" class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div class="flex items-center justify-between gap-4 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 md:col-span-2">
+        <div class="min-w-0">
+          <p class="text-sm font-medium text-slate-500">Modalidad y fechas</p>
+          <h4 class="mt-1 text-lg font-semibold text-[#003B71] dark:text-white">{{ curso.modalidad }} · {{ curso.fechas }}</h4>
+        </div>
+        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-[#0070BB] dark:bg-slate-800">
+          <VIcon class="material-symbols-outlined text-2xl">event_upcoming</VIcon>
+        </div>
+      </div>
+      <div class="rounded-2xl border border-sky-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <p class="text-sm font-medium text-slate-500">Participantes inscritos</p>
+        <h4 class="mt-2 text-3xl font-semibold text-[#003B71] dark:text-white">{{ curso.estudiantesInscritos }}</h4>
+      </div>
+      <button v-if="tienePermisos" type="button" class="rounded-2xl border border-sky-200 bg-sky-50 p-6 text-left shadow-sm transition hover:border-[#0070BB] dark:border-sky-900 dark:bg-slate-800" @click="switchTab('qr')">
+        <p class="text-sm font-medium text-[#0070BB]">Asistencia</p>
+        <h4 class="mt-1 text-lg font-semibold text-[#003B71] dark:text-white">Registrar la sesión de hoy</h4>
+        <span class="mt-4 inline-block text-sm font-semibold text-[#0070BB]">Abrir asistencia</span>
+      </button>
     </div>
 
     <!-- Tabla de Estudiantes (Disponible para todos) -->
@@ -577,20 +596,20 @@ const openMaterial = (mat: any) => {
                 <p class="text-slate-500 text-sm leading-relaxed mb-6">Selecciona la sesión activa y el método de registro de asistencia.</p>
                 
                 <div class="mb-8 bg-slate-50 dark:bg-gray-800 p-4 rounded-xl border border-slate-200 dark:border-gray-700">
-                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Sesión Académica Activa</label>
-                    <UiSelect v-if="sesiones.length > 0" v-model="activeSessionId" class="w-full bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-600 rounded-lg p-2 text-sm font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-umsa-blue/20 outline-none transition-all">
+                    <label for="sesion-activa" class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Sesión Académica Activa</label>
+                    <select v-if="sesiones.length > 0" id="sesion-activa" v-model="activeSessionId" class="w-full max-w-full rounded-lg border border-slate-300 bg-white p-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-umsa-blue/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white">
                         <option v-for="s in sesiones" :key="s.id" :value="s.id">
-                            {{ s.modalidad_nombre }} - {{ s.fecha ? new Date(s.fecha).toLocaleDateString() : 'Sin Fecha' }}
+                            {{ s.modalidad_nombre || 'Presencial' }} · {{ s.fecha ? new Date(s.fecha).toLocaleDateString() : (s.dia || 'Sin fecha') }}<template v-if="s.hora_inicio"> · {{ String(s.hora_inicio).slice(0, 5) }}–{{ String(s.hora_fin || '').slice(0, 5) }}</template>
                         </option>
-                    </UiSelect>
+                    </select>
                     <div v-else class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                        <p class="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-tight">No hay sesiones configuradas para esta actividad.</p>
+                        <p class="text-xs font-semibold text-amber-800 dark:text-amber-300">{{ avisoAsistencia }}</p>
                     </div>
                     
                     <!-- Registros Requeridos -->
                     <div v-if="sesiones.length > 0" class="mt-4 pt-4 border-t border-slate-200 dark:border-gray-700">
-                        <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Registros para el día de hoy</label>
-                        <UiInput type="number" v-model="registrosRequeridos" min="1" class="w-full bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-600 rounded-lg p-2 text-sm font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-umsa-blue/20 outline-none transition-all" />
+                        <label for="registros-hoy" class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Registros para el día de hoy</label>
+                        <input id="registros-hoy" v-model.number="registrosRequeridos" type="number" min="1" class="w-full max-w-full rounded-lg border border-slate-300 bg-white p-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-umsa-blue/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" />
                     </div>
                 </div>
 
@@ -645,88 +664,72 @@ const openMaterial = (mat: any) => {
         </div>
     </VCard>
 
-    <!-- Tab: Materiales (Ponente) -->
-    <VCard v-if="activeTab === 'materiales' && tienePermisos" class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[1.5rem] md:rounded-[2.5rem] p-6 md:p-10 shadow-xl space-y-8 animate-in slide-in-from-bottom-4 duration-500 fade-in">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 dark:border-gray-800 pb-6">
+    <section v-if="activeTab === 'materiales' && tienePermisos" class="space-y-6 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 md:p-8">
+        <div class="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
             <div>
-                <h3 class="text-2xl font-black text-slate-800 dark:text-white uppercase italic tracking-tight flex items-center gap-2">
-                    <VIcon class="material-symbols-outlined text-umsa-blue text-3xl">auto_stories</VIcon>
-                    Material Didáctico y Enlaces
-                </h3>
-                <p class="text-slate-500 dark:text-gray-400 text-xs font-bold uppercase tracking-widest mt-1">Sube archivos o comparte enlaces a clases virtuales, libros o diapositivas.</p>
+                <h3 class="text-xl font-semibold text-[#003B71] dark:text-white">Material de la actividad</h3>
+                <p class="mt-1 text-sm text-slate-500">Cada recurso queda en la fecha de la clase. El estudiante lo ve igual, en su pestaña Materiales, cuando su inscripción está aprobada.</p>
             </div>
-            <VBtn v-if="puedeSubirMaterial" @click="mostrarFormMaterial = !mostrarFormMaterial" class="bg-umsa-blue hover:bg-blue-600 text-white font-black text-xs uppercase tracking-widest px-6 py-3 rounded-xl transition-all shadow-md flex items-center gap-2">
-                <VIcon class="material-symbols-outlined text-[18px]">{{ mostrarFormMaterial ? 'close' : 'add' }}</VIcon>
-                {{ mostrarFormMaterial ? 'Cancelar' : 'Agregar Material' }}
-            </VBtn>
+            <button v-if="puedeSubirMaterial" type="button" class="shrink-0 rounded-xl bg-[#0070BB] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#003B71]" @click="mostrarFormMaterial = !mostrarFormMaterial">
+                {{ mostrarFormMaterial ? 'Cancelar' : 'Agregar material' }}
+            </button>
         </div>
 
-        <!-- Formulario para agregar material -->
-        <div v-if="mostrarFormMaterial && puedeSubirMaterial" class="bg-slate-50 dark:bg-gray-950 p-6 md:p-8 rounded-[1.5rem] border border-slate-200 dark:border-gray-800 space-y-6">
-            <h4 class="text-sm font-black text-slate-700 dark:text-gray-300 uppercase tracking-widest">Nuevo Recurso</h4>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Título -->
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Título del Material</label>
-                    <UiInput v-model="nuevoMaterial.titulo" type="text" placeholder="Ej. Diapositivas - Sesión 1 o Enlace a Zoom" class="w-full bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-umsa-blue/20 outline-none text-slate-700 dark:text-white" />
+        <form v-if="mostrarFormMaterial && puedeSubirMaterial" class="space-y-4 rounded-2xl border border-sky-100 bg-sky-50/60 p-5 dark:border-slate-700 dark:bg-slate-800" @submit.prevent="guardarMaterial">
+            <h4 class="text-base font-semibold text-[#003B71] dark:text-white">Nuevo recurso</h4>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div class="min-w-0 md:col-span-1">
+                    <label for="fecha-clase" class="mb-1 block text-sm font-medium text-slate-600">Fecha de la clase</label>
+                    <input id="fecha-clase" v-model="nuevoMaterial.fecha" type="date" required class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-sky-300 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
                 </div>
-
-                <!-- Tipo -->
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tipo de Recurso</label>
-                    <UiSelect v-model="nuevoMaterial.tipo" class="w-full bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-umsa-blue/20 outline-none text-slate-700 dark:text-white">
-                        <option value="Enlace">Enlace Web (Meet, Zoom, Drive, etc.)</option>
-                        <option value="Archivo">Archivo (PDF, Documento, Diapositivas, etc.)</option>
-                    </UiSelect>
+                <div class="min-w-0">
+                    <label for="titulo-material" class="mb-1 block text-sm font-medium text-slate-600">Título</label>
+                    <input id="titulo-material" v-model="nuevoMaterial.titulo" type="text" required placeholder="Diapositivas de la sesión" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-sky-300 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
+                </div>
+                <div class="min-w-0">
+                    <label for="tipo-recurso" class="mb-1 block text-sm font-medium text-slate-600">Tipo</label>
+                    <select id="tipo-recurso" v-model="nuevoMaterial.tipo" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-sky-300 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                        <option value="Archivo">Documento</option>
+                        <option value="Enlace">Enlace web</option>
+                    </select>
                 </div>
             </div>
-
-            <!-- Entrada de Enlace -->
             <div v-if="nuevoMaterial.tipo === 'Enlace'">
-                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Dirección URL (Link)</label>
-                <UiInput v-model="nuevoMaterial.url" type="url" placeholder="https://meet.google.com/... o https://zoom.us/..." class="w-full bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-umsa-blue/20 outline-none text-slate-700 dark:text-white" />
+                <label for="url-material" class="mb-1 block text-sm font-medium text-slate-600">Dirección</label>
+                <input id="url-material" v-model="nuevoMaterial.url" type="url" placeholder="https://..." class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-sky-300 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
             </div>
-
-            <!-- Entrada de Archivo -->
-            <div v-if="nuevoMaterial.tipo === 'Archivo'">
-                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Subir Archivo</label>
-                <UiFileInput @change="handleFileChange" class="w-full" />
+            <div v-else>
+                <label for="archivo-material" class="mb-1 block text-sm font-medium text-slate-600">Documento</label>
+                <label for="archivo-material" class="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-sky-300 bg-white px-4 py-3 text-sm text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200">
+                    <span class="rounded-lg bg-sky-100 px-3 py-1.5 text-sm font-semibold text-[#003B71]">Elegir archivo</span>
+                    <span class="min-w-0 truncate">{{ selectedFile ? `${selectedFile.name} · ${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB` : 'Ningún archivo elegido' }}</span>
+                    <input id="archivo-material" ref="archivoInput" type="file" class="sr-only" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,.zip" @change="handleFileChange" />
+                </label>
             </div>
-
-            <!-- Guardar button -->
             <div class="flex justify-end">
-                <VBtn @click="guardarMaterial" :disabled="subiendoMaterial" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest px-8 py-4 rounded-xl transition-all shadow-lg shadow-emerald-600/10 flex items-center gap-2">
-                    <VIcon v-if="subiendoMaterial" class="material-symbols-outlined animate-spin text-[18px]">sync</VIcon>
-                    <VIcon v-else class="material-symbols-outlined text-[18px]">save</VIcon>
-                    {{ subiendoMaterial ? 'Guardando...' : 'Guardar Recurso' }}
-                </VBtn>
+                <button type="submit" class="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60" :disabled="subiendoMaterial">
+                    {{ subiendoMaterial ? 'Guardando...' : 'Publicar en esta fecha' }}
+                </button>
             </div>
-        </div>
+        </form>
 
-        <!-- Lista de materiales -->
-        <div v-if="materiales.length === 0" class="text-sm font-bold text-slate-500 bg-slate-50 dark:bg-gray-800 p-8 rounded-2xl border border-slate-200 dark:border-gray-700 text-center">
-            Aún no has agregado material didáctico para esta actividad.
+        <p v-if="materiales.length === 0" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">Todavía no hay material. Agrega el primero y elige la fecha de la clase.</p>
+        <div v-else class="space-y-6">
+            <section v-for="grupo in materialesPorFecha" :key="grupo.clave" class="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+                <h4 class="bg-sky-50 px-4 py-3 text-sm font-semibold capitalize text-[#003B71] dark:bg-slate-800 dark:text-sky-100">{{ grupo.titulo }}</h4>
+                <ul>
+                    <li v-for="mat in grupo.items" :key="mat.id" class="flex items-center gap-3 border-t border-slate-100 px-4 py-3 dark:border-slate-800">
+                        <VIcon class="material-symbols-outlined shrink-0 text-2xl" :class="mat.tipo === 'Enlace' ? 'text-[#0070BB]' : 'text-rose-600'">{{ mat.tipo === 'Enlace' ? 'link' : 'description' }}</VIcon>
+                        <button type="button" class="min-w-0 flex-1 text-left" @click="openMaterial(mat)">
+                            <span class="block truncate text-sm font-semibold text-slate-800 dark:text-white">{{ mat.titulo }}</span>
+                            <span class="block truncate text-xs text-slate-500">{{ mat.tipo === 'Enlace' ? 'Enlace' : (mat.nombreArchivo || 'Documento') }}<template v-if="mat.tamaño"> · {{ mat.tamaño }}</template></span>
+                        </button>
+                        <button type="button" class="shrink-0 text-sm font-semibold text-rose-600 hover:text-rose-800" @click="eliminarMaterial(mat.id)">Quitar</button>
+                    </li>
+                </ul>
+            </section>
         </div>
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div v-for="mat in materiales" :key="mat.id" class="border border-slate-200 dark:border-gray-800 rounded-2xl p-5 hover:border-umsa-blue transition-colors group relative flex flex-col justify-between dark:bg-gray-950">
-                <div>
-                    <div class="flex justify-between items-start mb-4">
-                        <VIcon class="material-symbols-outlined text-3xl" :class="mat.tipo === 'PDF' ? 'text-red-500' : 'text-blue-500'">{{ mat.tipo === 'PDF' ? 'picture_as_pdf' : 'link' }}</VIcon>
-                        <span class="text-[10px] bg-slate-100 dark:bg-gray-800 px-2 py-1 rounded font-bold uppercase tracking-widest text-slate-500 dark:text-gray-400">{{ mat.tamaño || mat.tipo }}</span>
-                    </div>
-                    <h4 @click="openMaterial(mat)" class="font-bold text-slate-800 dark:text-white mb-1 line-clamp-2 cursor-pointer hover:text-umsa-blue transition-colors">{{ mat.titulo }}</h4>
-                    <p class="text-xs text-slate-500 font-medium">{{ mat.fecha }}</p>
-                </div>
-                <div class="flex justify-end border-t border-slate-100 dark:border-gray-800 mt-4 pt-3">
-                    <VBtn @click="eliminarMaterial(mat.id)" class="text-red-500 hover:text-red-700 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest transition-colors">
-                        <VIcon class="material-symbols-outlined text-[16px]">delete</VIcon>
-                        Eliminar
-                    </VBtn>
-                </div>
-            </div>
-        </div>
-    </VCard>
+    </section>
 
   </div>
 </template>

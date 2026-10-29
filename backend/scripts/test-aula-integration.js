@@ -11,7 +11,7 @@ async function main() {
   try {
     await db.query('BEGIN');
     // Tablas temporales: no se alteran estudiantes, notas ni cursos reales.
-    await db.query(`CREATE TEMP TABLE actividades_academicas (id int, tipo text); INSERT INTO actividades_academicas VALUES (7,'Curso'); CREATE TEMP TABLE curso_lecciones (id int, id_actividad_academica int, tipo text, preguntas jsonb DEFAULT '[]', peso numeric, publicado bool);
+    await db.query(`CREATE TEMP TABLE actividades_academicas (id int, tipo text, requisitos jsonb); INSERT INTO actividades_academicas VALUES (7,'Curso', NULL); CREATE TEMP TABLE curso_lecciones (id int, id_actividad_academica int, tipo text, preguntas jsonb DEFAULT '[]', peso numeric, publicado bool);
       CREATE TEMP TABLE curso_progreso (id int, id_leccion int, id_usuario int, nota numeric);
       INSERT INTO curso_lecciones VALUES (1,7,'video','[{"opciones":["A","B"]}]',30,true),(2,7,'practica','[]',20,true),(3,7,'examen','[{}]',50,true),(4,7,'material','[]',0,true),(5,7,'examen','[{}]',99,false);
       INSERT INTO curso_progreso VALUES (1,1,9,80),(2,2,9,NULL);`);

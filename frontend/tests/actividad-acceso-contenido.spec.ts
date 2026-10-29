@@ -52,6 +52,25 @@ test('editar un simposio solo permite habilitar videos y archivos y conserva sus
   expect(JSON.parse(raw)).toMatchObject({ extension: 'conservar', base: { email: true }, aula: { video: true, material: true, practica: false, examen: false } });
 });
 
+test('otro elige sus bloques y el curso muestra la suma de 100 puntos', async ({ page }) => {
+  await auth(page);
+  await page.route('http://localhost:3000/admin/eventos/lista?limit=100', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ id: 3, nombre: 'Congreso', estado: 1, actividades: [] }]) }));
+  await page.goto('/admin/gestion-eventos?newAct=true&eventoId=3');
+  const wizard = page.locator('.activity-creation').first();
+  const permisos = wizard.getByRole('region', { name: 'Permisos de contenido del ponente' });
+  await wizard.getByLabel('Tipo de Actividad', { exact: true }).selectOption('Otro');
+  await expect(permisos.getByRole('checkbox', { name: 'Secciones con nota', exact: true })).toBeVisible();
+  await expect(permisos.getByRole('checkbox', { name: 'Prácticas', exact: true })).toBeVisible();
+  await expect(permisos.getByRole('checkbox', { name: 'Laboratorios', exact: true })).toBeVisible();
+  await expect(permisos.getByRole('checkbox', { name: 'Exámenes con tiempo límite', exact: true })).toBeVisible();
+  await wizard.getByLabel('Tipo de Actividad', { exact: true }).selectOption('Simposio');
+  await expect(permisos).toContainText('solo la asistencia');
+  await expect(permisos.getByRole('checkbox', { name: 'Exámenes con tiempo límite', exact: true })).toHaveCount(0);
+  await wizard.getByLabel('Tipo de Actividad', { exact: true }).selectOption('Curso');
+  await expect(permisos.getByLabel('Puntaje de asistencia', { exact: true })).toHaveValue('100');
+  await expect(permisos).toContainText('deben sumar 100');
+});
+
 test('el panel del ponente respeta los permisos y no ofrece exámenes para un simposio', async ({ page }) => {
   await auth(page);
   await page.route('http://localhost:3000/actividades-academicas/7/aula/configuracion', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ tipo_actividad: 'Simposio', permisos: { video: true, material: false, practica: true, examen: true } }) }));
