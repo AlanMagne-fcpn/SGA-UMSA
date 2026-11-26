@@ -22,10 +22,12 @@ export const vuetify = createVuetify({
       sgeaLight: {
         dark: false,
         colors: { primary: '#0070BB', secondary: '#012248', accent: '#BC9C31', success: '#059669', error: '#dc2626', surface: '#ffffff', background: '#f8f9fc' },
+        variables: { 'font-family': 'Urbanist, sans-serif' },
       },
       sgeaDark: {
         dark: true,
         colors: { primary: '#38bdf8', secondary: '#93c5fd', accent: '#BC9C31', success: '#34d399', error: '#f87171', surface: '#111827', background: '#030712' },
+        variables: { 'font-family': 'Urbanist, sans-serif' },
       },
     },
   },

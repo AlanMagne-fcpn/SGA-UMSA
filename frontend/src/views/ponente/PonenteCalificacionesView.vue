@@ -1,293 +1,78 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/services/api';
 import Swal from '@/services/dialogs';
+import NotasRubricaGrid from '@/components/actividades/NotasRubricaGrid.vue';
 
 const route = useRoute();
 const router = useRouter();
-
-const actividadId = ref(route.params.actividadId);
+const actividadId = ref(String(route.params.actividadId || ''));
 const loading = ref(false);
-const saving = ref(false);
-const searchQuery = ref('');
-const filterStatus = ref('todos'); // todos, aprobados, reprobados, pendientes
+const actividadInfo = ref({ nombre: 'Cargando...', evento: '...', min_nota: 51 });
 
-const actividadInfo = ref({
-  nombre: 'Cargando...',
-  evento: '...',
-  min_nota: 51
-});
-
-// Estudiantes reales vendrán del backend
-const estudiantes = ref<any[]>([]);
-
-const fetchEstudiantes = async () => {
-    if (!actividadId.value) return;
-    
-    loading.value = true;
-    try {
-        // Verificar estado de la actividad primero
-        const actRes = await api.get(`/actividades-academicas/${actividadId.value}`);
-        if (Number(actRes.data.estado) === -1) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Actividad Inhabilitada',
-                text: 'No se pueden gestionar calificaciones para una actividad inhabilitada.',
-                confirmButtonColor: '#003B71'
-            });
-            router.push({ name: 'ponente-eventos' });
-            return;
-        }
-
-        // Cargar información de la actividad
-        actividadInfo.value.nombre = actRes.data.nombre;
-        actividadInfo.value.evento = actRes.data.evento?.nombre || 'Evento';
-        actividadInfo.value.min_nota = actRes.data.min_nota ?? 51;
-
-        // Cargar estudiantes
-        const response = await api.get(`/ponente/inscripciones/actividad/${actividadId.value}`);
-        estudiantes.value = response.data.map((ins: any) => ({
-            id: ins.id,
-            nombre: [ins.usuario?.persona?.nombres, ins.usuario?.persona?.primer_apellido].filter(Boolean).join(' ') || 'Sin nombre',
-            correo: ins.usuario?.email || '',
-            nota: Number(ins.nota_principal ?? 0),
-            originalNota: Number(ins.nota_principal ?? 0),
-            guardado: true
-        }));
-        
-    } catch (error: any) {
-        console.error('Error al cargar estudiantes:', error);
-        estudiantes.value = [];
-        Swal.fire('Error', error.response?.data?.message || 'No se pudieron cargar los estudiantes y sus notas.', 'error');
-    } finally {
-        loading.value = false;
+const fetchInfo = async () => {
+  if (!actividadId.value) return;
+  loading.value = true;
+  try {
+    const actRes = await api.get(`/actividades-academicas/${actividadId.value}`);
+    if (Number(actRes.data.estado) === -1) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Actividad Inhabilitada',
+        text: 'No se pueden gestionar calificaciones para una actividad inhabilitada.',
+        confirmButtonColor: '#003B71',
+      });
+      router.push({ name: 'ponente-eventos' });
+      return;
     }
+    actividadInfo.value.nombre = actRes.data.nombre;
+    actividadInfo.value.evento = actRes.data.evento?.nombre || 'Evento';
+    actividadInfo.value.min_nota = actRes.data.modalidades?.[0]?.min_nota ?? actRes.data.min_nota ?? 51;
+  } catch (error: any) {
+    Swal.fire('Error', error.response?.data?.message || 'No se pudo cargar la actividad.', 'error');
+  } finally {
+    loading.value = false;
+  }
 };
 
-const guardarNotas = async () => {
-    saving.value = true;
-    const modificados = estudiantes.value.filter(e => e.nota !== e.originalNota);
-    
-    for (const est of modificados) {
-        if (typeof est.nota !== 'number' || !Number.isFinite(est.nota) || est.nota < 0 || est.nota > 100) {
-            Swal.fire('Error', 'La calificación debe estar entre 0 y 100.', 'error');
-            saving.value = false;
-            return;
-        }
-    }
-
-    if (modificados.length === 0) {
-        Swal.fire('Sin cambios', 'No hay notas nuevas para guardar.', 'info');
-        saving.value = false;
-        return;
-    }
-
-    try {
-        for (const est of modificados) {
-            await api.patch(`/ponente/inscripciones/actividad/${actividadId.value}/${est.id}/nota`, {
-                nota: est.nota
-            });
-            est.originalNota = est.nota;
-            est.guardado = true;
-        }
-        
-        Swal.fire({
-            icon: 'success',
-            title: 'Notas Guardadas',
-            text: `Se han actualizado ${modificados.length} calificaciones correctamente.`,
-            confirmButtonColor: '#005a96'
-        });
-    } catch (error) {
-        Swal.fire('Error', 'Hubo un problema al guardar las notas. Intenta nuevamente.', 'error');
-    } finally {
-        saving.value = false;
-    }
-};
-
-const filteredEstudiantes = computed(() => {
-    return estudiantes.value.filter(e => {
-        const matchesSearch = e.nombre.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
-                             e.correo.toLowerCase().includes(searchQuery.value.toLowerCase());
-        
-        if (filterStatus.value === 'aprobados') return matchesSearch && e.nota >= actividadInfo.value.min_nota;
-        if (filterStatus.value === 'reprobados') return matchesSearch && e.nota < actividadInfo.value.min_nota && e.nota > 0;
-        if (filterStatus.value === 'pendientes') return matchesSearch && (e.nota === 0 || !e.nota);
-        
-        return matchesSearch;
-    });
-});
-
-onMounted(fetchEstudiantes);
-
-const getNotaClass = (nota: number) => {
-    if (nota === 0) return 'text-slate-400';
-    return nota >= actividadInfo.value.min_nota ? 'text-emerald-600' : 'text-rose-600';
-};
+onMounted(fetchInfo);
 </script>
 
 <template>
   <div class="animate-in fade-in duration-500 space-y-6">
-    <!-- Header de Navegación -->
-    <div class="flex items-center justify-between">
-        <VBtn @click="router.back()" class="flex items-center gap-2 text-slate-500 hover:text-umsa-blue transition-colors font-black text-[11px] uppercase tracking-widest">
-            <VIcon class="material-symbols-outlined text-[16px]">arrow_back</VIcon>
-            Volver al Detalle
-        </VBtn>
-        
-        <div class="flex items-center gap-3">
-             <VBtn @click="fetchEstudiantes" class="p-2.5 text-slate-400 hover:text-umsa-blue hover:bg-blue-50 rounded-xl transition-all" title="Recargar lista">
-                <VIcon class="material-symbols-outlined" :class="{'animate-spin': loading}">refresh</VIcon>
-            </VBtn>
-            <VBtn @click="guardarNotas" :disabled="saving || loading" class="bg-umsa-blue hover:bg-blue-700 disabled:opacity-50 text-white font-black px-6 py-3 rounded-2xl uppercase tracking-widest text-[11px] transition-all flex items-center gap-2 shadow-xl shadow-umsa-blue/20">
-                <VIcon class="material-symbols-outlined text-[18px]">{{ saving ? 'sync' : 'save_as' }}</VIcon>
-                {{ saving ? 'Guardando...' : 'Publicar Calificaciones' }}
-            </VBtn>
-        </div>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <button type="button" class="btn-hint-pulse text-[11px] font-bold uppercase tracking-widest text-slate-500" @click="router.back()">
+        Volver al detalle
+      </button>
+      <RouterLink
+        v-if="actividadId"
+        :to="`/ponente/curso/${actividadId}/aula?tipo=practica`"
+        class="border border-[#003B71] bg-[#003B71] px-5 py-3 text-[11px] font-bold uppercase tracking-widest text-white"
+      >
+        Aula · prácticas (Classroom)
+      </RouterLink>
     </div>
 
-    <!-- Banner Info -->
-    <VCard class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2rem] p-8 shadow-sm">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="px-3 py-1 bg-umsa-gold/10 text-umsa-gold text-[9px] font-black uppercase tracking-widest rounded-lg border border-umsa-gold/20">
-                        {{ actividadInfo.evento }}
-                    </span>
-                    <span class="text-slate-300">|</span>
-                    <span class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Gestión de Notas</span>
-                </div>
-                <h1 class="text-2xl md:text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter italic">
-                    {{ actividadInfo.nombre }}
-                </h1>
-            </div>
-            <div class="flex gap-4">
-                <div class="bg-slate-50 dark:bg-gray-800/50 px-6 py-4 rounded-2xl border border-slate-100 dark:border-gray-800">
-                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Inscritos</p>
-                    <p class="text-xl font-black text-slate-800 dark:text-white">{{ estudiantes.length }}</p>
-                </div>
-                <div class="bg-emerald-50 dark:bg-emerald-900/10 px-6 py-4 rounded-2xl border border-emerald-100 dark:border-emerald-900/20">
-                    <p class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Aprobados</p>
-                    <p class="text-xl font-black text-emerald-700 dark:text-emerald-500">{{ estudiantes.filter(e => e.nota >= actividadInfo.min_nota).length }}</p>
-                </div>
-            </div>
+    <header class="overflow-hidden border border-slate-300 bg-white dark:border-gray-800 dark:bg-gray-900">
+      <div class="grid gap-0 lg:grid-cols-[1.2fr_0.8fr]">
+        <div class="border-b border-slate-200 p-8 dark:border-gray-800 lg:border-b-0 lg:border-r">
+          <p class="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#BC9C31]">{{ actividadInfo.evento }}</p>
+          <h1 class="mt-3 font-serif text-4xl leading-none text-[#003B71] dark:text-white">{{ actividadInfo.nombre }}</h1>
+          <p class="mt-4 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
+            Aquí ves los porcentajes asignados, puedes corregirlos y cargar notas por rubro.
+            Las prácticas con enunciado y entrega se publican en el aula, organizadas por sección.
+          </p>
         </div>
-    </VCard>
+        <div class="bg-[#003B71] p-8 text-white">
+          <p class="text-[10px] uppercase tracking-[0.24em] text-[#BC9C31]">Umbral</p>
+          <p class="mt-3 font-serif text-5xl leading-none">{{ actividadInfo.min_nota }}</p>
+          <p class="mt-2 text-sm text-white/70">Nota mínima de aprobación</p>
+        </div>
+      </div>
+    </header>
 
-    <!-- Controles de Tabla -->
-    <div class="flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-100/50 dark:bg-gray-900/50 p-4 rounded-3xl border border-slate-200 dark:border-gray-800">
-        <div class="relative w-full md:w-96">
-            <VIcon class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</VIcon>
-            <UiInput v-model="searchQuery" type="text" placeholder="Nombre o correo del estudiante..." class="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-umsa-blue/20" />
-        </div>
-        
-        <div class="flex items-center gap-2 w-full md:w-auto">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2 ml-4">Filtrar:</span>
-            <VBtn v-for="st in ['todos', 'aprobados', 'reprobados', 'pendientes']" :key="st"
-                @click="filterStatus = st"
-                :class="[filterStatus === st ? 'bg-umsa-blue text-white shadow-lg shadow-umsa-blue/20' : 'bg-white dark:bg-gray-900 text-slate-500 hover:bg-slate-50']"
-                class="px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-gray-800">
-                {{ st }}
-            </VBtn>
-        </div>
-    </div>
-
-    <!-- Tabla de Calificaciones -->
-    <VCard class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2rem] overflow-hidden shadow-sm">
-        <div v-if="loading" class="p-20 flex flex-col items-center justify-center gap-4 text-slate-400">
-            <VIcon class="material-symbols-outlined animate-spin text-4xl">sync</VIcon>
-            <p class="text-xs font-black uppercase tracking-widest">Sincronizando nómina...</p>
-        </div>
-        
-        <VTable v-else class="w-full text-left">
-            <thead>
-                <tr class="bg-slate-50/50 dark:bg-black/20 border-b border-slate-100 dark:border-gray-800">
-                    <th class="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Estudiante</th>
-                    <th class="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nota Final (0-100)</th>
-                    <th class="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Estado Académico</th>
-                    <th class="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Acción</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="est in filteredEstudiantes" :key="est.id" class="group hover:bg-slate-50/50 dark:hover:bg-gray-800/30 transition-all border-b border-slate-50 dark:border-gray-800/50">
-                    <td class="px-8 py-6">
-                        <div class="flex items-center gap-4">
-                            <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-gray-800 flex items-center justify-center font-black text-slate-400 group-hover:bg-umsa-blue group-hover:text-white transition-all shadow-sm">
-                                {{ est.nombre.charAt(0) }}
-                            </div>
-                            <div>
-                                <div class="text-sm font-black text-slate-700 dark:text-white mb-0.5">{{ est.nombre }}</div>
-                                <div class="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                    <VIcon class="material-symbols-outlined text-[12px]">mail</VIcon> {{ est.correo }}
-                                </div>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="px-8 py-6 w-56">
-                        <div class="relative">
-                            <UiInput type="number" v-model="est.nota" min="0" max="100"
-                                class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-800 rounded-2xl px-5 py-3 text-lg font-black focus:outline-none focus:border-umsa-blue transition-all"
-                                :class="getNotaClass(est.nota)" />
-                            <div v-if="est.nota !== est.originalNota" class="absolute -right-2 -top-2 flex h-5 w-5 animate-bounce items-center justify-center rounded-full bg-umsa-gold text-[10px] text-white shadow-lg">
-                                !
-                            </div>
-                        </div>
-                    </td>
-                    <td class="px-8 py-6 text-center">
-                        <div v-if="est.nota > 0" :class="[est.nota >= actividadInfo.min_nota ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100']" class="inline-flex px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest shadow-sm">
-                            {{ est.nota >= actividadInfo.min_nota ? 'Aprobado' : 'Reprobado' }}
-                        </div>
-                        <div v-else class="inline-flex px-4 py-2 bg-slate-100 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-200">
-                            Pendiente
-                        </div>
-                    </td>
-                    <td class="px-8 py-6 text-right">
-                        <div v-if="est.nota !== est.originalNota" class="text-[9px] font-black text-umsa-gold uppercase animate-pulse">
-                            Sin guardar
-                        </div>
-                        <div v-else-if="est.nota > 0" class="flex items-center justify-end gap-1 text-emerald-500 font-bold text-[9px] uppercase tracking-widest">
-                            <VIcon class="material-symbols-outlined text-[14px]">check_circle</VIcon> Sincronizado
-                        </div>
-                    </td>
-                </tr>
-            </tbody>
-        </VTable>
-
-        <!-- Estado Vacío -->
-        <div v-if="filteredEstudiantes.length === 0 && !loading" class="p-20 text-center space-y-4">
-            <div class="w-20 h-20 bg-slate-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
-                <VIcon class="material-symbols-outlined text-4xl text-slate-300">person_off</VIcon>
-            </div>
-            <h3 class="text-xl font-black text-slate-600 dark:text-gray-400 uppercase tracking-tighter">No se encontraron estudiantes</h3>
-            <p class="text-xs text-slate-400 max-w-xs mx-auto font-medium">Prueba ajustando tu búsqueda o los filtros de estado académico.</p>
-        </div>
-    </VCard>
-
-    <!-- Footer de Información -->
-    <div class="flex flex-col md:flex-row items-center gap-6 justify-between text-slate-400">
-        <div class="flex items-center gap-6">
-            <div class="flex items-center gap-2">
-                <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
-                <span class="text-[10px] font-black uppercase tracking-widest">Aprobación >= {{ actividadInfo.min_nota }} Pts</span>
-            </div>
-            <div class="flex items-center gap-2">
-                <div class="w-3 h-3 rounded-full bg-umsa-gold"></div>
-                <span class="text-[10px] font-black uppercase tracking-widest">Cambios pendientes</span>
-            </div>
-        </div>
-        <p class="text-[10px] font-bold italic">© 2026 Sistema TYAN · Universidad Mayor de San Andrés</p>
-    </div>
+    <div v-if="loading" class="p-16 text-center text-xs font-bold uppercase tracking-widest text-slate-400">Cargando...</div>
+    <NotasRubricaGrid v-else-if="actividadId" :actividad-id="actividadId" />
   </div>
 </template>
-
-<style scoped>
-/* Eliminar flechas del input number */
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-input[type=number] {
-  -moz-appearance: textfield;
-}
-</style>

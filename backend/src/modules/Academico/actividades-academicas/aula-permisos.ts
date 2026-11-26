@@ -8,7 +8,7 @@ export type BloquesEvaluacion = {
   laboratorio: boolean;
   examen: boolean;
 };
-export type ItemEvaluacion = { tipo: TipoItem; nombre: string; puntaje: number; plazo: string | null };
+export type ItemEvaluacion = { clave: string; tipo: TipoItem; nombre: string; puntaje: number; plazo: string | null };
 export type EsquemaEvaluacion = {
   modo: ModoEvaluacion;
   asistencia: number;
@@ -84,7 +84,8 @@ export function esquemaEvaluacion(tipo: string, requisitos: any): EsquemaEvaluac
       examen: bloquesGuardados.examen !== false,
     };
   const asistencia = Number(guardado.asistencia ?? 100);
-  const items = (Array.isArray(guardado.items) ? guardado.items : []).map((item: any) => ({
+  const items = (Array.isArray(guardado.items) ? guardado.items : []).map((item: any, index: number) => ({
+    clave: String(item?.clave || `item-${index + 1}`).trim().slice(0, 40) || `item-${index + 1}`,
     tipo: item?.tipo,
     nombre: String(item?.nombre || '').trim(),
     puntaje: Number(item?.puntaje),
@@ -100,8 +101,8 @@ export function validarEsquema(esquema: EsquemaEvaluacion): string | null {
     }
     return null;
   }
-  if (!Number.isFinite(esquema.asistencia) || esquema.asistencia <= 0 || esquema.asistencia > 100) {
-    return 'La asistencia es obligatoria y debe tener un puntaje entre 1 y 100.';
+  if (!Number.isFinite(esquema.asistencia) || esquema.asistencia < 0 || esquema.asistencia > 100) {
+    return 'La asistencia debe tener un puntaje entre 0 y 100.';
   }
   let suma = esquema.asistencia;
   for (const item of esquema.items) {
@@ -125,10 +126,10 @@ export function permisosContenido(tipo: string, requisitos: any, modalidad?: str
   const practicaOn = bloques ? bloques.practica === true : true;
   const examenOn = bloques ? bloques.examen === true || bloques.secciones === true : true;
   return {
-    video: !presencial && (config ? config.video === true : true),
+    video: false,
     material: config ? config.material === true : true,
     practica: evaluable && practicaOn && (config ? config.practica === true : true),
     examen: evaluable && examenOn && (config ? config.examen === true : true),
-    laboratorio: evaluable && bloques?.laboratorio === true,
+    laboratorio: false,
   };
 }

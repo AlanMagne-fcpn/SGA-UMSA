@@ -1,7 +1,7 @@
 <template>
-  <VCard class="p-6 max-w-lg mx-auto bg-white rounded-lg shadow-md text-center mt-10">
-    <h1 class="text-2xl font-bold mb-4 text-gray-800">Mi Código QR</h1>
-    <p class="text-gray-600 mb-6">Muestra este código al docente o personal de logística para registrar tu asistencia.</p>
+  <VCard class="mx-auto mt-4 w-full max-w-lg rounded-2xl bg-white p-5 text-center shadow-md sm:mt-10 sm:p-6">
+    <h1 class="mb-4 text-xl font-bold text-gray-800 sm:text-2xl">Mi Código QR</h1>
+    <p class="mb-6 text-sm text-gray-600 sm:text-base">Muestra este código al docente o personal de logística para registrar tu asistencia.</p>
     
     <div v-if="loading" class="flex justify-center my-10">
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -14,10 +14,10 @@
     </div>
 
     <div v-else class="flex flex-col items-center">
-      <div class="p-4 bg-white border-4 border-indigo-100 rounded-xl shadow-inner inline-block">
-        <qrcode-vue :value="qrToken" :size="250" level="H" />
+      <div class="inline-block max-w-full rounded-xl border-4 border-indigo-100 bg-white p-3 shadow-inner sm:p-4">
+        <qrcode-vue :value="qrToken" :size="220" level="H" class="mx-auto max-w-full" />
       </div>
-      <p class="text-sm text-gray-400 mt-4">Este código se actualiza automáticamente cada 5 minutos por seguridad.</p>
+      <p class="mt-4 text-xs text-gray-400 sm:text-sm">Este código se actualiza automáticamente cada 5 minutos por seguridad.</p>
     </div>
   </VCard>
 </template>

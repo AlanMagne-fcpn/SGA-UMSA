@@ -70,6 +70,24 @@ export class CertificadosAdminController {
     return this.queueService.reintentarTodosLosFallidos();
   }
 
+  @Get('actividad/:actividadId/envios')
+  @ApiOperation({ summary: 'Listar el envío de certificados de una actividad' })
+  enviosActividad(@Param('actividadId', ParseIntPipe) actividadId: number) {
+    return this.queueService.listarEnviosActividad(actividadId);
+  }
+
+  @Post('actividad/:actividadId/enviar')
+  @ApiOperation({ summary: 'Emitir y encolar los certificados de una actividad' })
+  enviarActividad(@Param('actividadId', ParseIntPipe) actividadId: number) {
+    return this.queueService.enviarPorActividad(actividadId);
+  }
+
+  @Post('actividad/:actividadId/detener')
+  @ApiOperation({ summary: 'Detener los certificados que aún están en cola de una actividad' })
+  detenerActividad(@Param('actividadId', ParseIntPipe) actividadId: number) {
+    return this.queueService.detenerEnvioActividad(actividadId);
+  }
+
   // ── Emisión por tipo ────────────────────────────────────────
 
   @Post('emitir-lote')

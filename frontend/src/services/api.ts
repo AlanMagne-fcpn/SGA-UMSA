@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 import { useUIStore } from '@/stores/ui';
-import { SIN_IMAGEN, portadaCurso } from '@/utils/imageFallback';
+import { SIN_IMAGEN, portadaCurso, portadaEvento } from '@/utils/imageFallback';
 
 export const getApiBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL as string | undefined;
@@ -58,12 +58,16 @@ export const logoEvento = (evento: any): string => {
   return urlGuardada(evento?.logo, 'logo') || urlGuardada(evento?.imagen_portada, 'eventos');
 };
 
-/** Imagen del evento: el fondo guardado y, si no hay, el logo. */
+/** Imagen del evento: fondo, logo o portada generada (nunca el placeholder «Sin imagen»). */
 export const imagenEvento = (evento: any): string => {
-  if (!evento) return SIN_IMAGEN;
-  return urlGuardada(evento.imagen_fondo, 'fondos')
-    || urlGuardada(evento.logo, 'logo')
-    || SIN_IMAGEN;
+  const nombre = evento?.nombre || evento?.title || 'Evento académico';
+  if (!evento) return portadaEvento(nombre);
+  const fondo = urlGuardada(evento.imagen_fondo, 'fondos');
+  const logo = urlGuardada(evento.logo, 'logo');
+  const elegida = fondo || logo;
+  if (!elegida) return portadaEvento(nombre);
+  // Unsplash a veces falla en red local: el <img data-event-image> aplica portadaEvento al error.
+  return elegida;
 };
 
 /** Una portada propia por curso; evita repetir el banner del evento. */

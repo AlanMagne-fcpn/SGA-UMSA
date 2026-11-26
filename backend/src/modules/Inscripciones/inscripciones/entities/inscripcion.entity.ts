@@ -66,10 +66,23 @@ export class Inscripcion {
 
   // ── Relaciones ────────────────────────────────────────────────────────────
 
-  /** El usuario que se inscribió. */
-  @ManyToOne(() => Usuario, (usuario) => usuario.inscripciones)
+  /** El usuario que se inscribió. Queda vacío cuando la persona solo está en la nómina. */
+  @ManyToOne(() => Usuario, (usuario) => usuario.inscripciones, { nullable: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'id_usuario' })
-  usuario: Usuario;
+  usuario: Usuario | null;
+
+  /** 1 = inscrito solo en la nómina, sin usuario ni acceso al sistema. */
+  @Column({ type: 'smallint', default: 0 })
+  sin_cuenta: number;
+
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  nombre_externo: string | null;
+
+  @Column({ type: 'varchar', length: 150, nullable: true })
+  email_externo: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  documento_externo: string | null;
 
   /**
    * La actividad en la que se inscribió.

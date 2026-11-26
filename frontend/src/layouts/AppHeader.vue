@@ -15,8 +15,10 @@ const isDark = ref(false)
 
 const versionActual = computed(() => {
   const current = eventoStore.versionesDisponibles.find(v => v.id === eventoStore.selectedEventoId);
-  return current ? current.edicion : 'Sin Versión';
+  return current ? current.edicion : 'Sin versión';
 });
+
+const eventoActivo = computed(() => Number(eventoStore.activeEvento?.estado) === 1);
 interface CoordinatorActivity {
   id: number;
   nombre: string;
@@ -221,57 +223,49 @@ const goToProfile = () => {
       Sin Conexión con el Servidor
     </div>
 
-    <div class="flex items-center flex-1 space-x-4 md:space-x-6">
+    <div class="flex min-w-0 flex-1 items-center gap-4 md:gap-6">
       
       <!-- Botón Menú Móvil -->
       <VBtn @click="uiStore.toggleSidebar" class="flex-shrink-0 p-2 -ml-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors lg:hidden flex items-center justify-center">
         <VIcon class="material-symbols-outlined text-2xl">{{ uiStore.isSidebarOpen ? 'menu_open' : 'menu' }}</VIcon>
       </VBtn>
 
-      <!-- Logo -->
-      <div class="flex flex-col flex-shrink-0 cursor-pointer border-r border-slate-200 dark:border-gray-800 pr-4 md:pr-6 justify-center">
-        <h2 class="text-black dark:text-white font-clarendon font-black text-[10px] md:text-xs tracking-tighter leading-none">Sistema de Gestión de Eventos</h2>
-        <p class="text-[8px] text-slate-500 dark:text-gray-400 font-clarendon mt-0.5">Plataforma Académica</p>
+      <div class="hidden sm:flex min-w-0 shrink-0 items-center gap-3 border-r border-slate-200 pr-4 dark:border-gray-800 md:pr-6">
+        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#003B71] to-[#0070BB] shadow-lg shadow-[#003B71]/40">
+          <VIcon class="material-symbols-outlined text-[16px] text-white">manage_accounts</VIcon>
+        </div>
+        <div class="min-w-0">
+          <p class="text-[10px] font-black uppercase leading-none tracking-widest text-umsa-blue dark:text-sky-400">Sistema SGEA</p>
+          <h1 class="truncate text-sm font-black leading-tight text-slate-800 dark:text-white">Portal del Coordinador</h1>
+        </div>
       </div>
 
-      <!-- Selector Móvil (Visible solo en móvil al lado del logo) -->
-      <div class="lg:hidden flex-1 max-w-[180px] relative group/select ml-2">
-        <UiSelect :value="eventoStore.selectedEventoNombre" @change="onNombreChange"
-          style="text-align: left !important; text-align-last: left !important;"
-          :class="[(eventoStore.activeEvento?.estado === 1 || eventoStore.activeEvento?.estado === 2) ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 dark:border-emerald-600 text-emerald-700 dark:text-emerald-300' : 'bg-slate-100 dark:bg-gray-800 border-slate-300 dark:border-gray-700 text-slate-500 dark:text-gray-400']"
-          class="w-full border text-[10px] font-black rounded-lg py-1.5 pl-2 pr-6 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all truncate">
-          <option v-for="(nombre, idx) in eventosFiltrados" :key="idx" :value="nombre">{{ nombre }}</option>
-        </UiSelect>
-        <VIcon class="material-symbols-outlined absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">unfold_more</VIcon>
+      <div class="min-w-0 flex-1 lg:hidden">
+        <select :value="eventoStore.selectedEventoNombre || ''" @change="onNombreChange"
+          :class="eventoActivo ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-300 bg-slate-100 text-slate-600'"
+          class="h-9 w-full max-w-[220px] truncate rounded-lg border px-2 text-[11px] font-semibold">
+          <option v-for="nombre in eventosFiltrados" :key="nombre" :value="nombre">{{ nombre }}</option>
+        </select>
       </div>
 
-      <!-- Selectores (Sólo Escritorio - Vista Premium) -->
-      <div class="hidden lg:flex items-center gap-4">
-        <div class="relative group/select">
-          <label class="absolute -top-2 left-3 bg-white dark:bg-gray-900 px-1 text-[8px] font-black text-slate-400 group-focus-within/select:text-emerald-500 uppercase tracking-[0.2em] z-10 transition-colors">Evento Académico</label>
-          <div class="relative">
-            <UiSelect :value="eventoStore.selectedEventoNombre" @change="onNombreChange"
-              style="text-align: left !important; text-align-last: left !important;"
-              :class="[(eventoStore.activeEvento?.estado === 1 || eventoStore.activeEvento?.estado === 2) ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 dark:border-emerald-600 text-emerald-700 dark:text-emerald-300' : 'bg-slate-100 dark:bg-gray-800 border-slate-300 dark:border-gray-700 text-slate-500 dark:text-gray-400']"
-              class="border text-xs font-black rounded-xl py-2.5 pl-12 pr-10 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:shadow-lg focus:shadow-emerald-500/10 w-80 truncate cursor-pointer transition-all">
-              <option v-for="(nombre, idx) in eventosFiltrados" :key="idx" :value="nombre">{{ nombre }}</option>
-            </UiSelect>
-            <VIcon class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-xl pointer-events-none transition-colors"
-              :class="[(eventoStore.activeEvento?.estado === 1 || eventoStore.activeEvento?.estado === 2) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400']">event_seat</VIcon>
-            <VIcon class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 text-lg pointer-events-none group-hover/select:translate-y-[-40%] transition-transform">unfold_more</VIcon>
-          </div>
+      <div class="hidden min-w-0 flex-1 items-center gap-3 lg:flex">
+        <div class="relative min-w-0 max-w-sm flex-1">
+          <label class="absolute -top-2 left-3 z-10 bg-white px-1 text-[8px] font-black uppercase tracking-[0.14em] text-slate-400 dark:bg-gray-900">Evento académico</label>
+          <VIcon class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px]"
+            :class="eventoActivo ? 'text-emerald-600' : 'text-slate-400'">event_seat</VIcon>
+          <select :value="eventoStore.selectedEventoNombre || ''" @change="onNombreChange"
+            :class="eventoActivo ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-300 bg-slate-100 text-slate-700'"
+            class="h-11 w-full truncate rounded-xl border py-2 pl-10 pr-3 text-sm font-semibold">
+            <option v-for="nombre in eventosFiltrados" :key="nombre" :value="nombre">{{ nombre }}</option>
+          </select>
         </div>
 
-        <div class="relative group/select" v-if="eventoStore.selectedEventoNombre">
-          <label class="absolute -top-2 left-3 bg-white dark:bg-gray-900 px-1 text-[8px] font-black uppercase tracking-[0.2em] z-10 transition-colors"
-            :class="[(eventoStore.activeEvento?.estado === 1 || eventoStore.activeEvento?.estado === 2) ? 'text-emerald-500' : 'text-slate-400']">Versión (Gestión)</label>
-          <div class="relative">
-            <div :class="[(eventoStore.activeEvento?.estado === 1 || eventoStore.activeEvento?.estado === 2) ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-500 dark:border-emerald-600 text-emerald-700 dark:text-emerald-300' : 'bg-slate-100 dark:bg-gray-800 border-slate-300 dark:border-gray-700 text-slate-500 dark:text-gray-400']"
-              class="border text-xs font-black rounded-xl py-2.5 pl-12 pr-10 w-64 transition-all flex items-center">
-              {{ versionActual }}
-            </div>
-            <VIcon class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-xl pointer-events-none transition-colors"
-              :class="[(eventoStore.activeEvento?.estado === 1 || eventoStore.activeEvento?.estado === 2) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400']">history_toggle_off</VIcon>
+        <div v-if="eventoStore.selectedEventoNombre" class="relative w-36 shrink-0">
+          <label class="absolute -top-2 left-3 z-10 bg-white px-1 text-[8px] font-black uppercase tracking-[0.14em] dark:bg-gray-900"
+            :class="eventoActivo ? 'text-emerald-600' : 'text-slate-400'">Gestión</label>
+          <div :class="eventoActivo ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-slate-300 bg-slate-100 text-slate-700'"
+            class="flex h-11 items-center truncate rounded-xl border pl-3 pr-3 text-sm font-semibold">
+            {{ versionActual }}
           </div>
         </div>
       </div>
@@ -397,10 +391,8 @@ const goToProfile = () => {
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@900&display=swap');
-
 .font-clarendon {
-  font-family: 'Roboto Slab', serif;
+  font-family: Urbanist, sans-serif;
 }
 
 .animate-in {

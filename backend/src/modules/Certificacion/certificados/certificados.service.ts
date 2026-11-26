@@ -397,12 +397,12 @@ export class CertificadosService {
         where: { actividadAcademica: { id: idActividad }, estado: 1 },
         relations: ['usuario', 'usuario.persona'],
       });
-      candidatos = inscripciones.map(i => ({
-        id: i.usuario.id,
-        email: i.usuario.email,
-        nombres: i.usuario.persona?.nombres || '',
-        primer_apellido: i.usuario.persona?.primer_apellido || '',
-        yaTieneCertificado: idsConCert.has(i.usuario.id),
+      candidatos = inscripciones.filter((i) => i.usuario).map(i => ({
+        id: i.usuario!.id,
+        email: i.usuario!.email,
+        nombres: i.usuario!.persona?.nombres || '',
+        primer_apellido: i.usuario!.persona?.primer_apellido || '',
+        yaTieneCertificado: idsConCert.has(i.usuario!.id),
       }));
     } else if (tipo === 2 || tipo === 4) {
       // Expositores/Docentes — desde imparticiones

@@ -22,7 +22,12 @@ const eventosFiltrados = computed(() => props.eventos.filter(evento => {
 }));
 const paginasEvento = computed(() => Math.max(1, Math.ceil(eventosFiltrados.value.length / limite)));
 const eventosVisibles = computed(() => eventosFiltrados.value.slice((paginaEvento.value - 1) * limite, paginaEvento.value * limite));
-const todosLosCursos = computed(() => props.eventos.flatMap(evento => evento.cursos.map((curso: any) => ({ ...curso, eventoId: evento.id, eventoTitulo: evento.title }))));
+const todosLosCursos = computed(() => props.eventos.flatMap(evento => evento.cursos.map((curso: any) => ({
+  ...curso,
+  eventoId: evento.id,
+  eventoTitulo: evento.title,
+  eventoImagen: evento.imagen_fondo || '',
+}))));
 const modalidades = computed(() => ['Todas', ...new Set(todosLosCursos.value.map((curso: any) => curso.modalidad || 'Presencial'))]);
 const cursosFiltrados = computed(() => todosLosCursos.value.filter((curso: any) => {
   const texto = normalizar(busquedaCurso.value.trim());
@@ -117,8 +122,14 @@ watch([busquedaCurso, modalidad, eventoCurso], () => { paginaCurso.value = 1; })
         </div>
         <div v-if="cursosVisibles.length" class="mt-6 flex flex-wrap gap-5">
           <RouterLink v-for="curso in cursosVisibles" :key="curso.id" :to="enlaceCurso({ id: curso.id, nombre: curso.nombre })" class="group flex w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-[#102e4c] shadow-sm transition duration-300 hover:-translate-y-1 hover:border-sky-400 hover:shadow-xl dark:border-white/10 dark:bg-[#142a40] dark:text-white dark:hover:shadow-sky-950/50 sm:w-[calc(50%-10px)] xl:w-[calc(25%-15px)]">
-            <div class="relative aspect-[16/9] overflow-hidden bg-slate-800"><img :src="curso.imagen" data-course-image :alt="curso.nombre" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" /><span class="absolute inset-0 bg-gradient-to-t from-[#142a40]/70 to-transparent"></span><span class="absolute bottom-3 left-3 rounded-full bg-[#0070bb] px-3 py-1 text-[11px] font-bold text-white">{{ curso.modalidad }}</span></div>
-            <div class="flex flex-1 flex-col p-5"><p class="line-clamp-1 text-[11px] font-bold uppercase tracking-wider text-[#0070bb] dark:text-sky-300">{{ curso.eventoTitulo }}</p><h3 class="mt-2 line-clamp-2 min-h-12 text-lg font-bold leading-snug">{{ curso.nombre }}</h3><p class="mt-2 line-clamp-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{{ curso.descripcion || 'Consulta los detalles y requisitos de este curso.' }}</p><div class="mt-3 text-xs text-amber-700 dark:text-amber-300"><VIcon size="16">{{ curso.valoracion?.cantidad ? 'star' : 'star_outline' }}</VIcon> {{ curso.valoracion?.cantidad ? `${curso.valoracion.promedio}/5 · ${curso.valoracion.cantidad} valoraciones` : 'Aún sin valoraciones' }}</div><div class="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-200 dark:border-white/10 pt-4 text-xs text-slate-600 dark:text-slate-300"><span v-if="curso.horas" class="inline-flex items-center gap-1"><VIcon size="16">schedule</VIcon>{{ curso.horas }} h</span><span>{{ curso.estado === 1 ? 'Disponible' : 'Finalizado' }}</span></div><span class="mt-4 inline-flex items-center gap-1 text-sm font-bold text-[#0070bb] dark:text-sky-300">Ver curso <VIcon size="18">arrow_forward</VIcon></span></div>
+            <div class="relative aspect-[16/9] overflow-hidden bg-slate-800">
+              <img :src="curso.imagen" data-course-image :alt="curso.nombre" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+              <span class="absolute inset-0 bg-gradient-to-t from-[#142a40]/55 to-transparent"></span>
+              <span class="absolute bottom-3 left-3 rounded-full bg-[#0070bb] px-3 py-1 text-[11px] font-bold text-white">{{ curso.modalidad }}</span>
+            </div>
+            <div class="flex flex-1 flex-col p-5">
+              <p v-if="!soloCursos && curso.eventoTitulo" class="mb-2 line-clamp-2 text-base font-bold leading-snug text-[#3C6893] dark:text-sky-100">{{ curso.eventoTitulo }}</p>
+              <h3 class="line-clamp-2 min-h-12 text-lg font-extrabold leading-snug text-[#1A4756] dark:text-white">{{ curso.nombre }}</h3><p class="mt-3 line-clamp-3 text-sm font-medium leading-6 text-[#1E293B] dark:text-slate-300">{{ curso.descripcion || 'Consulta los detalles y requisitos de este curso.' }}</p><div class="mt-3 text-xs text-amber-700 dark:text-amber-300"><VIcon size="16">{{ curso.valoracion?.cantidad ? 'star' : 'star_outline' }}</VIcon> {{ curso.valoracion?.cantidad ? `${curso.valoracion.promedio}/5 · ${curso.valoracion.cantidad} valoraciones` : 'Aún sin valoraciones' }}</div><div class="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-200 dark:border-white/10 pt-4 text-xs text-slate-600 dark:text-slate-300"><span v-if="curso.horas" class="inline-flex items-center gap-1"><VIcon size="16">schedule</VIcon>{{ curso.horas }} h</span><span>{{ curso.estado === 1 ? 'Disponible' : 'Finalizado' }}</span></div><span class="mt-4 inline-flex items-center gap-1 text-sm font-bold text-[#0070bb] dark:text-sky-300">Ver curso <VIcon size="18">arrow_forward</VIcon></span></div>
           </RouterLink>
         </div>
         <div v-else class="mt-6 rounded-2xl border border-dashed border-slate-200 bg-white dark:border-white/20 dark:bg-white/5 px-6 py-12 text-center text-sm text-slate-600 dark:text-slate-300">{{ soloCursos && !todosLosCursos.length ? 'Este evento todavía no tiene cursos publicados.' : eventos.length ? 'No hay cursos que coincidan con esta búsqueda.' : cargando ? 'Cargando cursos disponibles…' : 'No hay cursos publicados por ahora.' }}</div>

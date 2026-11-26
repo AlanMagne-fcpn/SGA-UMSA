@@ -100,7 +100,50 @@ export class CertificadosQueueService implements OnModuleInit {
    * (Estudiantes aprobados/excelencia, Ponentes, Logística) si no existen ya,
    * y luego encola para envío masivo todos los certificados pendientes de dicho evento.
    */
-  async generarYEncolarPorEvento(eventoId: number): Promise<{ mensaje: string; creados: number; encolados: number }> {
+  async enviarPorActividad(actividadId: number) {
+    const filas = await this.dataSource.query(
+      `SELECT id_evento FROM actividades_academicas WHERE id = $1`,
+      [actividadId],
+    );
+    if (!filas.length) throw new BadRequestException('Actividad no encontrada');
+    return this.generarYEncolarPorEvento(Number(filas[0].id_evento), actividadId);
+  }
+
+  async detenerEnvioActividad(actividadId: number) {
+    const result = await this.certificadoRepository
+      .createQueryBuilder()
+      .update()
+      .set({ estado_envio: 'detenido' })
+      .where('id_actividad_academica = :actividadId AND estado_envio = :estado', {
+        actividadId,
+        estado: 'pendiente',
+      })
+      .execute();
+    const detenidos = result.affected || 0;
+    return {
+      detenidos,
+      mensaje: `Se detuvo el envío de ${detenidos} certificados que aún estaban en cola.`,
+    };
+  }
+
+  async listarEnviosActividad(actividadId: number) {
+    const certs = await this.certificadoRepository.find({
+      where: { actividadAcademica: { id: actividadId } },
+      relations: ['usuario', 'usuario.persona'],
+      order: { id: 'DESC' },
+    });
+    return certs.map((cert) => ({
+      id: cert.id,
+      estado_envio: cert.estado_envio,
+      codigo_certificado: cert.codigo_certificado,
+      nombre: [cert.usuario?.persona?.primer_apellido, cert.usuario?.persona?.segundo_apellido, cert.usuario?.persona?.nombres]
+        .filter(Boolean)
+        .join(' ') || 'Sin destinatario',
+      email: cert.usuario?.email || '',
+    }));
+  }
+
+  async generarYEncolarPorEvento(eventoId: number, actividadId?: number): Promise<{ mensaje: string; creados: number; encolados: number }> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -145,7 +188,7 @@ export class CertificadosQueueService implements OnModuleInit {
       // ─── A) PROCESAR ESTUDIANTES (INSCRIPCIONES) ─────────────────
       const inscripciones = await queryRunner.manager.find(Inscripcion, {
         where: {
-          actividadAcademica: { evento: { id: eventoId } },
+          actividadAcademica: actividadId ? { id: actividadId } : { evento: { id: eventoId } },
           estado: In([1, 3]),
         },
         relations: [
@@ -229,6 +272,8 @@ export class CertificadosQueueService implements OnModuleInit {
         }
       }
 
+      // Al enviar desde una actividad solo se emiten los certificados de sus inscritos.
+      if (!actividadId) {
       // ─── B) PROCESAR EXPONENTES (IMPARTICIONES) ──────────────────
       if (plantillaExpositor) {
         const imparticiones = await queryRunner.manager.find(Imparticion, {
@@ -337,16 +382,19 @@ export class CertificadosQueueService implements OnModuleInit {
         }
       }
 
+      }
+
       await queryRunner.commitTransaction();
 
       // ─── D) ENCOLAR TODOS LOS CERTIFICADOS PENDIENTES DEL EVENTO ──
-      const certificadosPendientes = await this.certificadoRepository.createQueryBuilder('cert')
+      const certificadosQuery = this.certificadoRepository.createQueryBuilder('cert')
         .innerJoin('cert.actividadAcademica', 'act')
         .innerJoin('act.evento', 'ev')
         .where('ev.id = :eventoId', { eventoId })
         .andWhere('cert.estado_envio != :estado', { estado: 'enviado' })
-        .select(['cert.id'])
-        .getMany();
+        .select(['cert.id']);
+      if (actividadId) certificadosQuery.andWhere('act.id = :actividadId', { actividadId });
+      const certificadosPendientes = await certificadosQuery.getMany();
 
       const idsAEncolar = certificadosPendientes.map(c => c.id);
       let encoladosCount = 0;
@@ -395,6 +443,11 @@ export class CertificadosQueueService implements OnModuleInit {
 
       for (const cert of pendientes) {
         try {
+          const actual = await this.certificadoRepository.findOne({
+            where: { id: cert.id },
+            select: ['id', 'estado_envio'],
+          });
+          if (!actual || actual.estado_envio !== 'pendiente') continue;
           // El servicio se encarga de guardar en DB el éxito (enviado) o fracaso (error) y los reintentos
           await this.envioService.enviarCertificado(cert.id);
           this.logger.log(`[Worker DB] ✓ Certificado #${cert.id} enviado.`);

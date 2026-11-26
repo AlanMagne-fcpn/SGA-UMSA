@@ -26,11 +26,13 @@ const formData = ref({
   fecha_nacimiento: '',
   celular: '',
   grado_academico: '',
+  curriculum: '',
   afiliaciones: [] as any[]
 });
 
 const firmaUrl = ref('');
 const isDraggingFirma = ref(false);
+const campo = 'box-border block h-11 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none focus:border-[#0070BB] disabled:bg-slate-100 disabled:text-slate-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:disabled:bg-gray-800';
 
 const addAfiliacion = () => {
   if (isCompleted.value) return;
@@ -155,6 +157,22 @@ const loadPhoto = async () => {
     profilePhotoUrl.value = URL.createObjectURL(blob);
   } catch (e) {
     profilePhotoUrl.value = '';
+  }
+};
+
+const guardarCurriculum = async () => {
+  loading.value = true;
+  error.value = '';
+  success.value = '';
+  try {
+    await api.patch('/usuarios/perfil/datos', { curriculum: formData.value.curriculum || '' });
+    success.value = 'Currículum actualizado.';
+    originalData.value = { ...originalData.value, curriculum: formData.value.curriculum };
+  } catch (e: unknown) {
+    const errorRes = e as { response?: { data?: { message?: string } } };
+    error.value = errorRes.response?.data?.message || 'No se pudo guardar el currículum.';
+  } finally {
+    loading.value = false;
   }
 };
 
@@ -429,25 +447,25 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-4 md:p-8 max-w-4xl mx-auto space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-200 dark:border-gray-800 pb-6 mb-4 md:mb-8 gap-4">
-      <div class="max-w-full sm:max-w-[60%]">
-        <h1 class="text-xl md:text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">{{ esCuentaSoporte ? 'Cuenta de soporte' : 'Mi Perfil' }}</h1>
-        <p class="text-[10px] md:text-sm font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mt-1">{{ esCuentaSoporte ? 'Esta cuenta opera el sistema. Solo usa correo.' : 'Gestiona tus datos personales y credenciales' }}</p>
+  <div class="mx-auto w-full min-w-0 max-w-4xl space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 md:space-y-8">
+    <div class="mb-2 flex flex-col items-start justify-between gap-4 border-b border-slate-200 pb-5 dark:border-gray-800 sm:flex-row sm:items-center sm:pb-6 md:mb-6">
+      <div class="min-w-0 max-w-full sm:max-w-[60%]">
+        <h1 class="truncate text-xl font-black uppercase tracking-tight text-slate-800 dark:text-white md:text-3xl">{{ esCuentaSoporte ? 'Cuenta de soporte' : 'Mi Perfil' }}</h1>
+        <p class="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500 md:text-sm">{{ esCuentaSoporte ? 'Esta cuenta opera el sistema. Solo usa correo.' : 'Gestiona tus datos personales y credenciales' }}</p>
       </div>
-      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
-        <VBtn @click="esCuentaSoporte ? enviarEnlaceContrasena() : cambiarContrasena()" class="bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-gray-300 px-3 md:px-4 py-2 rounded-xl text-[10px] font-black hover:bg-slate-100 dark:hover:bg-gray-700 transition-all uppercase flex items-center gap-1 md:gap-2 shadow-sm tracking-widest">
-            <VIcon class="material-symbols-outlined text-[14px] md:text-[16px]">key</VIcon>
-            <span class="hidden sm:inline">{{ esCuentaSoporte ? 'Enviar enlace' : 'Contraseña' }}</span>
-        </VBtn>
-        <VBtn v-if="!esCuentaSoporte" @click="abrirSoporteDatos" class="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 text-amber-600 dark:text-amber-400 px-3 md:px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 transition-all flex items-center gap-1 md:gap-2">
-            <VIcon class="material-symbols-outlined text-[14px] md:text-[16px]">support_agent</VIcon>
+      <div class="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
+        <button type="button" @click="esCuentaSoporte ? enviarEnlaceContrasena() : cambiarContrasena()" class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm hover:bg-slate-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 sm:flex-none">
+            <VIcon class="material-symbols-outlined text-[16px]">key</VIcon>
+            <span>{{ esCuentaSoporte ? 'Enviar enlace' : 'Contraseña' }}</span>
+        </button>
+        <button v-if="!esCuentaSoporte" type="button" @click="abrirSoporteDatos" class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-amber-600 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400 sm:flex-none">
+            <VIcon class="material-symbols-outlined text-[16px]">support_agent</VIcon>
             Soporte
-        </VBtn>
+        </button>
       </div>
     </div>
 
-    <section v-if="esCuentaSoporte" class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-3xl p-8 space-y-4">
+    <section v-if="esCuentaSoporte" class="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 sm:rounded-3xl sm:p-8">
       <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Correo de la cuenta</p>
       <p class="text-lg font-black text-slate-800 dark:text-white">{{ correoCuenta }}</p>
       <p class="text-sm text-slate-500 leading-relaxed">El super usuario no lleva foto, documento ni afiliación. Con este correo se administra todo el sistema y se atienden las solicitudes de soporte.</p>
@@ -477,7 +495,7 @@ onMounted(() => {
     <div v-if="error" class="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold border border-red-200 animate-pulse">{{ error }}</div>
     <div v-if="success" class="bg-emerald-50 text-emerald-600 p-4 rounded-xl text-sm font-bold border border-emerald-200">{{ success }}</div>
 
-    <div v-if="!esCuentaSoporte" class="grid grid-cols-1 md:grid-cols-3 gap-8">
+    <div v-if="!esCuentaSoporte" class="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
       
       <!-- Panel lateral de Archivos -->
       <div class="space-y-6 md:col-span-1">
@@ -496,10 +514,10 @@ onMounted(() => {
           <p class="text-[10px] text-slate-400 mb-4 mt-1">Formatos JPG, PNG<br>Dimensiones: Cuadrada (Tipo 5x5)<br>Fondo sugerido: Blanco / Claro</p>
           
           <input type="file" ref="photoRef" class="hidden" accept="image/jpeg, image/png" @change="handlePhotoUpload" />
-          <VBtn @click="photoRef?.click()" :disabled="loading || (isCompleted && !!profilePhotoUrl)"
-            class="text-xs px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 font-bold rounded-lg transition-colors border border-slate-200 dark:border-gray-700 w-full uppercase tracking-wider disabled:opacity-50">
+          <button type="button" @click="photoRef?.click()" :disabled="loading || (isCompleted && !!profilePhotoUrl)"
+            class="w-full rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-200 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
             {{ (isCompleted && !!profilePhotoUrl) ? 'Bloqueado' : 'Subir Foto' }}
-          </VBtn>
+          </button>
         </div>
 
         <!-- Firma Digital (Solo Coordinadores/Admin/Ponente) -->
@@ -524,9 +542,9 @@ onMounted(() => {
             </div>
             
             <div v-if="firmaUrl" class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-               <VBtn @click="firmaRef?.click()" class="bg-white text-slate-900 p-2 rounded-full shadow-lg">
+               <button type="button" @click="firmaRef?.click()" class="rounded-full bg-white p-2 text-slate-900 shadow-lg">
                  <VIcon class="material-symbols-outlined">edit</VIcon>
-               </VBtn>
+               </button>
             </div>
           </div>
           
@@ -534,15 +552,15 @@ onMounted(() => {
           <p class="text-[10px] text-slate-400 mb-4 mt-1 leading-tight">Obligatoria para emisión de certificados<br>Formato: <strong class="text-blue-500">Solo PNG</strong> (Transparente)</p>
           
           <input type="file" ref="firmaRef" class="hidden" accept="image/png" @change="handleFirmaUpload" />
-          <VBtn @click="firmaRef?.click()" :disabled="loading"
-            class="text-xs px-4 py-2 bg-umsa-blue/10 hover:bg-umsa-blue/20 text-umsa-blue dark:text-blue-400 font-black rounded-lg transition-colors border border-umsa-blue/20 w-full uppercase tracking-wider disabled:opacity-50">
+          <button type="button" @click="firmaRef?.click()" :disabled="loading"
+            class="w-full rounded-lg border border-umsa-blue/20 bg-umsa-blue/10 px-4 py-2 text-xs font-black uppercase tracking-wider text-umsa-blue hover:bg-umsa-blue/20 disabled:opacity-50 dark:text-blue-400">
             {{ firmaUrl ? 'Actualizar Firma' : 'Cargar Firma' }}
-          </VBtn>
+          </button>
         </div>
       </div>
 
       <!-- Formulario de Datos Personales -->
-      <VCard class="md:col-span-2 bg-white dark:bg-gray-900 p-6 md:p-8 rounded-2xl border border-slate-200 dark:border-gray-800 shadow-sm">
+      <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-6 md:col-span-2 md:p-8">
         <h3 class="text-sm font-black uppercase text-slate-800 dark:text-white mb-6 tracking-widest border-b border-slate-100 dark:border-gray-800 pb-4 flex items-center justify-between">
           <span>Datos Personales</span>
           <span v-if="isCompleted" class="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">SOLO LECTURA</span>
@@ -552,21 +570,21 @@ onMounted(() => {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 block">Nombres</label>
-              <UiInput v-model="formData.nombres" type="text" :disabled="isCompleted && !!originalData.nombres" class="w-full py-2.5 px-3 bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-umsa-blue outline-none disabled:bg-slate-100 dark:disabled:bg-gray-950 disabled:text-slate-400" required />
+              <input v-model="formData.nombres" type="text" :disabled="isCompleted && !!originalData.nombres" :class="campo" required />
             </div>
             <div>
               <label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 block">Primer Apellido</label>
-              <UiInput v-model="formData.primer_apellido" type="text" :disabled="isCompleted && !!originalData.primer_apellido" class="w-full py-2.5 px-3 bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-umsa-blue outline-none disabled:bg-slate-100 dark:disabled:bg-gray-950 disabled:text-slate-400" required />
+              <input v-model="formData.primer_apellido" type="text" :disabled="isCompleted && !!originalData.primer_apellido" :class="campo" required />
             </div>
             <div>
               <label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 block">Segundo Apellido</label>
-              <UiInput v-model="formData.segundo_apellido" type="text" :disabled="isCompleted && !!originalData.segundo_apellido" class="w-full py-2.5 px-3 bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-umsa-blue outline-none disabled:bg-slate-100 dark:disabled:bg-gray-950 disabled:text-slate-400" />
+              <input v-model="formData.segundo_apellido" type="text" :disabled="isCompleted && !!originalData.segundo_apellido" :class="campo" />
             </div>
             <div>
               <label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 block">
                 {{ formData.documento_identidad?.includes(':') ? formData.documento_identidad.split(':')[0] : 'Documento Identidad' }}
               </label>
-              <UiInput :value="formData.documento_identidad?.includes(':') ? (formData.documento_identidad.split(':')[1] || '').trim() : formData.documento_identidad"
+              <input :value="formData.documento_identidad?.includes(':') ? (formData.documento_identidad.split(':')[1] || '').trim() : formData.documento_identidad"
                      @input="(e: Event) => {
                        const val = (e.target as HTMLInputElement).value;
                        if (formData.documento_identidad?.includes(':')) {
@@ -575,66 +593,76 @@ onMounted(() => {
                          formData.documento_identidad = val;
                        }
                      }"
-                     type="text" :disabled="isCompleted && !!originalData.documento_identidad" class="w-full py-2.5 px-3 bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-umsa-blue outline-none disabled:bg-slate-100 dark:disabled:bg-gray-950 disabled:text-slate-400" required />
+                     type="text" :disabled="isCompleted && !!originalData.documento_identidad" :class="campo" required />
             </div>
             <div>
               <label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 block">Fecha de Nacimiento</label>
-              <UiInput v-model="formData.fecha_nacimiento" type="date" :disabled="isCompleted && !!originalData.fecha_nacimiento" class="w-full py-2.5 px-3 bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-umsa-blue outline-none disabled:bg-slate-100 dark:disabled:bg-gray-950 disabled:text-slate-400" />
+              <input v-model="formData.fecha_nacimiento" type="date" :disabled="isCompleted && !!originalData.fecha_nacimiento" :class="campo" />
             </div>
              <div>
               <label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 block">Celular</label>
-              <UiInput v-model="formData.celular" type="text" :disabled="isCompleted && !!originalData.celular" class="w-full py-2.5 px-3 bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-umsa-blue outline-none disabled:bg-slate-100 dark:disabled:bg-gray-950 disabled:text-slate-400" />
+              <input v-model="formData.celular" type="text" :disabled="isCompleted && !!originalData.celular" :class="campo" />
             </div>
             <div>
               <label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 block">Grado Académico (Abreviado)</label>
-              <UiInput v-model="formData.grado_academico" type="text" placeholder="Ej: Lic. o MSc." :disabled="isCompleted && !!originalData.grado_academico" class="w-full py-2.5 px-3 bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-umsa-blue outline-none disabled:bg-slate-100 dark:disabled:bg-gray-950 disabled:text-slate-400" />
+              <input v-model="formData.grado_academico" type="text" placeholder="Ej: Lic., Ing., MSc., PhD." :disabled="isCompleted && !!originalData.grado_academico" :class="campo" />
             </div>
             <div>
               <label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 block">País Origen</label>
-              <UiInput v-model="formData.pais_origen" type="text" :disabled="isCompleted && !!originalData.pais_origen" class="w-full py-2.5 px-3 bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-umsa-blue outline-none disabled:bg-slate-100 dark:disabled:bg-gray-950 disabled:text-slate-400" />
+              <input v-model="formData.pais_origen" type="text" :disabled="isCompleted && !!originalData.pais_origen" :class="campo" />
             </div>
             <div>
               <label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 block">País Residencia</label>
-              <UiInput v-model="formData.pais_residencia" type="text" :disabled="isCompleted && !!originalData.pais_residencia" class="w-full py-2.5 px-3 bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-umsa-blue outline-none disabled:bg-slate-100 dark:disabled:bg-gray-950 disabled:text-slate-400" />
+              <input v-model="formData.pais_residencia" type="text" :disabled="isCompleted && !!originalData.pais_residencia" :class="campo" />
+            </div>
+            <div v-if="mostrarFirma" class="md:col-span-2 lg:col-span-3 space-y-3">
+              <label class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 block">Currículum / trayectoria</label>
+              <textarea v-model="formData.curriculum" rows="5" maxlength="4000" placeholder="Resumen profesional para la ficha pública de tus actividades: formación, experiencia y líneas de trabajo." class="box-border block w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-[#0070BB] dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"></textarea>
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <p class="text-xs text-slate-500">Visible para quienes consultan la actividad. Puedes actualizarlo aunque el perfil ya esté cerrado.</p>
+                <button v-if="isCompleted" type="button" class="rounded-xl bg-[#028191] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-50" :disabled="loading" @click="guardarCurriculum">
+                  {{ loading ? 'Guardando…' : 'Guardar currículum' }}
+                </button>
+              </div>
             </div>
           </div>
           
           <div class="mt-8 border-t border-slate-100 dark:border-gray-800 pt-6">
             <div class="flex items-center justify-between mb-6">
               <h3 class="text-sm font-black uppercase text-slate-800 dark:text-white tracking-widest">Afiliaciones Institucionales</h3>
-              <VBtn v-if="!isCompleted" type="button" @click="addAfiliacion" class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-umsa-blue hover:text-blue-700 transition-colors">
+              <button v-if="!isCompleted" type="button" @click="addAfiliacion" class="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-umsa-blue hover:text-blue-700">
                 <VIcon class="material-symbols-outlined text-sm">add_circle</VIcon> Añadir Institución
-              </VBtn>
+              </button>
             </div>
 
             <div class="space-y-6">
               <div v-for="(af, index) in formData.afiliaciones" :key="index" class="p-4 rounded-xl border border-slate-100 dark:border-gray-800 bg-slate-50/50 dark:bg-gray-950/50 relative group">
-                <VBtn v-if="!isCompleted && formData.afiliaciones.length > 1" type="button" @click="removeAfiliacion(index)" class="absolute -top-2 -right-2 w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
+                <button v-if="!isCompleted && formData.afiliaciones.length > 1" type="button" @click="removeAfiliacion(index)" class="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-red-600 opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
                   <VIcon class="material-symbols-outlined text-sm">close</VIcon>
-                </VBtn>
+                </button>
                 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                   <div class="md:col-span-3">
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">Institución / Universidad</label>
-                    <UiInput v-model="af.institucion" type="text" :disabled="isCompleted && !!af.id" placeholder="Ej. Universidad Mayor de San Andrés" class="w-full py-2 px-3 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-umsa-blue outline-none disabled:bg-slate-50 dark:disabled:bg-gray-800" />
+                    <input v-model="af.institucion" type="text" :disabled="isCompleted && !!af.id" placeholder="Ej. Universidad Mayor de San Andrés" :class="campo" />
                   </div>
                   <div>
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">Grado Académico</label>
-                    <UiSelect v-model="af.id_grado_academico" :disabled="isCompleted && !!af.id" class="w-full py-2 px-3 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-umsa-blue outline-none text-slate-700 dark:text-gray-200 disabled:bg-slate-50 dark:disabled:bg-gray-800">
-                      <option :value="null">Ninguno</option>
+                    <select :value="af.id_grado_academico ?? ''" :disabled="isCompleted && !!af.id" :class="campo" @change="af.id_grado_academico = ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null">
+                      <option value="">Ninguno</option>
                       <option v-for="grado in gradosAcademicos" :key="grado.id" :value="grado.id">{{ grado.descripcion }}</option>
-                    </UiSelect>
+                    </select>
                   </div>
                   <div>
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">Grado / Cargo Administrativo</label>
-                    <UiSelect v-model="af.id_grado_administrativo" :disabled="isCompleted && !!af.id" class="w-full py-2 px-3 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-umsa-blue outline-none text-slate-700 dark:text-gray-200 disabled:bg-slate-50 dark:disabled:bg-gray-800">
-                      <option :value="null">Ninguno</option>
+                    <select :value="af.id_grado_administrativo ?? ''" :disabled="isCompleted && !!af.id" :class="campo" @change="af.id_grado_administrativo = ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null">
+                      <option value="">Ninguno</option>
                       <option v-for="adm in gradosAdministrativos" :key="adm.id" :value="adm.id">{{ adm.nombre }} ({{ adm.abreviatura }})</option>
-                    </UiSelect>
+                    </select>
                   </div>
                   <div>
                     <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">Disciplina / Especialidad</label>
-                    <UiInput v-model="af.disciplina_cientifica" type="text" :disabled="isCompleted && !!af.id" placeholder="Ej. Informática" class="w-full py-2 px-3 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-umsa-blue outline-none disabled:bg-slate-50 dark:disabled:bg-gray-800" />
+                    <input v-model="af.disciplina_cientifica" type="text" :disabled="isCompleted && !!af.id" placeholder="Ej. Informática" :class="campo" />
                   </div>
                 </div>
               </div>
@@ -642,15 +670,15 @@ onMounted(() => {
           </div>
           
           <div class="pt-8 flex flex-col md:flex-row items-center justify-end gap-4">
-            <VBtn type="submit" v-if="!isCompleted || Object.keys(originalData).some(k => !originalData[k])" :disabled="loading" class="w-full md:w-auto px-6 py-3 border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-gray-300 font-black text-xs uppercase tracking-widest rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50">
+            <button type="submit" v-if="!isCompleted || Object.keys(originalData).some(k => !originalData[k])" :disabled="loading" class="w-full rounded-xl border border-slate-200 px-6 py-3 text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 md:w-auto">
               {{ loading ? '...' : 'Guardar Progreso' }}
-            </VBtn>
-            <VBtn type="button" v-if="!isCompleted" @click="handleUpdateProfile(true)" :disabled="loading" class="w-full md:w-auto px-8 py-3 bg-umsa-blue hover:bg-blue-800 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-umsa-blue/20 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50">
+            </button>
+            <button type="button" v-if="!isCompleted" @click="handleUpdateProfile(true)" :disabled="loading" class="w-full rounded-xl bg-umsa-blue px-8 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-umsa-blue/20 hover:bg-blue-800 disabled:opacity-50 md:w-auto">
               {{ loading ? 'Procesando...' : 'Finalizar y Bloquear Perfil' }}
-            </VBtn>
+            </button>
           </div>
         </form>
-      </VCard>
+      </div>
 
     </div>
   </div>

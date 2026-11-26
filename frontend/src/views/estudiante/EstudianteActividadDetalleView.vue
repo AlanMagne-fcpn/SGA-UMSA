@@ -3,11 +3,13 @@ import { ref, onMounted, computed, nextTick, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useCertificadosStore } from '@/stores/certificados';
-import api, { imagenActividad, resolveMediaUrl } from '@/services/api';
+import api, { imagenActividad, imagenEvento, resolveMediaUrl } from '@/services/api';
 import { certificadoDelPortal } from '@/utils/certificadoRol';
+import { modoEvaluacion } from '@/utils/activityLearning';
 import Swal from '@/services/dialogs';
 import QrcodeVue from 'qrcode.vue';
 import { Html5QrcodeScanner, Html5QrcodeScanType } from 'html5-qrcode';
+import ActivityAccesoBanner from '@/components/actividades/ActivityAccesoBanner.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -16,8 +18,22 @@ const certificadosStore = useCertificadosStore();
 const user = computed(() => authStore.user);
 const actividadId = Number(route.params.id);
 const loading = ref(true);
+const contenidosAula = ref(0);
 
 const vistaCertificados = ref<{ id: number; titulo: string; url: string }[]>([]);
+
+/** Simposio/taller/etc. van por asistencia; el aula solo sirve si hay material publicado. */
+const modoActividad = computed(() => modoEvaluacion(actividad.value.tipo, actividad.value.requisitos));
+const esAulaTipoCurso = computed(() => modoActividad.value === 'curso' || modoActividad.value === 'configurable');
+const mostrarEntradaAula = computed(() => {
+  const inscrito = myInscripcion.value && (Number(myInscripcion.value.estado) === 1 || Number(myInscripcion.value.estado) === 3);
+  if (!inscrito) return false;
+  if (esAulaTipoCurso.value) return true;
+  return contenidosAula.value > 0;
+});
+const etiquetaAula = computed(() =>
+  esAulaTipoCurso.value ? 'Entrar al aula virtual' : 'Ver material de apoyo',
+);
 
 const certificadosDeLaActividad = computed(() => {
   const eventoId = Number((actividad.value as any).eventoId || 0);
@@ -64,8 +80,30 @@ const actividadCerrada = computed(() => {
   return Number(a.estadoActividad) === 0
     || Number(a.estadoEvento) === 0
     || Number(a.faseEvento) >= 4
-    || !!miCertificado.value
+    || Number(myInscripcion.value?.estado) === 3
     || fechaYaPaso(a.fechaFin);
+});
+
+const modalidadesTexto = computed(() => {
+  const lista = actividad.value.modalidadesTipos || [];
+  if (lista.length) return lista.join(' · ');
+  return actividad.value.modalidad || 'Presencial';
+});
+
+const progresoTemario = computed(() => {
+  const total = (actividad.value.materiales || []).length;
+  if (!total) return { hechos: 0, total: 0, pct: 0 };
+  const hechos = Math.round((actividad.value.progreso / 100) * total);
+  return { hechos, total, pct: Math.min(100, Math.round((hechos / total) * 100)) };
+});
+
+const progresoTareas = computed(() => {
+  const total = (actividad.value.tareas || []).length;
+  if (!total) return { hechos: 0, total: 0, pct: 0 };
+  const hechos = (actividad.value.tareas || []).filter((t: any) =>
+    /entregado|completado|finalizado/i.test(String(t.estado || t.status || '')),
+  ).length;
+  return { hechos, total, pct: Math.round((hechos / total) * 100) };
 });
 
 const documentosSubidos = computed(() => {
@@ -96,7 +134,7 @@ const materialesPorFecha = computed(() => {
     const clave = /^\d{4}-\d{2}-\d{2}$/.test(cruda)
       ? cruda
       : partes
-        ? `${partes[3]}-${partes[2].padStart(2, '0')}-${partes[1].padStart(2, '0')}`
+        ? `${partes[3]!}-${partes[2]!.padStart(2, '0')}-${partes[1]!.padStart(2, '0')}`
         : 'sin-fecha';
     grupos.set(clave, [...(grupos.get(clave) || []), mat]);
   }
@@ -156,15 +194,19 @@ const actividad = ref({
   nombre: 'Cargando...',
   tipo: 'Cargando',
   modalidad: 'Presencial',
+  modalidadesTipos: [] as string[],
   fecha: '',
+  fechaInicio: '' as string,
   estado: 'Cargando',
   progreso: 0,
   promedio: 0,
   asistencia: [] as any[],
   horas: 0,
+  cupo: null as number | null,
   docente: 'Sin asignar',
   descripcion: 'Cargando detalle...',
   imagen: '',
+  imagenEvento: '',
   materiales: [] as any[],
   ponentes: [] as any[],
   tareas: [] as any[],
@@ -175,6 +217,12 @@ const actividad = ref({
   },
   requisitos: null as any,
   eventoId: null as number | null,
+  eventoNombre: '',
+  eventoGestion: '',
+  eventoUbicacion: '',
+  eventoDireccion: '',
+  eventoSigla: '',
+  eventoDescripcion: '',
   estadoActividad: 1,
   estadoEvento: 1,
   faseEvento: 1,
@@ -212,20 +260,39 @@ const loadActividad = async () => {
       router.push({ name: 'estudiante-dashboard' });
       return;
     }
+    const descripcionLimpia = String(act.descripcion || '')
+      .replace(/\[INHABILITACION_MOTIVO\]:?[^\n\[]*/gi, '')
+      .replace(/\[FECHA(_INHABILITACION)?\]:?[^\n\[]*/gi, '')
+      .replace(/\[SOLICITUD_ACTIVACION\]:?[^\n\[]*/gi, '')
+      .replace(/\[MOSTRAR_CORREOS\]:?[^\n\[]*/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const eventoDesc = String(act.evento?.descripcion || '')
+      .replace(/\[MOSTRAR_CORREOS\]:?[^\n\[]*/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const modalidadesTipos = Array.isArray(act.modalidades)
+      ? [...new Set(act.modalidades.map((m: any) => m.tipo).filter(Boolean))]
+      : [];
+
     actividad.value = {
       id: act.id,
       nombre: act.nombre,
       tipo: act.tipo || 'General',
-      modalidad: act.modalidad || act.modalidades?.[0]?.tipo || 'Presencial',
+      modalidad: act.modalidad || modalidadesTipos[0] || 'Presencial',
+      modalidadesTipos: modalidadesTipos as string[],
       fecha: act.fecha_inicio ? `${new Date(act.fecha_inicio).toLocaleDateString()} al ${new Date(act.fecha_fin).toLocaleDateString()}` : 'Por definir',
+      fechaInicio: act.fecha_inicio || '',
       estado: 'Disponible',
       progreso: 0,
       promedio: 0,
       asistencia: [],
       horas: act.horas || 40,
+      cupo: act.cupo ?? null,
       docente: act.imparticiones && act.imparticiones.length > 0 ? `${act.imparticiones[0].usuario.persona.nombres} ${act.imparticiones[0].usuario.persona.primer_apellido}` : 'Sin Docente',
-      descripcion: act.descripcion || 'Sin descripción detallada.',
+      descripcion: descripcionLimpia || 'Sin descripción detallada.',
       imagen: imagenActividad(act),
+      imagenEvento: imagenEvento(act.evento),
       materiales: act.materiales || [],
       ponentes: act.imparticiones ? act.imparticiones.map((imp: any) => ({
         id: imp.usuario.id,
@@ -235,12 +302,18 @@ const loadActividad = async () => {
       })) : [],
       tareas: act.tareas || [],
       certificadoRequisitos: {
-        asistenciaMinima: act.min_asistencia ?? 80,
-        notaMinima: act.min_nota ?? 51,
+        asistenciaMinima: act.min_asistencia ?? act.modalidades?.[0]?.min_asistencia ?? 80,
+        notaMinima: act.min_nota ?? act.modalidades?.[0]?.min_nota ?? 51,
         completado: false
       },
       requisitos: act.requisitos,
       eventoId: act.evento?.id || null,
+      eventoNombre: act.evento?.nombre || 'Evento académico',
+      eventoGestion: act.evento?.gestion || act.evento?.version || '',
+      eventoUbicacion: act.evento?.ubicacion || '',
+      eventoDireccion: act.evento?.direccion || '',
+      eventoSigla: act.evento?.sigla || '',
+      eventoDescripcion: eventoDesc,
       estadoActividad: Number(act.estado),
       estadoEvento: Number(act.evento?.estado ?? 1),
       faseEvento: Number(act.evento?.fase ?? 1),
@@ -321,12 +394,20 @@ const checkInscripcionStatus = async () => {
       else actividad.value.estado = 'Pre-Inscrito';
       
       actividad.value.progreso = found.estado === 1 ? 50 : (found.estado === 3 ? 100 : 0);
-      if ((found.estado === 1 || found.estado === 3) && /virtual|híbrido|hibrido/i.test(actividad.value.modalidad)) {
+      if (found.estado === 1 || found.estado === 3) {
         try {
           const aula = await api.get(`/actividades-academicas/${actividadId}/aula`);
-          const lecciones = Array.isArray(aula.data) ? aula.data : [];
-          actividad.value.progreso = lecciones.length ? Math.round(100 * lecciones.filter((leccion: any) => !!leccion.completado_en).length / lecciones.length) : 0;
-        } catch { actividad.value.progreso = 0; }
+          const lecciones = (Array.isArray(aula.data) ? aula.data : []).filter((l: any) => l.publicado !== false);
+          contenidosAula.value = lecciones.length;
+          if (/virtual|híbrido|hibrido/i.test(actividad.value.modalidad) || modoEvaluacion(actividad.value.tipo, actividad.value.requisitos) === 'curso') {
+            actividad.value.progreso = lecciones.length
+              ? Math.round(100 * lecciones.filter((leccion: any) => !!leccion.completado_en).length / lecciones.length)
+              : 0;
+          }
+        } catch {
+          contenidosAula.value = 0;
+          if (/virtual|híbrido|hibrido/i.test(actividad.value.modalidad)) actividad.value.progreso = 0;
+        }
       }
       actividad.value.certificadoRequisitos.completado = (found.estado === 3);
 
@@ -595,131 +676,321 @@ const goBack = () => {
 </script>
 
 <template>
-  <div class="animate-in fade-in duration-500 max-w-7xl mx-auto space-y-8">
+  <div class="mx-auto w-full min-w-0 space-y-6 animate-in fade-in duration-500 sm:space-y-8">
     
-    <!-- Hero Header Integrado Tipo Netflix -->
-    <div class="relative w-full h-[300px] md:h-[400px] rounded-[2rem] overflow-hidden shadow-2xl border border-slate-200/50 dark:border-gray-800 flex flex-col group/hero mb-6">
-      <img :src="actividad.imagen" data-course-image :alt="actividad.nombre" class="absolute inset-0 w-full h-full object-cover object-center group-hover/hero:scale-105 transition-transform duration-[2s] ease-out">
-      <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-900/80 to-transparent"></div>
-      
-      <!-- Navegación y Badges Top -->
-      <div class="absolute top-0 left-0 right-0 p-8 z-50 flex justify-between items-start">
-          <VBtn @click="goBack" class="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 p-2.5 rounded-2xl transition-all hover:scale-105 flex items-center justify-center cursor-pointer pointer-events-auto">
-              <VIcon class="material-symbols-outlined text-[20px]">arrow_back</VIcon>
+    <!-- Hero: banner del evento + ficha del curso -->
+    <section class="mb-4 overflow-hidden rounded-[1.5rem] border border-slate-200/60 shadow-2xl dark:border-gray-800 sm:mb-6 sm:rounded-[2rem]">
+      <div class="group/hero relative flex min-h-[300px] flex-col sm:min-h-[360px] md:min-h-[440px]">
+        <img
+          :src="actividad.imagenEvento || actividad.imagen"
+          data-course-image
+          :alt="actividad.eventoNombre || actividad.nombre"
+          class="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-[2s] ease-out group-hover/hero:scale-105"
+        >
+        <div class="absolute inset-0 bg-gradient-to-t from-[#011628] via-[#012248]/88 to-[#012248]/45"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(2,129,145,0.22),transparent_55%)]"></div>
+
+        <!-- Barra superior solo controles: sin badges competiendo -->
+        <div class="relative z-50 flex items-center justify-between gap-3 px-5 pb-2 pt-5 md:px-8 md:pt-7">
+          <VBtn
+            @click="goBack"
+            class="pointer-events-auto flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-2xl border border-white/25 bg-black/35 p-0 text-white backdrop-blur-md transition-all hover:scale-105 hover:bg-black/50"
+          >
+            <VIcon class="material-symbols-outlined text-[20px]">arrow_back</VIcon>
           </VBtn>
-          <span class="text-[10px] font-black uppercase px-4 py-1.5 rounded-full tracking-widest shadow-lg backdrop-blur-md border border-white/20 text-white" :class="getStatusColor(actividad.estado)">
+          <!-- Pill compacto solo si aún no hay tarjeta de estado a la derecha -->
+          <span
+            v-if="!myInscripcion && !actividadCerrada"
+            class="rounded-full border border-white/25 bg-black/40 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-white shadow-lg backdrop-blur-md"
+            :class="getStatusColor(actividad.estado)"
+          >
             {{ actividad.estado }}
           </span>
-      </div>
+        </div>
 
-      <!-- Título y Meta de Actividad -->
-      <div class="absolute bottom-0 left-0 right-0 p-6 md:p-12 z-20 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-        <div class="max-w-3xl">
-          <div class="flex items-center gap-2 md:gap-3 mb-3 flex-wrap">
-              <span class="text-[9px] md:text-xs font-black text-emerald-400 uppercase tracking-widest bg-emerald-900/30 border border-emerald-500/30 px-3 py-1 rounded-full">{{ actividad.tipo }}</span>
-              <span class="text-[9px] md:text-xs font-bold text-gray-300 uppercase tracking-widest break-words">{{ actividad.fecha }}</span>
+        <div class="relative z-10 mt-auto flex flex-col gap-6 px-5 pb-6 pt-4 md:px-8 md:pb-9 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
+          <div class="min-w-0 max-w-3xl">
+            <div class="mb-4 flex flex-wrap items-center gap-2">
+              <span
+                v-if="actividad.eventoGestion"
+                class="rounded-full bg-umsa-gold px-3 py-1 text-[9px] font-black uppercase tracking-widest text-white shadow-lg md:text-[10px]"
+              >
+                Gestión {{ actividad.eventoGestion }}
+              </span>
+              <span class="rounded-full border border-emerald-400/40 bg-emerald-900/50 px-3 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-200 backdrop-blur-sm md:text-[10px]">
+                {{ actividad.tipo }}
+              </span>
+              <span class="rounded-full border border-white/25 bg-black/40 px-3 py-1 text-[9px] font-black uppercase tracking-widest text-sky-100 backdrop-blur-md md:text-[10px]">
+                {{ modalidadesTexto }}
+              </span>
+              <span class="rounded-full border border-white/20 bg-black/45 px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-white backdrop-blur-md md:text-[10px]">
+                {{ actividad.fecha }}
+              </span>
+            </div>
+
+            <h1 class="text-2xl font-black leading-[1.05] tracking-tight text-white drop-shadow-lg sm:text-3xl md:text-5xl lg:text-[3.25rem]">
+              {{ actividad.nombre }}
+            </h1>
+
+            <div
+              v-if="actividad.eventoNombre"
+              class="mt-4 inline-flex max-w-full items-center gap-3 rounded-2xl border border-white/20 bg-white/95 px-3 py-2.5 text-left text-[#012248] shadow-xl backdrop-blur-sm sm:mt-5 sm:px-4 sm:py-3"
+            >
+              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#012248] text-white">
+                <span class="material-symbols-outlined text-[20px] leading-none">event</span>
+              </span>
+              <span class="min-w-0">
+                <span class="block text-[10px] font-black uppercase tracking-[0.18em] text-[#028191]">Pertenece al evento</span>
+                <span class="block truncate text-base font-black">
+                  <span v-if="actividad.eventoSigla" class="mr-1 text-[#028191]">{{ actividad.eventoSigla }} ·</span>
+                  {{ actividad.eventoNombre }}
+                </span>
+              </span>
+            </div>
+
+            <p class="mt-4 max-w-2xl text-sm leading-relaxed text-slate-100 md:text-base line-clamp-3 drop-shadow">
+              {{ actividad.descripcion }}
+            </p>
+            <p class="mt-3 flex flex-wrap gap-2 text-xs font-bold uppercase tracking-wide text-sky-50">
+              <span class="inline-flex items-center gap-1 rounded-full bg-black/35 px-2.5 py-1 backdrop-blur-sm">{{ modalidadesTexto }}</span>
+              <span v-if="actividad.eventoUbicacion" class="inline-flex items-center gap-1 rounded-full bg-black/35 px-2.5 py-1 backdrop-blur-sm">
+                <span class="material-symbols-outlined text-[14px]">location_on</span>{{ actividad.eventoUbicacion }}
+              </span>
+              <span v-if="actividad.horas" class="inline-flex items-center rounded-full bg-black/35 px-2.5 py-1 backdrop-blur-sm">
+                {{ actividad.horas }} hrs académicas
+              </span>
+            </p>
+
+            <RouterLink
+              v-if="mostrarEntradaAula"
+              :to="`/estudiante/actividades/${actividad.id}/aula`"
+              class="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-[#003B71] shadow-xl transition hover:bg-sky-50 sm:w-auto"
+            >
+              <VIcon size="20">{{ esAulaTipoCurso ? 'play_circle' : 'folder_open' }}</VIcon>
+              {{ etiquetaAula }}
+            </RouterLink>
+            <p
+              v-else-if="myInscripcion && (Number(myInscripcion.estado) === 1 || Number(myInscripcion.estado) === 3) && !esAulaTipoCurso"
+              class="mt-5 max-w-xl text-xs font-medium leading-relaxed text-sky-100/90"
+            >
+              Este {{ (actividad.tipo || 'actividad').toLowerCase() }} se evalúa por asistencia. No hay aula con lecciones; usa Resumen, Materiales/Documentos y Asistencia en las pestañas.
+            </p>
           </div>
-          <h1 class="text-3xl md:text-5xl lg:text-6xl font-black text-white tracking-tighter leading-none mb-4 drop-shadow-lg">{{ actividad.nombre }}</h1>
-          <p class="text-xs md:text-base font-medium text-gray-300 line-clamp-2 md:line-clamp-3 leading-relaxed drop-shadow-md max-w-2xl">{{ actividad.descripcion }}</p>
-          <RouterLink v-if="myInscripcion?.estado === 1 || myInscripcion?.estado === 3" :to="`/estudiante/actividades/${actividad.id}/aula`" class="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-[#003B71]"><VIcon size="20">play_circle</VIcon>Entrar al aula virtual</RouterLink>
-        </div>
 
-        <!-- Acciones o Metric -->
-        <div class="flex flex-col gap-4 shrink-0 mt-4 lg:mt-0 items-center lg:items-end">
-          <template v-if="myInscripcion">
-            <div :class="myInscripcion.estado === 1 ? 'bg-emerald-500' : (myInscripcion.estado === 2 ? 'bg-red-500' : (myInscripcion.estado === 3 ? 'bg-blue-500' : 'bg-amber-500'))"
-                  class="backdrop-blur-xl border border-white/20 dark:border-gray-800 rounded-2xl p-6 flex flex-col items-center justify-center min-w-[180px] shadow-2xl transition-all">
-              <div v-if="actividadCerrada || myInscripcion.estado === 3" class="flex flex-col items-center"><VIcon class="material-symbols-outlined text-white mb-2 text-3xl">event_available</VIcon><span class="text-white text-base font-black uppercase text-center w-full block">Finalizado</span></div>
-              <div v-else-if="myInscripcion.estado === 1" class="flex flex-col items-center"><VIcon class="material-symbols-outlined text-white mb-2 text-3xl">check_circle</VIcon><span class="text-white text-base font-black uppercase text-center w-full block">Aprobado</span></div>
-              <div v-else-if="myInscripcion.estado === 2" class="flex flex-col items-center"><VIcon class="material-symbols-outlined text-white mb-2 text-3xl">cancel</VIcon><span class="text-white text-base font-black uppercase text-center w-full block">Rechazado</span></div>
-              <div v-else-if="myInscripcion.estado === 3" class="flex flex-col items-center"><VIcon class="material-symbols-outlined text-white mb-2 text-3xl">school</VIcon><span class="text-white text-base font-black uppercase text-center w-full block">Finalizado</span></div>
-              <div v-else class="flex flex-col items-center"><VIcon class="material-symbols-outlined text-white mb-2 text-3xl">hourglass_empty</VIcon><span class="text-white text-xs font-black uppercase text-center w-full block mt-1 tracking-tight">Pendiente de<br>Aprobación</span></div>
-              <span class="text-[10px] text-white/80 font-bold uppercase tracking-widest mt-2">Estado</span>
-            </div>
-            <div v-if="myInscripcion.estado === 0" class="text-xs font-bold text-amber-500 dark:text-amber-400 mt-2 text-center max-w-[200px]">Tu pre-inscripción fue enviada y está en revisión</div>
-            <div v-if="myInscripcion.estado === 2" class="text-xs font-bold text-red-500 bg-red-50 dark:bg-red-900/20 p-3 rounded-xl mt-2 text-center max-w-[200px] border border-red-200 dark:border-red-900/50"><strong>No se pudo habilitar su inscripción debido a:</strong><br>{{ myInscripcion.observacion || myInscripcion.razon_rechazo || 'No se cumplieron los requisitos requeridos por la coordinadora.' }}</div>
-          </template>
-          <template v-else-if="actividadCerrada">
-            <div class="bg-slate-800 backdrop-blur-xl border border-white/20 rounded-2xl p-6 flex flex-col items-center justify-center min-w-[180px] shadow-2xl">
-              <VIcon class="material-symbols-outlined text-white mb-2 text-3xl">event_available</VIcon>
-              <span class="text-white text-base font-black uppercase text-center">Finalizado</span>
-            </div>
-            <span class="text-xs text-slate-300 font-bold text-center mt-2 max-w-[220px]">Esta actividad ya concluyó. Revisa el resumen, los documentos y tu certificado.</span>
-          </template>
-          <template v-else>
-            <VBtn @click="preinscripcionMenu = true" class="bg-umsa-blue hover:bg-blue-600 text-white px-8 py-5 rounded-2xl font-black uppercase tracking-widest transition-all shadow-[0_0_40px_-5px_rgba(37,99,235,0.5)] flex items-center justify-center gap-3 min-w-[180px] border border-blue-400/50 hover:scale-105">
-               <VIcon class="material-symbols-outlined text-[24px]">approval</VIcon>
-               Pre-inscribirme
-            </VBtn>
-            <span class="text-xs text-slate-500 dark:text-gray-400 font-bold text-center mt-2 max-w-[200px]">Inscríbete para acceder al material y asistencia.</span>
-          </template>
+          <div class="flex w-full shrink-0 flex-col items-stretch gap-3 sm:max-w-[240px] lg:items-end">
+            <template v-if="myInscripcion">
+              <div
+                :class="myInscripcion.estado === 1 ? 'bg-emerald-500' : (myInscripcion.estado === 2 ? 'bg-red-500' : (myInscripcion.estado === 3 ? 'bg-blue-500' : 'bg-amber-500'))"
+                class="flex flex-col items-center justify-center rounded-2xl border border-white/25 px-5 py-5 shadow-2xl backdrop-blur-xl"
+              >
+                <div v-if="actividadCerrada || myInscripcion.estado === 3" class="flex flex-col items-center">
+                  <VIcon class="material-symbols-outlined mb-2 text-3xl text-white">event_available</VIcon>
+                  <span class="block w-full text-center text-base font-black uppercase text-white">Finalizado</span>
+                </div>
+                <div v-else-if="myInscripcion.estado === 1" class="flex flex-col items-center">
+                  <VIcon class="material-symbols-outlined mb-2 text-3xl text-white">check_circle</VIcon>
+                  <span class="block w-full text-center text-base font-black uppercase text-white">Inscrito</span>
+                </div>
+                <div v-else-if="myInscripcion.estado === 2" class="flex flex-col items-center">
+                  <VIcon class="material-symbols-outlined mb-2 text-3xl text-white">cancel</VIcon>
+                  <span class="block w-full text-center text-base font-black uppercase text-white">Rechazado</span>
+                </div>
+                <div v-else class="flex flex-col items-center">
+                  <VIcon class="material-symbols-outlined mb-2 text-3xl text-white">hourglass_empty</VIcon>
+                  <span class="mt-1 block w-full text-center text-xs font-black uppercase tracking-tight text-white">Pendiente de<br>Aprobación</span>
+                </div>
+                <span class="mt-2 text-[10px] font-bold uppercase tracking-widest text-white/80">Estado</span>
+              </div>
+              <div v-if="myInscripcion.estado === 0" class="text-center text-xs font-bold text-amber-300">
+                Tu pre-inscripción fue enviada y está en revisión
+              </div>
+              <div
+                v-if="myInscripcion.estado === 2"
+                class="rounded-xl border border-red-200 bg-red-50 p-3 text-center text-xs font-bold text-red-500 dark:border-red-900/50 dark:bg-red-900/20"
+              >
+                <strong>No se pudo habilitar su inscripción debido a:</strong><br>
+                {{ myInscripcion.observacion || myInscripcion.razon_rechazo || 'No se cumplieron los requisitos requeridos por la coordinadora.' }}
+              </div>
+            </template>
+            <template v-else-if="actividadCerrada">
+              <div class="flex flex-col items-center justify-center rounded-2xl border border-white/20 bg-slate-800/90 px-5 py-5 shadow-2xl backdrop-blur-xl">
+                <VIcon class="material-symbols-outlined mb-2 text-3xl text-white">event_available</VIcon>
+                <span class="text-center text-base font-black uppercase text-white">Finalizado</span>
+              </div>
+              <span class="text-center text-xs font-bold text-slate-200">
+                Esta actividad ya concluyó. Revisa el resumen, los documentos y tu certificado.
+              </span>
+            </template>
+            <template v-else>
+              <VBtn
+                @click="preinscripcionMenu = true"
+                class="flex w-full items-center justify-center gap-3 rounded-2xl border border-blue-400/50 bg-umsa-blue px-6 py-4 font-black uppercase tracking-widest text-white shadow-[0_0_40px_-5px_rgba(37,99,235,0.5)] transition-all hover:bg-blue-600 sm:hover:scale-105"
+              >
+                <VIcon class="material-symbols-outlined text-[24px]">approval</VIcon>
+                Pre-inscribirme
+              </VBtn>
+              <span class="text-center text-xs font-bold text-slate-200">
+                Inscríbete para acceder al material y asistencia.
+              </span>
+            </template>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
+
+    <ActivityAccesoBanner
+      v-if="myInscripcion && (myInscripcion.estado === 1 || myInscripcion.estado === 3)"
+      :requisitos="actividad.requisitos"
+      :modalidad="actividad.modalidad"
+    />
 
     <!-- Tabs de Navegación -->
-    <div class="flex overflow-x-auto gap-2 border-b border-slate-200 dark:border-gray-800 pb-1 snap-x scrollbar-hide">
+    <div class="-mx-1 flex snap-x gap-1 overflow-x-auto border-b border-slate-200 pb-1 scrollbar-hide dark:border-gray-800 sm:mx-0 sm:gap-2">
       <VBtn v-for="tab in tabs" :key="tab.id" @click="switchTab(tab.id)"
-        class="flex items-center gap-2 px-6 py-4 text-xs font-black uppercase tracking-widest rounded-t-2xl transition-all whitespace-nowrap snap-start border-b-2"
+        class="flex shrink-0 snap-start items-center gap-1.5 whitespace-nowrap rounded-t-2xl border-b-2 px-3 py-3 text-[10px] font-black uppercase tracking-widest transition-all sm:gap-2 sm:px-6 sm:py-4 sm:text-xs"
         :class="activeTab === tab.id 
           ? 'text-primary-dark dark:text-emerald-400 border-primary-dark dark:border-emerald-400 bg-slate-50 dark:bg-gray-900/50' 
           : 'text-slate-500 dark:text-gray-500 border-transparent hover:bg-slate-50 dark:hover:bg-gray-800/50 hover:text-slate-700 dark:hover:text-gray-300'">
-        <VIcon class="material-symbols-outlined text-[18px]">{{ tab.icon }}</VIcon>
+        <VIcon class="material-symbols-outlined text-[16px] sm:text-[18px]">{{ tab.icon }}</VIcon>
         {{ tab.label }}
       </VBtn>
     </div>
 
     <!-- Contenido Principal -->
-    <div class="bg-white dark:bg-gray-900 rounded-[2rem] p-6 md:p-10 shadow-sm border border-slate-200/60 dark:border-gray-800 min-h-[400px]">
+    <div class="min-h-[320px] rounded-[1.5rem] border border-slate-200/60 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:min-h-[400px] sm:rounded-[2rem] sm:p-6 md:p-10">
       
       <!-- Tab: Resumen -->
       <div v-if="activeTab === 'resumen'" class="animate-in slide-in-from-bottom-4 duration-500 fade-in space-y-8">
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <!-- Info General -->
-              <div class="lg:col-span-2 space-y-6">
+          <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+              <div class="space-y-6 lg:col-span-2">
                 <div>
-                   <h3 class="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight mb-4">Acerca de este {{ actividad.tipo.toLowerCase() }}</h3>
-                   <p class="text-slate-600 dark:text-gray-400 leading-relaxed">{{ actividad.descripcion }}</p>
+                   <h3 class="mb-4 text-xl font-black uppercase tracking-tight text-slate-800 dark:text-white">
+                     Acerca de este {{ actividad.tipo.toLowerCase() }}
+                   </h3>
+                   <p class="leading-relaxed text-slate-600 dark:text-gray-400">{{ actividad.descripcion }}</p>
                 </div>
-                
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-6 mt-6 border-t border-slate-100 dark:border-gray-800">
+
+                <div
+                  v-if="actividad.eventoNombre"
+                  class="rounded-2xl border border-[#028191]/20 bg-[#f7fbfd] p-5 dark:border-slate-700 dark:bg-slate-950"
+                >
+                  <div class="mb-3 flex items-center gap-2">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#012248] text-white">
+                      <span class="material-symbols-outlined text-[18px]">event</span>
+                    </span>
+                    <div>
+                      <p class="text-[10px] font-black uppercase tracking-[0.18em] text-[#028191]">Evento padre</p>
+                      <p class="text-base font-black text-[#012248] dark:text-white">
+                        <span v-if="actividad.eventoSigla" class="text-[#028191]">{{ actividad.eventoSigla }} · </span>
+                        {{ actividad.eventoNombre }}
+                      </p>
+                    </div>
+                  </div>
+                  <p v-if="actividad.eventoDescripcion" class="mb-4 line-clamp-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                    {{ actividad.eventoDescripcion }}
+                  </p>
+                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div v-if="actividad.eventoGestion" class="rounded-xl bg-white px-3 py-2 dark:bg-slate-900">
+                      <span class="block text-[9px] font-bold uppercase tracking-widest text-slate-400">Gestión</span>
+                      <span class="text-sm font-black text-slate-700 dark:text-slate-200">{{ actividad.eventoGestion }}</span>
+                    </div>
+                    <div v-if="actividad.eventoUbicacion" class="rounded-xl bg-white px-3 py-2 dark:bg-slate-900">
+                      <span class="block text-[9px] font-bold uppercase tracking-widest text-slate-400">Ubicación</span>
+                      <span class="text-sm font-black text-slate-700 dark:text-slate-200">{{ actividad.eventoUbicacion }}</span>
+                    </div>
+                    <div v-if="actividad.eventoDireccion" class="rounded-xl bg-white px-3 py-2 sm:col-span-1 dark:bg-slate-900">
+                      <span class="block text-[9px] font-bold uppercase tracking-widest text-slate-400">Dirección</span>
+                      <span class="text-sm font-black text-slate-700 dark:text-slate-200">{{ actividad.eventoDireccion }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mt-2 grid grid-cols-1 gap-4 border-t border-slate-100 pt-6 sm:grid-cols-2 md:grid-cols-3 dark:border-gray-800">
                    <div class="space-y-1">
-                       <span class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest block">Docente</span>
-                       <span class="text-sm font-black text-slate-700 dark:text-gray-300 block truncate">{{ actividad.docente }}</span>
+                       <span class="block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Docente / Ponente</span>
+                       <span class="block truncate text-sm font-black text-slate-700 dark:text-gray-300">{{ actividad.docente }}</span>
                    </div>
                    <div class="space-y-1">
-                       <span class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest block">Carga Horaria</span>
-                       <span class="text-sm font-black text-slate-700 dark:text-gray-300 block">{{ actividad.horas }} Hrs Académicas</span>
+                       <span class="block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Modalidad</span>
+                       <span class="block text-sm font-black text-slate-700 dark:text-gray-300">{{ modalidadesTexto }}</span>
                    </div>
-                    <div class="space-y-1">
-                       <span class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest block">Progreso Global</span>
-                       <span class="text-sm font-black text-emerald-600 dark:text-emerald-400 block">{{ actividad.progreso }}% Completado</span>
+                   <div class="space-y-1">
+                       <span class="block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Carga horaria</span>
+                       <span class="block text-sm font-black text-slate-700 dark:text-gray-300">{{ actividad.horas }} Hrs académicas</span>
                    </div>
+                   <div class="space-y-1">
+                       <span class="block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Fechas del curso</span>
+                       <span class="block text-sm font-black text-slate-700 dark:text-gray-300">{{ actividad.fecha }}</span>
+                   </div>
+                   <div class="space-y-1">
+                       <span class="block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Nota mínima</span>
+                       <span class="block text-sm font-black text-slate-700 dark:text-gray-300">{{ actividad.certificadoRequisitos.notaMinima }} pts</span>
+                   </div>
+                   <div class="space-y-1">
+                       <span class="block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Asistencia mínima</span>
+                       <span class="block text-sm font-black text-slate-700 dark:text-gray-300">{{ actividad.certificadoRequisitos.asistenciaMinima }}%</span>
+                   </div>
+                   <div v-if="actividad.cupo" class="space-y-1">
+                       <span class="block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Cupo</span>
+                       <span class="block text-sm font-black text-slate-700 dark:text-gray-300">{{ actividad.cupo }} plazas</span>
+                   </div>
+                   <div class="space-y-1">
+                       <span class="block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Progreso global</span>
+                       <span class="block text-sm font-black text-emerald-600 dark:text-emerald-400">{{ actividad.progreso }}% completado</span>
+                   </div>
+                </div>
+
+                <div v-if="actividad.ponentes.length > 1" class="rounded-2xl border border-slate-100 bg-slate-50 p-5 dark:border-gray-800 dark:bg-gray-950">
+                  <p class="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Plantel docente</p>
+                  <div class="flex flex-wrap gap-2">
+                    <span
+                      v-for="p in actividad.ponentes"
+                      :key="p.id"
+                      class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                    >
+                      {{ p.nombre }} {{ p.apellidos }}
+                    </span>
+                  </div>
                 </div>
               </div>
-              
-              <!-- Sidebar Stats -->
-              <div v-if="myInscripcion" class="bg-slate-50 dark:bg-gray-950 p-6 rounded-[1.5rem] border border-slate-100 dark:border-gray-800 space-y-6 h-fit">
-                   <h3 class="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight border-b border-slate-200 dark:border-gray-800 pb-3">Resumen de Progreso</h3>
-                   
+
+              <div v-if="myInscripcion" class="h-fit space-y-6 rounded-[1.5rem] border border-slate-100 bg-slate-50 p-6 dark:border-gray-800 dark:bg-gray-950">
+                   <h3 class="border-b border-slate-200 pb-3 text-sm font-black uppercase tracking-tight text-slate-800 dark:border-gray-800 dark:text-white">
+                     Resumen de progreso
+                   </h3>
+
                    <div class="space-y-4">
                        <div>
-                           <div class="flex justify-between items-center mb-2">
-                               <span class="text-xs font-bold text-slate-600 dark:text-gray-400 uppercase tracking-widest">Temario</span>
-                               <span class="text-xs font-black text-slate-800 dark:text-gray-200">5/8 Completado</span>
+                           <div class="mb-2 flex items-center justify-between">
+                               <span class="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-gray-400">Materiales</span>
+                               <span class="text-xs font-black text-slate-800 dark:text-gray-200">
+                                 {{ progresoTemario.total ? `${progresoTemario.hechos}/${progresoTemario.total}` : 'Sin materiales' }}
+                               </span>
                            </div>
-                           <div class="w-full bg-slate-200 dark:bg-gray-800 rounded-full h-2">
-                               <div class="bg-blue-500 h-2 rounded-full" style="width: 60%"></div>
+                           <div class="h-2 w-full rounded-full bg-slate-200 dark:bg-gray-800">
+                               <div class="h-2 rounded-full bg-blue-500 transition-all" :style="{ width: `${progresoTemario.pct}%` }"></div>
                            </div>
                        </div>
-                       
+
                         <div>
-                           <div class="flex justify-between items-center mb-2">
-                               <span class="text-xs font-bold text-slate-600 dark:text-gray-400 uppercase tracking-widest">Tareas</span>
-                               <span class="text-xs font-black text-slate-800 dark:text-gray-200">1/2 Entregado</span>
+                           <div class="mb-2 flex items-center justify-between">
+                               <span class="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-gray-400">Tareas</span>
+                               <span class="text-xs font-black text-slate-800 dark:text-gray-200">
+                                 {{ progresoTareas.total ? `${progresoTareas.hechos}/${progresoTareas.total} entregado` : 'Sin tareas' }}
+                               </span>
                            </div>
-                           <div class="w-full bg-slate-200 dark:bg-gray-800 rounded-full h-2">
-                               <div class="bg-purple-500 h-2 rounded-full" style="width: 50%"></div>
+                           <div class="h-2 w-full rounded-full bg-slate-200 dark:bg-gray-800">
+                               <div class="h-2 rounded-full bg-purple-500 transition-all" :style="{ width: `${progresoTareas.pct}%` }"></div>
+                           </div>
+                       </div>
+
+                       <div>
+                           <div class="mb-2 flex items-center justify-between">
+                               <span class="text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-gray-400">Curso</span>
+                               <span class="text-xs font-black text-emerald-600">{{ actividad.progreso }}%</span>
+                           </div>
+                           <div class="h-2 w-full rounded-full bg-slate-200 dark:bg-gray-800">
+                               <div class="h-2 rounded-full bg-emerald-500 transition-all" :style="{ width: `${actividad.progreso}%` }"></div>
                            </div>
                        </div>
                    </div>
@@ -791,9 +1062,9 @@ const goBack = () => {
               <div class="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start relative z-10">
                   <!-- Columna Izquierda: Opciones -->
                   <div class="flex-1 w-full lg:max-w-md">
-                      <div class="flex items-center gap-3 mb-2">
-                          <VIcon class="material-symbols-outlined text-emerald-500 text-3xl">fact_check</VIcon>
-                          <h3 class="text-2xl md:text-3xl font-black text-slate-800 dark:text-white uppercase italic tracking-tight">Registro de Asistencia</h3>
+                      <div class="mb-2 flex items-start gap-3 sm:items-center">
+                          <VIcon class="material-symbols-outlined shrink-0 text-3xl text-emerald-500">fact_check</VIcon>
+                          <h3 class="text-xl font-black uppercase italic tracking-tight text-slate-800 dark:text-white sm:text-2xl md:text-3xl">Registro de Asistencia</h3>
                       </div>
                       <p class="text-slate-500 dark:text-gray-400 text-sm leading-relaxed mb-8">Selecciona el método que prefieras para registrar tu presencia en la sesión de hoy.</p>
                       
@@ -844,7 +1115,7 @@ const goBack = () => {
                   </div>
 
                   <!-- Columna Derecha: Contenido Dinámico -->
-                  <div class="flex-1 flex justify-center items-center w-full min-h-[340px] mt-6 lg:mt-0 bg-slate-50/50 dark:bg-gray-800/30 rounded-2xl p-6 border border-slate-100 dark:border-gray-800">
+                  <div class="mt-4 flex min-h-[280px] w-full flex-1 items-center justify-center rounded-2xl border border-slate-100 bg-slate-50/50 p-4 dark:border-gray-800 dark:bg-gray-800/30 sm:min-h-[340px] sm:p-6 lg:mt-0">
                       
                       <!-- Proyectar Mi QR -->
                       <VCard v-if="qrMode === 'project'" class="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-xl flex flex-col items-center justify-center w-full max-w-sm border border-slate-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-300">
@@ -905,25 +1176,25 @@ const goBack = () => {
               </div>
               
               <div v-else class="space-y-3">
-                  <VCard v-for="(registro, index) in actividad.asistencia" :key="index" class="flex items-center justify-between bg-white dark:bg-gray-900 border border-slate-200/60 dark:border-gray-800 rounded-xl p-4 dark:bg-gray-950 relative overflow-hidden group hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-slate-100 dark:hover:shadow-black/20">
+                  <VCard v-for="(registro, index) in actividad.asistencia" :key="index" class="group relative flex flex-col gap-3 overflow-hidden rounded-xl border border-slate-200/60 bg-white p-4 shadow-sm transition-all duration-300 hover:border-emerald-300 hover:shadow-lg hover:shadow-slate-100 dark:border-gray-800 dark:bg-gray-950 dark:hover:border-emerald-700 dark:hover:shadow-black/20 sm:flex-row sm:items-center sm:justify-between">
                       <!-- Barra de estado -->
-                      <div class="absolute left-0 top-0 bottom-0 w-1.5 transition-all duration-300" 
+                      <div class="absolute bottom-0 left-0 top-0 w-1.5 transition-all duration-300" 
                           :class="registro.estado === 'presente' ? 'bg-emerald-500 group-hover:w-2' : 'bg-rose-500 group-hover:w-2'"></div>
                       
-                      <div class="flex items-center gap-4 pl-2">
-                          <div class="h-10 w-10 rounded-lg flex items-center justify-center transition-colors"
+                      <div class="flex items-center gap-3 pl-2 sm:gap-4">
+                          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors"
                               :class="registro.estado === 'presente' ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20'">
                               <VIcon class="material-symbols-outlined text-[20px]" :class="registro.estado === 'presente' ? 'text-emerald-500' : 'text-rose-500'">
                                   {{ registro.estado === 'presente' ? 'check_circle' : 'cancel' }}
                               </VIcon>
                           </div>
-                          <div>
-                              <h4 class="font-bold text-slate-800 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{{ registro.fecha }}</h4>
-                              <div class="text-[10px] text-slate-400 dark:text-gray-500 font-bold uppercase tracking-widest mt-0.5">Sesión {{ Number(index) + 1 }}</div>
+                          <div class="min-w-0">
+                              <h4 class="break-words font-bold text-slate-800 transition-colors group-hover:text-emerald-600 dark:text-white dark:group-hover:text-emerald-400">{{ registro.fecha }}</h4>
+                              <div class="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Sesión {{ Number(index) + 1 }}</div>
                           </div>
                       </div>
                       
-                      <div class="px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all" 
+                      <div class="ml-12 self-start rounded-lg px-4 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all sm:ml-0 sm:self-auto" 
                           :class="registro.estado === 'presente' 
                               ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' 
                               : 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'">
@@ -937,10 +1208,10 @@ const goBack = () => {
       <!-- Tab: Notas -->
       <div v-if="activeTab === 'notas'" class="animate-in slide-in-from-bottom-4 duration-500 fade-in">
           <h3 class="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight mb-6">Mis Calificaciones</h3>
-          <div class="bg-slate-50 dark:bg-gray-950 p-8 rounded-[2rem] border border-slate-200 dark:border-gray-800 flex flex-col md:flex-row items-center justify-between shadow-sm max-w-3xl">
-              <div class="text-center md:text-left mb-6 md:mb-0">
-                  <p class="text-sm font-bold text-slate-500 dark:text-gray-400 uppercase tracking-widest mb-2">Nota Final</p>
-                  <h4 class="text-5xl font-black text-slate-800 dark:text-white">{{ myInscripcion?.nota_principal !== null && myInscripcion?.nota_principal !== undefined ? myInscripcion.nota_principal : 'N/A' }} <span v-if="myInscripcion?.nota_principal !== null && myInscripcion?.nota_principal !== undefined" class="text-xl text-slate-400 font-bold">/ 100</span></h4>
+          <div class="flex max-w-3xl flex-col items-center justify-between rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:rounded-[2rem] sm:p-8 md:flex-row">
+              <div class="mb-6 text-center md:mb-0 md:text-left">
+                  <p class="mb-2 text-sm font-bold uppercase tracking-widest text-slate-500 dark:text-gray-400">Nota Final</p>
+                  <h4 class="text-4xl font-black text-slate-800 dark:text-white sm:text-5xl">{{ myInscripcion?.nota_principal !== null && myInscripcion?.nota_principal !== undefined ? myInscripcion.nota_principal : 'N/A' }} <span v-if="myInscripcion?.nota_principal !== null && myInscripcion?.nota_principal !== undefined" class="text-xl font-bold text-slate-400">/ 100</span></h4>
                   <p v-if="myInscripcion?.nota_principal === null || myInscripcion?.nota_principal === undefined" class="text-xs text-slate-400 dark:text-gray-500 mt-2 font-medium">Calificación pendiente por el docente.</p>
               </div>
               <div class="flex-shrink-0">
@@ -960,29 +1231,29 @@ const goBack = () => {
                  <VIcon class="material-symbols-outlined text-white text-4xl">workspace_premium</VIcon>
               </div>
             </div>
-            <h3 class="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight mb-2 text-balance">¡Felicidades por completar el {{ actividad.tipo.toLowerCase() }}!</h3>
-            <p class="text-slate-600 dark:text-gray-400 leading-relaxed mb-8">Este es el certificado emitido para este evento.</p>
+            <h3 class="mb-2 text-balance text-2xl font-black uppercase tracking-tight text-slate-800 dark:text-white sm:text-3xl">¡Felicidades por completar el {{ actividad.tipo.toLowerCase() }}!</h3>
+            <p class="mb-8 leading-relaxed text-slate-600 dark:text-gray-400">Este es el certificado emitido para este evento.</p>
             <div class="w-full space-y-8 text-left">
               <div v-for="pdf in vistaCertificados" :key="pdf.id" class="space-y-3">
-                <div class="flex items-center justify-between gap-3">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <p class="text-sm font-black uppercase tracking-widest text-slate-700 dark:text-white">{{ pdf.titulo }}</p>
-                  <VBtn @click="certificadosStore.descargarCertificado(pdf.id)" class="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-800 transition-all flex items-center gap-2">
+                  <VBtn @click="certificadosStore.descargarCertificado(pdf.id)" class="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-slate-800 dark:bg-white dark:text-slate-900 sm:w-auto">
                     <VIcon class="material-symbols-outlined text-[16px]">download</VIcon>
                     Descargar
                   </VBtn>
                 </div>
-                <iframe :src="pdf.url" class="w-full h-[720px] rounded-2xl border border-slate-200 dark:border-gray-700 bg-white" title="Certificado"></iframe>
+                <iframe :src="pdf.url" class="h-[420px] w-full rounded-2xl border border-slate-200 bg-white dark:border-gray-700 sm:h-[560px] md:h-[720px]" title="Certificado"></iframe>
               </div>
             </div>
         </template>
         <template v-else-if="actividadCerrada || myInscripcion?.estado === 3 || actividad.estado === 'Finalizado'">
-            <div class="relative w-32 h-32 mb-8 group">
-              <div class="absolute inset-0 bg-umsa-gold/20 dark:bg-yellow-500/10 rounded-full blur-xl group-hover:blur-2xl transition-all duration-500"></div>
-              <div class="w-full h-full bg-gradient-to-br from-umsa-gold to-yellow-600 rounded-full flex items-center justify-center shadow-2xl border-4 border-white dark:border-gray-900 relative z-10 transform group-hover:scale-105 transition-transform">
-                 <VIcon class="material-symbols-outlined text-white text-5xl">workspace_premium</VIcon>
+            <div class="group relative mb-6 h-24 w-24 sm:mb-8 sm:h-32 sm:w-32">
+              <div class="absolute inset-0 rounded-full bg-umsa-gold/20 blur-xl transition-all duration-500 group-hover:blur-2xl dark:bg-yellow-500/10"></div>
+              <div class="relative z-10 flex h-full w-full transform items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-umsa-gold to-yellow-600 shadow-2xl transition-transform group-hover:scale-105 dark:border-gray-900">
+                 <VIcon class="material-symbols-outlined text-4xl text-white sm:text-5xl">workspace_premium</VIcon>
               </div>
             </div>
-            <h3 class="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight mb-4 text-balance">¡Felicidades por completar el {{ actividad.tipo.toLowerCase() }}!</h3>
+            <h3 class="mb-4 text-balance text-2xl font-black uppercase tracking-tight text-slate-800 dark:text-white sm:text-3xl">¡Felicidades por completar el {{ actividad.tipo.toLowerCase() }}!</h3>
             <p class="text-slate-500 dark:text-gray-400 leading-relaxed mb-4">{{ myInscripcion?.nota_principal == null ? 'Tu calificación aún no está disponible; la organización determinará el tipo de certificado.' : myInscripcion.nota_principal >= (actividad.certificadoRequisitos?.notaMinima ?? 51) ? 'Cumples la nota mínima para un certificado de aprobación.' : 'Te corresponde un certificado de participación al completar la actividad.' }}</p>
             <div class="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/50 p-6 rounded-2xl max-w-md flex items-start gap-3 text-left">
                 <VIcon class="material-symbols-outlined text-amber-500 mt-0.5">info</VIcon>
@@ -1015,7 +1286,7 @@ const goBack = () => {
 
   <!-- Modal Pre-inscripción -->
   <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" v-if="preinscripcionMenu && !actividadCerrada" >
-    <VCard class="bg-white dark:bg-gray-900 rounded-[2rem] p-8 max-w-md w-full shadow-2xl relative border border-slate-200/50 dark:border-gray-800">
+    <VCard class="relative w-full max-w-md rounded-[1.5rem] border border-slate-200/50 bg-white p-5 shadow-2xl dark:border-gray-800 dark:bg-gray-900 sm:rounded-[2rem] sm:p-8">
         <VBtn @click="preinscripcionMenu = false" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:hover:text-white transition-colors">
             <VIcon class="material-symbols-outlined">close</VIcon>
         </VBtn>
@@ -1075,9 +1346,15 @@ const goBack = () => {
                         <label class="text-[9px] font-black text-blue-500 uppercase mb-1">{{ req.label }}</label>
                         
                         <!-- Input tipo Texto -->
-                        <UiInput v-if="req.type === 'text' || req.type === 'number'"
-                               v-model="respuestasDinamicas[req.label]" 
-                               :type="req.type" 
+                        <UiInput v-if="req.type === 'text'"
+                               v-model="respuestasDinamicas[req.label]"
+                               type="text"
+                               class="w-full px-4 py-2 text-xs font-bold bg-white dark:bg-gray-950 border border-blue-100 dark:border-blue-800/50 rounded-xl outline-none focus:border-blue-500 transition-all" />
+                        <UiInput v-else-if="req.type === 'number'"
+                               v-model="respuestasDinamicas[req.label]"
+                               type="number"
+                               :min="req.min ?? undefined"
+                               :max="req.max ?? undefined"
                                class="w-full px-4 py-2 text-xs font-bold bg-white dark:bg-gray-950 border border-blue-100 dark:border-blue-800/50 rounded-xl outline-none focus:border-blue-500 transition-all" />
                         
                         <!-- Input tipo Select -->

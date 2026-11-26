@@ -211,7 +211,7 @@ const handleCreate = async () => {
                                     </template>
                                     <input type="file" accept="image/jpeg,image/png,image/webp" @change="onFondoChange" class="absolute inset-0 opacity-0 cursor-pointer">
                                 </div>
-                                <p class="text-xs text-slate-500">Mínimo 1280 × 720 px; recomendado 1920 × 1080 px.</p>
+                                <p class="text-xs text-slate-500">Cualquier JPG, PNG o WebP se ajusta solo al formato del banner.</p>
                             </div>
                         </div>
                     </div>

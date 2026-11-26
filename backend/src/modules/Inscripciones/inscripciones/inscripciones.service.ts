@@ -18,6 +18,7 @@ import { InscripcionModalidad } from '../../Inscripciones/inscripcion-modalidade
 import { Imparticion } from '../../Academico/imparticiones/entities/imparticion.entity';
 import { Usuario } from '../../Usuario/usuarios/entities/usuario.entity';
 import { MailService } from '../../Comun/mail/mail.service';
+import { resumenAula } from '../../Academico/actividades-academicas/aula-resumen';
 
 @Injectable()
 export class InscripcionesService {
@@ -104,27 +105,121 @@ export class InscripcionesService {
     if (imparticiones.length === 0) return [];
 
     const actividadIds = imparticiones.map(i => i.actividadAcademica.id);
+    const db = this.inscripcionRepository.manager;
 
     const inscripciones = await this.inscripcionRepository.find({
       where: {
         actividadAcademica: { id: In(actividadIds) },
         nota_principal: Not(IsNull()),
       },
-      relations: ['usuario', 'usuario.persona', 'actividadAcademica', 'actividadAcademica.evento'],
+      relations: [
+        'usuario',
+        'usuario.persona',
+        'actividadAcademica',
+        'actividadAcademica.evento',
+        'actividadAcademica.modalidades',
+      ],
       order: { fecha_actualizacion: 'DESC' },
     });
 
-    return inscripciones.map(ins => ({
-      id: ins.id,
-      estudiante: ins.usuario?.persona 
-        ? `${ins.usuario.persona.nombres} ${ins.usuario.persona.primer_apellido}`.trim()
-        : 'Desconocido',
-      correo: ins.usuario?.email || '',
-      actividad: ins.actividadAcademica?.nombre || 'Desconocida',
-      evento: ins.actividadAcademica?.evento?.sigla || ins.actividadAcademica?.evento?.nombre || 'General',
-      nota: ins.nota_principal,
-      fecha: ins.fecha_actualizacion ? new Date(ins.fecha_actualizacion).toISOString().split('T')[0] : 'Sin fecha',
-    }));
+    const progreso = actividadIds.length
+      ? await db.query(
+          `SELECT p.id_usuario, p.nota, l.clave_item, l.id_actividad_academica
+           FROM curso_progreso p
+           JOIN curso_lecciones l ON l.id = p.id_leccion
+           WHERE l.id_actividad_academica = ANY($1)`,
+          [actividadIds],
+        )
+      : [];
+
+    return Promise.all(
+      inscripciones.map(async (ins) => {
+        const actividad = ins.actividadAcademica as any;
+        const evento = actividad?.evento;
+        const primeraModalidad = Array.isArray(actividad?.modalidades) ? actividad.modalidades[0] : null;
+        const esquema = actividad?.requisitos?.evaluacion || null;
+        const itemsEsquema = Array.isArray(esquema?.items) ? esquema.items : [];
+        const userId = ins.usuario?.id ? Number(ins.usuario.id) : null;
+        const pesoAsistencia = Number(esquema?.asistencia || 0);
+
+        const rubros = itemsEsquema.map((item: any) => {
+          const fila = progreso.find(
+            (p: any) =>
+              userId != null &&
+              Number(p.id_usuario) === userId &&
+              Number(p.id_actividad_academica) === Number(actividad?.id) &&
+              String(p.clave_item) === String(item.clave),
+          );
+          const nota = fila?.nota == null ? null : Number(fila.nota);
+          const peso = Number(item.puntaje || 0);
+          const aporte = nota == null || !Number.isFinite(nota) ? null : Math.round(nota * peso) / 100;
+          return {
+            clave: item.clave,
+            nombre: item.nombre || item.tipo || 'Rubro',
+            tipo: item.tipo || 'examen',
+            peso,
+            nota,
+            aporte,
+          };
+        });
+
+        let puntosAsistenciaValor: number | null = null;
+        if (userId && actividad?.id) {
+          try {
+            const resumen = await resumenAula(db, Number(actividad.id), userId);
+            puntosAsistenciaValor = resumen?.asistencia ?? null;
+          } catch {
+            puntosAsistenciaValor = null;
+          }
+        }
+
+        const sumaParciales = rubros
+          .filter((r) => r.tipo === 'examen' || r.tipo === 'seccion')
+          .reduce((s, r) => s + Number(r.aporte || 0), 0);
+        const sumaPracticas = rubros
+          .filter((r) => r.tipo === 'practica' || r.tipo === 'laboratorio')
+          .reduce((s, r) => s + Number(r.aporte || 0), 0);
+
+        return {
+          id: ins.id,
+          estudiante: ins.usuario?.persona
+            ? `${ins.usuario.persona.nombres} ${ins.usuario.persona.primer_apellido}`.trim()
+            : 'Desconocido',
+          correo: ins.usuario?.email || '',
+          actividadId: actividad?.id ?? null,
+          actividad: actividad?.nombre || 'Desconocida',
+          actividadTipo: actividad?.tipo || null,
+          actividadImagen: actividad?.imagen || null,
+          minNota: Number(primeraModalidad?.min_nota ?? 51),
+          eventoId: evento?.id ?? null,
+          evento: evento?.sigla || evento?.nombre || 'General',
+          eventoNombre: evento?.nombre || evento?.sigla || 'General',
+          eventoImagen: evento?.imagen_fondo || evento?.logo || null,
+          eventoGestion: evento?.gestion || null,
+          nota: ins.nota_principal,
+          fecha: ins.fecha_actualizacion
+            ? new Date(ins.fecha_actualizacion).toISOString().split('T')[0]
+            : 'Sin fecha',
+          desglose: {
+            modo: esquema?.modo || null,
+            asistencia: {
+              peso: pesoAsistencia,
+              puntos: puntosAsistenciaValor,
+            },
+            rubros,
+            resumen: {
+              asistencia: puntosAsistenciaValor,
+              parciales: Math.round(sumaParciales * 100) / 100,
+              practicas: Math.round(sumaPracticas * 100) / 100,
+            },
+            ponderacion: [
+              ...(pesoAsistencia > 0 ? [{ label: 'Asistencia', peso: pesoAsistencia, tipo: 'asistencia' }] : []),
+              ...rubros.map((r) => ({ label: r.nombre, peso: r.peso, tipo: r.tipo })),
+            ],
+          },
+        };
+      }),
+    );
   }
 
   // ── Coordinador ─────────────────────────────────────────────
@@ -291,6 +386,70 @@ export class InscripcionesService {
     return saved;
   }
 
+  /**
+   * Inscribe personas en la nómina de la actividad sin crear usuario ni clave.
+   * Cada línea trae nombre y, si se conoce, correo y documento.
+   */
+  async inscribirSinCuenta(
+    actividadId: number,
+    personas: { nombre?: string; email?: string; documento?: string }[],
+  ) {
+    const actividad = await this.inscripcionRepository.manager.query(
+      `SELECT id FROM actividades_academicas WHERE id = $1`,
+      [actividadId],
+    );
+    if (!actividad.length) throw new NotFoundException('Actividad no encontrada');
+    if (!Array.isArray(personas) || personas.length === 0) {
+      throw new BadRequestException('No hay estudiantes para inscribir.');
+    }
+
+    const creadas: number[] = [];
+    const omitidas: { nombre: string; motivo: string }[] = [];
+
+    for (const persona of personas) {
+      const nombre = String(persona?.nombre || '').trim();
+      const email = String(persona?.email || '').trim().toLowerCase();
+      const documento = String(persona?.documento || '').trim();
+      if (!nombre) {
+        omitidas.push({ nombre: '', motivo: 'Falta el nombre' });
+        continue;
+      }
+      if (email) {
+        const duplicado = await this.inscripcionRepository.findOne({
+          where: { actividadAcademica: { id: actividadId }, email_externo: email },
+        });
+        if (duplicado) {
+          omitidas.push({ nombre, motivo: 'Ese correo ya está inscrito en la actividad' });
+          continue;
+        }
+      }
+      try {
+        await this.verificarCupo(actividadId);
+      } catch (error) {
+        omitidas.push({ nombre, motivo: error instanceof Error ? error.message : 'Cupo completo' });
+        break;
+      }
+      const inscripcion = this.inscripcionRepository.create({
+        sin_cuenta: 1,
+        nombre_externo: nombre,
+        email_externo: email || null,
+        documento_externo: documento || null,
+        usuario: null,
+        actividadAcademica: { id: actividadId } as Inscripcion['actividadAcademica'],
+        estado: 1,
+      });
+      const saved = await this.inscripcionRepository.save(inscripcion);
+      await this.crearModalidadesInscripcion(saved);
+      creadas.push(saved.id);
+    }
+
+    return {
+      mensaje: `Se inscribieron ${creadas.length} estudiantes sin crearles cuenta.`,
+      creadas: creadas.length,
+      omitidas,
+    };
+  }
+
   async cambiarEstado(id: number, estado: number, observacion?: string) {
     const inscripcion = await this.inscripcionRepository.findOne({
       where: { id },
@@ -318,9 +477,9 @@ export class InscripcionesService {
     const actividad = inscripcion.actividadAcademica?.nombre || 'Actividad';
     const evento = inscripcion.actividadAcademica?.evento?.nombre || 'Evento';
 
-    if (estado === 1) {
+    if (email && estado === 1) {
       await this.mailService.sendEnrollmentConfirmedEmail(email, nombre, actividad, evento);
-    } else if (estado === 2) { 
+    } else if (email && estado === 2) {
       await this.mailService.sendEnrollmentRejectedEmail(email, nombre, actividad, observacion);
     }
 
@@ -484,7 +643,14 @@ export class InscripcionesService {
     return this.inscripcionRepository.update(id, data);
   }
 
-  remove(id: number) {
+  async remove(id: number) {
+    await this.inscripcionRepository.manager.query(
+      `DELETE FROM asistencias WHERE id_inscripcion_modalidad IN (
+         SELECT id FROM inscripcion_modalidades WHERE id_inscripcion = $1
+       )`,
+      [id],
+    );
+    await this.inscripcionModalidadRepository.delete({ inscripcion: { id } });
     return this.inscripcionRepository.delete(id);
   }
 

@@ -227,14 +227,15 @@ onUnmounted(() => {
         <VIcon class="material-symbols-outlined text-3xl">menu</VIcon>
       </VBtn>
 
-      <div class="hidden sm:flex flex-col flex-shrink-0 cursor-pointer border-r border-slate-200 dark:border-gray-800 pr-4 md:pr-6 ml-2 justify-center" @click="$router.push('/ponente')">
-        <h2 class="text-black dark:text-white font-clarendon font-black text-[10px] md:text-xs tracking-tighter leading-none">Sistema de Gestión de Eventos</h2>
-        <p class="text-[8px] text-slate-500 dark:text-gray-400 font-clarendon mt-0.5">Plataforma Académica</p>
+      <div class="ml-2 hidden min-w-0 cursor-pointer items-center gap-3 sm:flex" @click="$router.push('/ponente')">
+        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#003B71] to-[#0070BB] shadow-lg shadow-[#003B71]/40">
+          <VIcon class="material-symbols-outlined text-[16px] text-white">co_present</VIcon>
+        </div>
+        <div class="min-w-0">
+          <p class="text-[10px] font-black uppercase leading-none tracking-widest text-umsa-blue dark:text-sky-400">Sistema SGEA</p>
+          <h1 class="truncate text-sm font-black leading-tight text-slate-800 dark:text-white">Panel del Ponente</h1>
+        </div>
       </div>
-
-      <h1 class="text-xs md:text-lg font-black text-umsa-blue dark:text-blue-500 tracking-widest uppercase italic truncate ml-4 lg:ml-6 border-r border-slate-200 dark:border-gray-800 pr-4 md:pr-6">
-        Gestión Expositor
-      </h1>
     </div>
 
     <div class="flex items-center space-x-1 md:space-x-4 pl-2 md:pl-4 shrink-0">        
@@ -341,9 +342,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@900&display=swap');
-
 .font-clarendon {
-  font-family: 'Roboto Slab', serif;
+  font-family: Urbanist, sans-serif;
 }
 </style>

@@ -32,6 +32,7 @@ export const useEventoStore = defineStore('eventoGlobal', () => {
         id: ev.id,
         nombre: ev.nombre,
         gestion: ev.gestion,
+        estado: Number(ev.estado),
         version: ev.version || `${ev.gestion}`,
         edicion: ev.version ? `${ev.version}` : `Versión ${ev.gestion}`, 
         fase: ev.fase,

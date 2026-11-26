@@ -1,6 +1,6 @@
 import { IsOptional, IsString, IsDateString, IsInt, IsNotEmpty, IsNumber, Min, Max } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type, Transform } from 'class-transformer';
+import { Transform } from 'class-transformer';
 
 export class CreateActividadDto {
   @ApiProperty({ example: 'Curso de Python para Científicos' })
@@ -61,25 +61,23 @@ export class CreateActividadDto {
   @ApiPropertyOptional({ example: 40 })
   @IsOptional()
   @Transform(({ value }) => {
-    if (value === 'undefined' || value === 'null' || value === '') return undefined;
+    if (value === undefined || value === null || value === 'undefined' || value === 'null' || value === '') return undefined;
     const parsed = parseInt(value, 10);
-    return isNaN(parsed) ? value : parsed;
+    return Number.isNaN(parsed) ? undefined : parsed;
   })
-  @Type(() => Number)
   @IsInt()
   horas?: number;
 
   @ApiPropertyOptional({ example: 30, description: 'Cupo máximo. Vacío = sin límite.' })
   @IsOptional()
   @Transform(({ value }) => {
-    if (value === 'undefined' || value === 'null' || value === '' || value == null || value === 0 || value === '0') return null;
+    if (value === undefined || value === null || value === 'undefined' || value === 'null' || value === '' || value === 0 || value === '0') return undefined;
     const parsed = parseInt(value, 10);
-    return isNaN(parsed) ? value : parsed;
+    return Number.isNaN(parsed) ? undefined : parsed;
   })
-  @Type(() => Number)
   @IsInt()
   @Min(1)
-  cupo?: number | null;
+  cupo?: number;
 
   @ApiPropertyOptional({ example: 'Presencial' })
   @IsOptional()

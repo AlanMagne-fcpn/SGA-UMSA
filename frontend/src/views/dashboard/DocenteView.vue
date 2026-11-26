@@ -24,7 +24,7 @@ const navigate = (path: string) => {
 </script>
 
 <template>
-  <div class="h-screen flex flex-col font-montserrat bg-white overflow-hidden">
+  <div class="h-screen flex flex-col bg-white overflow-hidden">
     <!-- Top Bar -->
     <header class="bg-white border-b border-gray-200 h-20 flex-shrink-0 flex items-center justify-between px-4 sm:px-6 lg:px-8 shadow-sm relative z-20">
       <div class="flex items-center">
@@ -121,9 +121,3 @@ const navigate = (path: string) => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.font-montserrat {
-  font-family: 'Montserrat Alternates', sans-serif;
-}
-</style>

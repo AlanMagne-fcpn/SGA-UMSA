@@ -84,6 +84,16 @@ export class InscripcionesAdminController {
   }
 
   @Roles('Coordinador', 'Super Usuario')
+  @Post('actividad/:actividadId/sin-cuenta')
+  @ApiOperation({ summary: 'Inscribir estudiantes en la actividad sin crearles cuenta' })
+  inscribirSinCuenta(
+    @Param('actividadId', ParseIntPipe) actividadId: number,
+    @Body('personas') personas: { nombre?: string; email?: string; documento?: string }[],
+  ) {
+    return this.service.inscribirSinCuenta(actividadId, personas || []);
+  }
+
+  @Roles('Coordinador', 'Super Usuario')
   @Put(':id')
   @ApiOperation({ summary: 'Cambiar estado de inscripción (Coordinador)' })
   cambiarEstado(

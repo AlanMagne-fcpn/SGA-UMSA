@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api, { getImageUrl } from '@/services/api';
 import Swal from '@/services/dialogs';
@@ -9,6 +9,10 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import ActivityRequirementsEditor from '@/components/actividades/ActivityRequirementsEditor.vue';
 import ActivityContentAccess from '@/components/actividades/ActivityContentAccess.vue';
+import ActivityAccesoBanner from '@/components/actividades/ActivityAccesoBanner.vue';
+import NotasRubricaGrid from '@/components/actividades/NotasRubricaGrid.vue';
+import { reglasConfigurables } from '@/utils/activityLearning';
+import { accesoVacio, modalidadPideAula, modalidadPideEnlace } from '@/utils/activityAcceso';
 
 const route = useRoute();
 const router = useRouter();
@@ -38,6 +42,7 @@ const editForm = ref({
     requisitos: {} as any,
     logistica_ids: [] as number[]
 });
+const reglasAbiertas = computed(() => reglasConfigurables(editForm.value.tipo, editForm.value.requisitos));
 const nuevaSesion = ref({ dia: 'Lunes', hora_inicio: '19:00', hora_fin: '21:00' });
 const imagenArchivo = ref<File | null>(null);
 const imagenPreview = ref<string | null>(null);
@@ -53,7 +58,13 @@ const prepararRequisitos = (valor: any) => {
         if (copia.base != null && (typeof copia.base !== 'object' || Array.isArray(copia.base))) throw new Error();
         if (copia.custom != null && (!Array.isArray(copia.custom) || copia.custom.some((item: any) => !item || typeof item !== 'object' || (item.options != null && !Array.isArray(item.options))))) throw new Error();
         if (copia.presentacion != null && (typeof copia.presentacion !== 'object' || Array.isArray(copia.presentacion))) throw new Error();
-        return { ...copia, base: { ...(copia.base || {}) }, custom: copia.custom || [], presentacion: { objetivos: '', publico_objetivo: '', ...(copia.presentacion || {}) } };
+        return {
+          ...copia,
+          base: { ...(copia.base || {}) },
+          custom: copia.custom || [],
+          presentacion: { objetivos: '', publico_objetivo: '', ...(copia.presentacion || {}) },
+          acceso: { ...accesoVacio(), ...(copia.acceso || {}) },
+        };
     } catch {
         requisitosError.value = 'No se pudieron cargar los requisitos existentes. No se guardarán cambios para evitar perder esa configuración.';
         return null;
@@ -460,7 +471,28 @@ const solicitarActivacion = async () => {
     }
 };
 
-const switchTab = (tab: string) => { activeTab.value = tab; };
+const textoSinCuenta = ref('');
+const inscribiendoSinCuenta = ref(false);
+const enviosCertificados = ref<any[]>([]);
+const cargandoEnvios = ref(false);
+const accionCertificados = ref(false);
+let relojEnvios: ReturnType<typeof setInterval> | null = null;
+
+const switchTab = (tab: string) => {
+    activeTab.value = tab;
+    if (relojEnvios) {
+        clearInterval(relojEnvios);
+        relojEnvios = null;
+    }
+    if (tab === 'certificados') {
+        cargarEnvios();
+        relojEnvios = setInterval(cargarEnvios, 4000);
+    }
+};
+
+onUnmounted(() => {
+    if (relojEnvios) clearInterval(relojEnvios);
+});
 const activeModal = ref('');
 const openModal = (id: string) => { activeModal.value = id; };
 const closeModal = (id: string) => { if (activeModal.value === id) activeModal.value = ''; };
@@ -468,6 +500,100 @@ const closeModal = (id: string) => { if (activeModal.value === id) activeModal.v
 // Computed para solicitudes (pendientes) - uso == para compatibilidad con valores numéricos del backend
 const solicitudes = computed(() => inscritos.value.filter(i => i.estado == 0));
 const alumnosActivos = computed(() => inscritos.value.filter(i => i.estado == 1));
+const inscritosSinCuenta = computed(() => alumnosActivos.value.filter((ins) => Number(ins.sin_cuenta) === 1 || !ins.usuario));
+
+const nombreEstudiante = (ins: any) => {
+    if (Number(ins?.sin_cuenta) === 1 || !ins?.usuario) return ins?.nombre_externo || 'Sin nombre';
+    return `${ins.usuario?.persona?.primer_apellido || ''} ${ins.usuario?.persona?.segundo_apellido || ''} ${ins.usuario?.persona?.nombres || ''}`.trim();
+};
+
+const documentoEstudiante = (ins: any) => {
+    if (Number(ins?.sin_cuenta) === 1 || !ins?.usuario) return ins?.documento_externo || '-';
+    return ins.usuario?.persona?.documento_identidad || '-';
+};
+
+const inscribirSinCuenta = async () => {
+    const personas = textoSinCuenta.value
+        .split(/\r?\n/)
+        .map((linea) => linea.trim())
+        .filter(Boolean)
+        .filter((linea) => !/^nombre\b/i.test(linea))
+        .map((linea) => {
+            const partes = linea.split(/[;,|]/).map((parte) => parte.trim());
+            return { nombre: partes[0] || '', email: partes[1] || '', documento: partes[2] || '' };
+        })
+        .filter((persona) => persona.nombre);
+    if (!personas.length) {
+        Swal.fire('Sin datos', 'Escribe al menos un estudiante: nombre, correo, documento.', 'warning');
+        return;
+    }
+    inscribiendoSinCuenta.value = true;
+    try {
+        const res = await api.post(`/admin/inscripciones/actividad/${route.params.id}/sin-cuenta`, { personas });
+        const omitidas = res.data?.omitidas?.length || 0;
+        Swal.fire('Inscripción lista', `${res.data?.mensaje || 'Estudiantes inscritos.'}${omitidas ? ` ${omitidas} filas no se agregaron.` : ''}`, 'success');
+        textoSinCuenta.value = '';
+        await fetchData();
+    } catch (error: any) {
+        Swal.fire('No se pudo inscribir', error?.response?.data?.message || 'Revisa el listado e inténtalo de nuevo.', 'error');
+    } finally {
+        inscribiendoSinCuenta.value = false;
+    }
+};
+
+const leerListadoSinCuenta = (evento: Event) => {
+    const archivo = (evento.target as HTMLInputElement).files?.[0];
+    if (!archivo) return;
+    const lector = new FileReader();
+    lector.onload = () => { textoSinCuenta.value = String(lector.result || ''); };
+    lector.readAsText(archivo);
+};
+
+const cargarEnvios = async () => {
+    cargandoEnvios.value = true;
+    try {
+        const res = await api.get(`/admin/certificados/actividad/${route.params.id}/envios`);
+        enviosCertificados.value = Array.isArray(res.data) ? res.data : [];
+    } catch {
+        enviosCertificados.value = [];
+    } finally {
+        cargandoEnvios.value = false;
+    }
+};
+
+const enviarCertificados = async () => {
+    accionCertificados.value = true;
+    try {
+        const res = await api.post(`/admin/certificados/actividad/${route.params.id}/enviar`);
+        Swal.fire('Envío en curso', res.data?.mensaje || 'Los certificados quedaron en cola.', 'success');
+        await cargarEnvios();
+    } catch (error: any) {
+        Swal.fire('No se pudo enviar', error?.response?.data?.message || 'La actividad no tiene plantilla de certificado o inscritos elegibles.', 'error');
+    } finally {
+        accionCertificados.value = false;
+    }
+};
+
+const detenerCertificados = async () => {
+    accionCertificados.value = true;
+    try {
+        const res = await api.post(`/admin/certificados/actividad/${route.params.id}/detener`);
+        Swal.fire('Envío detenido', res.data?.mensaje || 'Se detuvo la cola de esta actividad.', 'success');
+        await cargarEnvios();
+    } catch (error: any) {
+        Swal.fire('No se pudo detener', error?.response?.data?.message || 'Inténtalo de nuevo.', 'error');
+    } finally {
+        accionCertificados.value = false;
+    }
+};
+
+const etiquetaEnvio = (estado: string) => {
+    if (estado === 'pendiente') return 'Enviando';
+    if (estado === 'enviado') return 'Enviado';
+    if (estado === 'detenido') return 'Detenido';
+    if (estado === 'error') return 'Error';
+    return estado || 'Sin estado';
+};
 
 const cambiarEstadoInscripcion = async (id: number, nuevoEstado: number) => {
     try {
@@ -562,11 +688,25 @@ const asignarPonente = async () => {
         if (!ponenteForm.value.email || !ponenteForm.value.nombres) {
             return Swal.fire('Atención', 'Email y Nombres son obligatorios', 'warning');
         }
+
+        const emailNorm = String(ponenteForm.value.email || '').trim().toLowerCase();
+        const yaInscrito = inscritos.value.some((ins) => {
+            const email = String(ins?.usuario?.email || '').trim().toLowerCase();
+            return email && email === emailNorm && [0, 1, 3].includes(Number(ins.estado));
+        });
+        if (yaInscrito) {
+            return Swal.fire(
+                'No permitido',
+                'Ese correo pertenece a un estudiante inscrito o postulante de esta actividad. No puede asignarse como ponente aquí.',
+                'warning',
+            );
+        }
         
         Swal.fire({ title: 'Procesando vinculación...', didOpen: () => Swal.showLoading() });
         
         await api.post('/imparticiones/asignar-ponente', {
             ...ponenteForm.value,
+            email: emailNorm,
             id_actividad: actividad.value.id,
             id_evento: actividad.value.evento.id
         });
@@ -576,8 +716,9 @@ const asignarPonente = async () => {
         ponenteForm.value = { email: '', nombres: '', primer_apellido: '', tematica: '' };
         ponenteSeleccionado.value = '';
         Swal.fire('¡Logrado!', 'El docente ha sido vinculado y/o creado exitosamente.', 'success');
-    } catch (error) {
-        Swal.fire('Error', 'Hubo un problema al vincular al docente. Verifica los datos.', 'error');
+    } catch (error: any) {
+        const msg = error?.response?.data?.message;
+        Swal.fire('Error', Array.isArray(msg) ? msg.join(', ') : (msg || 'Hubo un problema al vincular al docente. Verifica los datos.'), 'error');
     }
 };
 
@@ -634,8 +775,8 @@ const generarPDF = () => {
   // Tabla estudiantes
   const rows = alumnosActivos.value.map((ins, idx) => [
     (idx + 1).toString().padStart(2, '0'),
-    `${ins.usuario?.persona?.primer_apellido || ''} ${ins.usuario?.persona?.segundo_apellido || ''} ${ins.usuario?.persona?.nombres || ''}`.trim(),
-    ins.usuario?.persona?.documento_identidad || '-',
+    nombreEstudiante(ins),
+    documentoEstudiante(ins),
     ins.nota_principal !== null && ins.nota_principal !== undefined ? String(ins.nota_principal) : '-',
     (ins.nota_principal || 0) >= (actividad.value.modalidades?.[0]?.min_nota || 51) ? 'APROBADO' : 'REPROBADO'
   ]);
@@ -674,8 +815,8 @@ const generarExcel = () => {
     ['N°', 'Apellidos y Nombres', 'C.I.', 'Nota', 'Estado'],
     ...alumnosActivos.value.map((ins, idx) => [
       idx + 1,
-      `${ins.usuario?.persona?.primer_apellido || ''} ${ins.usuario?.persona?.segundo_apellido || ''} ${ins.usuario?.persona?.nombres || ''}`.trim(),
-      ins.usuario?.persona?.documento_identidad || '',
+      nombreEstudiante(ins),
+      ins.usuario?.persona?.documento_identidad || ins.documento_externo || '',
       ins.nota_principal ?? '',
       (ins.nota_principal || 0) >= (actividad.value.modalidades?.[0]?.min_nota || 51) ? 'APROBADO' : 'REPROBADO'
     ])
@@ -695,8 +836,8 @@ const generarExcel = () => {
       const pct = sesiones.length > 0 ? Math.round((total / sesiones.length) * 100) : 0;
       return [
         idx + 1,
-        `${ins.usuario?.persona?.primer_apellido || ''} ${ins.usuario?.persona?.segundo_apellido || ''} ${ins.usuario?.persona?.nombres || ''}`.trim(),
-        ins.usuario?.persona?.documento_identidad || '',
+        nombreEstudiante(ins),
+        ins.usuario?.persona?.documento_identidad || ins.documento_externo || '',
         ...asistPorSesion,
         total,
         `${pct}%`
@@ -786,9 +927,9 @@ const eliminarPonente = async (id: number) => {
 
 <template>
   <div class="animate-in fade-in duration-500 max-w-7xl mx-auto space-y-8">
-    <VBtn @click="router.go(-1)" class="flex items-center gap-2 text-slate-400 font-black text-[10px] uppercase hover:text-primary-dark dark:hover:text-white transition-colors mb-4">
-      <VIcon class="material-symbols-outlined text-sm">arrow_back</VIcon> Volver
-    </VBtn>
+    <button type="button" class="btn-hint-pulse mb-4 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 transition-colors hover:text-primary-dark dark:hover:text-white" @click="router.go(-1)">
+      <span class="material-symbols-outlined text-sm leading-none">arrow_back</span> Volver
+    </button>
 
     <div v-if="actividad" class="rounded-[3rem] p-10 flex flex-col md:flex-row items-center justify-between shadow-2xl relative overflow-hidden border-r-8 border-umsa-gold min-h-[200px]"
          :style="actividad.imagen ? { backgroundImage: `url(${getImageUrl('cursos', actividad.imagen)})`, backgroundSize: 'cover', backgroundPosition: 'center' } : { backgroundColor: '#1e293b' }"
@@ -808,9 +949,9 @@ const eliminarPonente = async (id: number) => {
       <div class="relative z-10 flex gap-4 mt-6 md:mt-0">
         <RouterLink :to="`${route.path.startsWith('/admin') ? '/admin' : '/coordinador'}/cursos/${actividad.id}/aula`" class="flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-xs font-bold text-[#003B71]"><VIcon size="18">video_library</VIcon>Editar aula virtual</RouterLink>
         <template v-if="Number(actividad.estado) !== -1">
-            <VBtn @click="abrirEdicion" class="bg-emerald-500 text-primary-dark px-6 py-3 rounded-2xl text-[10px] font-black shadow-lg hover:brightness-110 transition-all uppercase tracking-widest flex items-center gap-2">
+            <button type="button" @click="abrirEdicion" class="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-[#012248] shadow-lg hover:brightness-110">
             <VIcon class="material-symbols-outlined text-sm">edit</VIcon> Editar actividad
-            </VBtn>
+            </button>
             <VBtn @click="inhabilitarActividad" class="bg-red-500 text-white px-6 py-3 rounded-2xl text-[10px] font-black shadow-lg hover:brightness-110 transition-all uppercase tracking-widest flex items-center gap-2">
             <VIcon class="material-symbols-outlined text-sm">block</VIcon> Inhabilitar
             </VBtn>
@@ -823,9 +964,16 @@ const eliminarPonente = async (id: number) => {
       </div>
     </div>
 
+    <ActivityAccesoBanner
+      v-if="actividad"
+      :requisitos="actividad.requisitos"
+      :modalidad="actividad.modalidad || actividad.modalidades?.[0]?.tipo"
+    />
+
     <!-- Tabs Nav -->
     <div class="flex space-x-8 border-b border-slate-200 dark:border-gray-800 px-4 mb-8 overflow-x-auto">
       <VBtn @click="switchTab('estudiantes')" :class="activeTab === 'estudiantes' ? 'border-b-4 border-umsa-gold text-primary-dark dark:text-white font-black' : 'text-slate-400 font-bold hover:text-primary-dark dark:hover:text-white'" class="pb-4 text-[11px] uppercase tracking-widest transition-colors whitespace-nowrap">Estudiantes & Notas ({{ alumnosActivos.length }})</VBtn>
+      <button type="button" @click="switchTab('notas')" :class="activeTab === 'notas' ? 'border-b-4 border-umsa-gold text-primary-dark dark:text-white font-black' : 'text-slate-400 font-bold hover:text-primary-dark dark:hover:text-white'" class="pb-4 text-[11px] uppercase tracking-widest transition-colors whitespace-nowrap bg-transparent">Sección de notas</button>
       <VBtn @click="switchTab('solicitudes')" :class="activeTab === 'solicitudes' ? 'border-b-4 border-umsa-gold text-primary-dark dark:text-white font-black' : 'text-slate-400 font-bold hover:text-primary-dark dark:hover:text-white'" class="pb-4 text-[11px] uppercase tracking-widest transition-colors flex items-center gap-1 whitespace-nowrap">
         <VIcon class="material-symbols-outlined text-sm text-umsa-blue">how_to_reg</VIcon> Solicitudes ({{ solicitudes.length }})
       </VBtn>
@@ -835,6 +983,8 @@ const eliminarPonente = async (id: number) => {
       </VBtn>
       <VBtn @click="switchTab('asistencia')" :class="activeTab === 'asistencia' ? 'border-b-4 border-umsa-gold text-primary-dark dark:text-white font-black' : 'text-slate-400 font-bold hover:text-primary-dark dark:hover:text-white'" class="pb-4 text-[11px] uppercase tracking-widest transition-colors flex items-center gap-1 whitespace-nowrap"><VIcon class="material-symbols-outlined text-sm">qr_code_scanner</VIcon> Asistencia</VBtn>
       <VBtn @click="switchTab('reportes')" :class="activeTab === 'reportes' ? 'border-b-4 border-umsa-gold text-primary-dark dark:text-white font-black' : 'text-slate-400 font-bold hover:text-primary-dark dark:hover:text-white'" class="pb-4 text-[11px] uppercase tracking-widest transition-colors whitespace-nowrap">Reportes & Actas</VBtn>
+      <button type="button" @click="switchTab('sin-cuenta')" :class="activeTab === 'sin-cuenta' ? 'border-b-4 border-umsa-gold text-primary-dark dark:text-white font-black' : 'text-slate-400 font-bold hover:text-primary-dark dark:hover:text-white'" class="pb-4 text-[11px] uppercase tracking-widest transition-colors whitespace-nowrap bg-transparent">Inscripción sin cuenta ({{ inscritosSinCuenta.length }})</button>
+      <button type="button" @click="switchTab('certificados')" :class="activeTab === 'certificados' ? 'border-b-4 border-umsa-gold text-primary-dark dark:text-white font-black' : 'text-slate-400 font-bold hover:text-primary-dark dark:hover:text-white'" class="pb-4 text-[11px] uppercase tracking-widest transition-colors whitespace-nowrap bg-transparent">Certificados</button>
     </div>
 
     <!-- Tab 1: Estudiantes -->
@@ -855,8 +1005,8 @@ const eliminarPonente = async (id: number) => {
                     <tr v-for="(ins, idx) in alumnosActivos" :key="ins.id" class="hover:bg-slate-50 dark:hover:bg-gray-800/80 transition-colors">
                         <td class="px-8 py-6 font-bold text-slate-400">{{ (idx + 1).toString().padStart(2, '0') }}</td>
                         <td class="px-8 py-6">
-                            <p class="font-black text-primary-dark dark:text-white text-sm uppercase">{{ ins.usuario?.persona?.primer_apellido }} {{ ins.usuario?.persona?.segundo_apellido }} {{ ins.usuario?.persona?.nombres }}</p>
-                            <p class="text-[10px] text-slate-400 font-medium">CI: {{ ins.usuario?.persona?.documento_identidad }}</p>
+                            <p class="font-black text-primary-dark dark:text-white text-sm uppercase">{{ nombreEstudiante(ins) }}</p>
+                            <p class="text-[10px] text-slate-400 font-medium">CI: {{ documentoEstudiante(ins) }} <span v-if="Number(ins.sin_cuenta) === 1" class="ml-2 text-amber-600 font-black">Sin cuenta</span></p>
                         </td>
                         <td class="px-4 py-6 text-center">
                             <UiInput type="number" v-model="ins.nota_principal" class="w-16 text-center bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg text-xs font-bold text-primary-dark dark:text-white focus:ring-2 focus:ring-umsa-gold outline-none" />
@@ -879,6 +1029,83 @@ const eliminarPonente = async (id: number) => {
                 </tbody>
             </VTable>
         </VCard>
+    </div>
+
+    <div v-if="activeTab === 'notas'" class="tab-content block space-y-6">
+        <NotasRubricaGrid :actividad-id="String(route.params.id)" seccion-inicial="ponderacion" />
+    </div>
+
+    <div v-if="activeTab === 'sin-cuenta'" class="tab-content block space-y-6">
+        <div class="flex justify-between items-center mb-4">
+            <div>
+                <h3 class="text-xl font-black text-primary-dark dark:text-white uppercase italic">Inscripción masiva sin cuenta</h3>
+                <p class="text-xs text-slate-500 mt-1">Estas personas quedan en la nómina. No se les crea usuario ni clave.</p>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-gray-900 rounded-[2rem] border border-slate-100 dark:border-gray-800 p-6 space-y-4">
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400">Una persona por línea: nombre, correo, documento</label>
+            <textarea v-model="textoSinCuenta" rows="8" placeholder="Ana Pérez, ana@correo.com, 1234567&#10;Luis Quispe, luis@correo.com, 7654321" class="box-border block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-primary-dark outline-none focus:border-umsa-gold dark:border-gray-700 dark:bg-gray-800 dark:text-white"></textarea>
+            <div class="flex flex-wrap items-center gap-3">
+                <label class="inline-flex h-11 cursor-pointer items-center rounded-xl border border-slate-200 bg-white px-4 text-[10px] font-black uppercase tracking-widest text-primary-dark dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                    Cargar archivo
+                    <input type="file" accept=".csv,.txt" class="hidden" @change="leerListadoSinCuenta" />
+                </label>
+                <button type="button" :disabled="inscribiendoSinCuenta" @click="inscribirSinCuenta" class="inline-flex h-11 items-center rounded-xl bg-primary-dark px-5 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-60">
+                    {{ inscribiendoSinCuenta ? 'Inscribiendo...' : 'Inscribir sin crear cuenta' }}
+                </button>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-gray-900 rounded-[2rem] border border-slate-100 dark:border-gray-800 overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-slate-50 dark:bg-gray-800/50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                    <tr><th class="px-6 py-4">N°</th><th class="px-6 py-4">Estudiante</th><th class="px-6 py-4">Correo</th><th class="px-6 py-4">Documento</th></tr>
+                </thead>
+                <tbody>
+                    <tr v-for="(ins, idx) in inscritosSinCuenta" :key="ins.id" class="border-t border-slate-100 dark:border-gray-800">
+                        <td class="px-6 py-4 text-sm text-slate-400">{{ idx + 1 }}</td>
+                        <td class="px-6 py-4 text-sm font-black text-primary-dark dark:text-white">{{ nombreEstudiante(ins) }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-500">{{ ins.email_externo || '-' }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-500">{{ documentoEstudiante(ins) }}</td>
+                    </tr>
+                    <tr v-if="inscritosSinCuenta.length === 0">
+                        <td colspan="4" class="px-6 py-16 text-center text-[10px] font-bold uppercase text-slate-400">Todavía no hay inscritos sin cuenta</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div v-if="activeTab === 'certificados'" class="tab-content block space-y-6">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <h3 class="text-xl font-black text-primary-dark dark:text-white uppercase italic">Certificados de la actividad</h3>
+                <p class="text-xs text-slate-500 mt-1">El envío sale por correo a quienes tienen cuenta. Puedes detener los que siguen en cola.</p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <button type="button" :disabled="accionCertificados" @click="enviarCertificados" class="inline-flex h-11 items-center rounded-xl bg-emerald-600 px-5 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-60">Enviar certificados</button>
+                <button type="button" :disabled="accionCertificados" @click="detenerCertificados" class="inline-flex h-11 items-center rounded-xl bg-red-600 px-5 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-60">Detener envío de certificados</button>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-gray-900 rounded-[2rem] border border-slate-100 dark:border-gray-800 overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-slate-50 dark:bg-gray-800/50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                    <tr><th class="px-6 py-4">Destinatario</th><th class="px-6 py-4">Correo</th><th class="px-6 py-4">Código</th><th class="px-6 py-4">Estado</th></tr>
+                </thead>
+                <tbody>
+                    <tr v-for="cert in enviosCertificados" :key="cert.id" class="border-t border-slate-100 dark:border-gray-800">
+                        <td class="px-6 py-4 text-sm font-black text-primary-dark dark:text-white">{{ cert.nombre }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-500">{{ cert.email || '-' }}</td>
+                        <td class="px-6 py-4 text-xs font-mono text-slate-500">{{ cert.codigo_certificado }}</td>
+                        <td class="px-6 py-4">
+                            <span :class="cert.estado_envio === 'pendiente' ? 'bg-amber-100 text-amber-700' : cert.estado_envio === 'enviado' ? 'bg-emerald-100 text-emerald-700' : cert.estado_envio === 'detenido' ? 'bg-slate-200 text-slate-600' : 'bg-red-100 text-red-700'" class="rounded-lg px-3 py-1 text-[10px] font-black uppercase">{{ etiquetaEnvio(cert.estado_envio) }}</span>
+                        </td>
+                    </tr>
+                    <tr v-if="enviosCertificados.length === 0">
+                        <td colspan="4" class="px-6 py-16 text-center text-[10px] font-bold uppercase text-slate-400">{{ cargandoEnvios ? 'Cargando envíos...' : 'No hay certificados en esta actividad' }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <!-- Tab Solicitudes (Aprobar/Rechazar) -->
@@ -944,12 +1171,21 @@ const eliminarPonente = async (id: number) => {
                         <td class="px-8 py-6">
                             <span v-if="imp.tematica" class="text-sm text-slate-700 dark:text-gray-300 italic">{{ imp.tematica }}</span>
                             <span v-else class="text-[10px] text-slate-400 uppercase font-bold">Sin temática — </span>
-                            <VBtn @click="editarTematica(imp)" class="text-[9px] font-black text-umsa-blue dark:text-blue-400 hover:underline uppercase tracking-wide" title="Editar temática">
+                            <button type="button" class="ml-1 text-[9px] font-black uppercase tracking-wide text-umsa-blue hover:underline dark:text-blue-400" title="Editar temática" @click="editarTematica(imp)">
                                 {{ imp.tematica ? 'Editar' : 'Asignar' }}
-                            </VBtn>
+                            </button>
                         </td>
-                        <td class="px-8 py-6 text-center flex justify-center gap-2">
-                            <VBtn @click="eliminarPonente(imp.id)" class="p-2 border border-red-200 dark:border-red-900 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all" title="Remover Docente"><VIcon class="material-symbols-outlined text-sm">delete</VIcon></VBtn>
+                        <td class="px-8 py-6">
+                            <div class="flex items-center justify-center">
+                                <button
+                                    type="button"
+                                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 text-red-500 transition-all hover:bg-red-500 hover:text-white dark:border-red-900"
+                                    title="Remover docente"
+                                    @click="eliminarPonente(imp.id)"
+                                >
+                                    <span class="material-symbols-outlined text-[18px] leading-none">delete</span>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     <tr v-if="imparticiones.length === 0">
@@ -1186,7 +1422,7 @@ const eliminarPonente = async (id: number) => {
                       </div>
                       <div>
                           <p class="font-black text-primary-dark dark:text-white text-sm uppercase">
-                              {{ ins.usuario?.persona?.primer_apellido }} {{ ins.usuario?.persona?.segundo_apellido }} {{ ins.usuario?.persona?.nombres }}
+                              {{ nombreEstudiante(ins) }}
                           </p>
                           <p class="text-[10px] text-slate-400 font-medium">CI: {{ ins.usuario?.persona?.documento_identidad }}</p>
                       </div>
@@ -1247,7 +1483,14 @@ const eliminarPonente = async (id: number) => {
                   <label for="ponente-existente" class="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Seleccionar ponente existente (opcional)</label>
                   <select id="ponente-existente" v-model="ponenteSeleccionado" class="w-full max-w-full rounded-xl border-2 border-slate-200 bg-slate-100 px-4 py-3 text-xs font-bold text-primary-dark outline-none focus:ring-2 focus:ring-umsa-gold dark:border-gray-700 dark:bg-gray-800 dark:text-white" @change="cargarDatosPonente">
                       <option value="">Nuevo ponente (escribir datos)</option>
-                      <option v-for="p in ponentesExistentes" :key="p.id" :value="p.email">
+                      <option
+                        v-for="p in ponentesExistentes.filter((u) => {
+                          const email = String(u.email || '').trim().toLowerCase();
+                          return !inscritos.some((ins) => String(ins?.usuario?.email || '').trim().toLowerCase() === email && [0, 1, 3].includes(Number(ins.estado)));
+                        })"
+                        :key="p.id"
+                        :value="p.email"
+                      >
                           {{ p.persona?.primer_apellido }} {{ p.persona?.nombres }} ({{ p.email }})
                       </option>
                   </select>
@@ -1426,6 +1669,17 @@ const eliminarPonente = async (id: number) => {
                           </div>
                       </div>
 
+                      <div v-if="editForm.requisitos?.acceso" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div v-if="modalidadPideAula(editForm.modalidad)">
+                              <label class="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-400">Aula / lugar físico</label>
+                              <input v-model="editForm.requisitos.acceso.aula_fisica" type="text" maxlength="200" placeholder="Ej: Bloque A, aula 302" aria-label="Aula o lugar físico" class="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-6 py-4 font-bold text-primary-dark outline-none focus:border-umsa-gold dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                          </div>
+                          <div v-if="modalidadPideEnlace(editForm.modalidad)">
+                              <label class="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-400">Enlace de reunión virtual</label>
+                              <input v-model="editForm.requisitos.acceso.enlace_virtual" type="url" maxlength="500" placeholder="https://meet.google.com/..." aria-label="Enlace de reunión virtual" class="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-6 py-4 font-bold text-primary-dark outline-none focus:border-umsa-gold dark:border-gray-700 dark:bg-gray-800 dark:text-white" />
+                          </div>
+                      </div>
+
                       <div>
                           <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Descripción Detallada</label>
                           <textarea aria-label="Descripción Detallada" v-model="editForm.descripcion" rows="4" class="w-full bg-slate-50 dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-2xl py-4 px-6 font-bold text-primary-dark dark:text-white focus:border-umsa-gold outline-none transition-all resize-none"></textarea>
@@ -1456,7 +1710,8 @@ const eliminarPonente = async (id: number) => {
                           <h4 class="text-xs font-black text-primary-dark dark:text-white uppercase tracking-widest mb-6 flex items-center gap-2">
                              <VIcon class="material-symbols-outlined text-sm text-umsa-gold">verified</VIcon> Parámetros de Aprobación
                           </h4>
-                          <div class="grid grid-cols-2 gap-4 mb-10">
+                          <p v-if="!reglasAbiertas" class="mb-6 text-sm font-medium text-slate-500">Este tipo usa la regla fija del sistema. La nota mínima y la asistencia mínima no se modifican.</p>
+                          <div v-else class="grid grid-cols-2 gap-4 mb-10">
                               <div>
                                   <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Nota Mínima</label>
                                   <input aria-label="Nota Mínima" v-model.number="editForm.min_nota" type="number" min="0" max="100" class="w-full bg-white dark:bg-gray-800 border-2 border-slate-100 dark:border-gray-700 rounded-xl py-3 px-4 font-bold text-center text-primary-dark dark:text-white focus:border-umsa-gold outline-none transition-all" />

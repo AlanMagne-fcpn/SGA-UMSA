@@ -28,17 +28,39 @@ describe('Ficha pública del curso', () => {
 
   it('publica información académica sin inscripciones ni cuentas no autorizadas', async () => {
     const resultado = await service.findPublicOne(3);
-    expect(resultado).toMatchObject({ nombre: 'Curso de prueba', inscritos: 2, docentes: [], modalidades: [{ tipo: 'Virtual', min_nota: 70 }] });
+    expect(resultado).toMatchObject({
+      nombre: 'Curso de prueba',
+      inscritos: 2,
+      docentes: [{ id: 9, nombre: 'Ana Pérez', grado: '', foto: null, curriculum: '', institucion: '' }],
+      modalidades: [{ tipo: 'Virtual', min_nota: 70 }],
+    });
     expect(resultado).not.toHaveProperty('inscripciones');
     expect(resultado.evento).not.toHaveProperty('descripcion');
     expect(JSON.stringify(resultado)).not.toContain('secreto');
     expect(JSON.stringify(resultado)).not.toContain('ponente@example.test');
   });
 
-  it('muestra solo el nombre de un ponente publicado expresamente', async () => {
-    repository.findOne.mockResolvedValue({ ...actividad, evento: { ...actividad.evento, descripcion: '[PONENTES_METADATA]:Ana Pérez' } });
+  it('incluye grado, foto y currículo del ponente asignado', async () => {
+    repository.findOne.mockResolvedValue({
+      ...actividad,
+      imparticiones: [{
+        usuario: {
+          ...usuario,
+          estado: 1,
+          persona: { ...usuario.persona, grado_academico: 'Lic.', curriculum: 'Investigadora en ciencias.' },
+          afiliaciones: [{ institucion: 'UMSA', gradoAcademico: { abreviacion: 'Lic.' } }],
+        },
+      }],
+    });
     const resultado = await service.findPublicOne(3);
-    expect(resultado.docentes).toEqual([{ id: 9, nombre: 'Ana Pérez' }]);
+    expect(resultado.docentes).toEqual([{
+      id: 9,
+      nombre: 'Ana Pérez',
+      grado: 'Lic.',
+      foto: null,
+      curriculum: 'Investigadora en ciencias.',
+      institucion: 'UMSA',
+    }]);
     expect(JSON.stringify(resultado)).not.toContain('ponente@example.test');
   });
 
@@ -120,9 +142,9 @@ describe('Permisos de contenidos por tipo de actividad', () => {
     await expect(service.guardarLeccion(7, { tipo: 'examen', titulo: 'Examen', preguntas: [pregunta] }, ponente)).rejects.toThrow('solo están disponibles');
     expect(query).not.toHaveBeenCalled();
   });
-  it('no permite ocultar un cuestionario dentro de un video de simposio', async () => {
+  it('rechaza videos porque el aula solo admite archivos, enlaces y prácticas', async () => {
     repository.findOne.mockResolvedValue({ tipo: 'Simposio', requisitos: { aula: { video: true, examen: true } } });
-    await expect(service.guardarLeccion(7, { tipo: 'video', titulo: 'Clase', video_url: 'https://example.test/video.mp4', preguntas: [pregunta] }, ponente)).rejects.toThrow('solo están disponibles');
+    await expect(service.guardarLeccion(7, { tipo: 'video', titulo: 'Clase', video_url: 'https://example.test/video.mp4', preguntas: [pregunta] }, ponente)).rejects.toThrow('videos están deshabilitados');
   });
   it('exige que la organización habilite cada tipo de contenido', async () => {
     repository.findOne.mockResolvedValue({ tipo: 'Curso', requisitos: { aula: { examen: false } } });
