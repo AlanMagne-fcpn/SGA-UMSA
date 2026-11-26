@@ -126,9 +126,9 @@ onMounted(fetchData);
     <div v-if="evento" class="animate-in fade-in duration-500 max-w-7xl mx-auto p-4 md:p-8 space-y-8">
         
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <VBtn @click="router.push('/coordinador/eventos')" class="flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase hover:text-blue-600 transition-colors">
-                <VIcon class="material-symbols-outlined text-sm">arrow_back</VIcon> Volver al Listado
-            </VBtn>
+            <button type="button" class="btn-hint-pulse inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 transition-colors hover:text-blue-600" @click="router.push('/coordinador/eventos')">
+                <span class="material-symbols-outlined text-sm leading-none">arrow_back</span> Volver al Listado
+            </button>
             <div class="flex gap-3">
                 <VBtn @click="eliminarEvento" class="px-4 py-2 text-red-500 hover:bg-red-50 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all">Eliminar Evento</VBtn>
                 <VBtn @click="guardarCambios" :disabled="isLoading" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20 active:scale-95 transition-all">

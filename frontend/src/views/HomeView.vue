@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import api, { getImageUrl, imagenActividad, logoEvento, resolveMediaUrl } from '@/services/api';
 import { useEventoStore } from '@/stores/eventoStore';
 import PublicCatalog from '@/components/PublicCatalog.vue';
+import InstitutionalSections from '@/components/InstitutionalSections.vue';
 import EventLogo from '@/components/eventos/EventLogo.vue';
 import { enlaceEvento, idDeEnlace } from '@/utils/enlacePublico';
 
@@ -244,6 +245,9 @@ const abrirMapa = (url: string) => {
     </section>
 
     <PublicCatalog v-if="!esDetalleEvento || eventoSeleccionado" :key="String(route.params.eventoId || 'catalogo')" :eventos="esDetalleEvento ? [eventoSeleccionado] : eventosActivos" :cargando="cargandoEventos" :seleccionado="eventoSeleccionado" :solo-cursos="esDetalleEvento" />
+
+    <!-- Fuera de un evento: Quiénes somos / organización / ubicación institucionales -->
+    <InstitutionalSections v-if="!esDetalleEvento" />
 
     <!-- SECCIÓN DE INFORMACIÓN -->
     <section v-if="eventoSeleccionado" id="informacion" class="py-24 bg-white dark:bg-black transition-colors duration-300 -mt-2">

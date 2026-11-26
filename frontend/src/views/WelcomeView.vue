@@ -1,8 +1,22 @@
 <script setup lang="ts">
+import { nextTick, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { getImageUrl } from '@/services/api'
 import { useI18n } from 'vue-i18n'
+import InstitutionalSections from '@/components/InstitutionalSections.vue'
 
 const { t } = useI18n()
+const route = useRoute()
+
+const irAHash = async () => {
+  const id = (route.hash || '').replace(/^#/, '')
+  if (!id) return
+  await nextTick()
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+}
+
+onMounted(irAHash)
+watch(() => route.hash, irAHash)
 </script>
 
 <template>
@@ -84,6 +98,8 @@ const { t } = useI18n()
         </div>
       </div>
     </div>
+
+    <InstitutionalSections />
   </div>
 </template>
 

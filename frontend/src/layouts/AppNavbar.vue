@@ -3,35 +3,53 @@ import { ref, onMounted, computed, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter, useRoute } from 'vue-router';
 import { useEventoStore } from '@/stores/eventoStore';
-import { useAuthStore } from '@/stores/auth';
 import { getImageUrl } from '@/services/api';
 
 const { t, locale } = useI18n();
 const router = useRouter();
 const route = useRoute();
 const eventoStore = useEventoStore();
-const authStore = useAuthStore();
 
 // La identidad del sistema no depende del evento seleccionado.
 const brandTitle = 'SGEA';
 const brandDescription = computed(() => t('navbar.system_name'));
 
+/** Dentro de un evento → anclas del evento; fuera → secciones institucionales. */
+const baseSeccion = computed(() => {
+  if (route.params.eventoId) return `/eventos/${route.params.eventoId}`;
+  if (route.path === '/eventos' || route.path.startsWith('/eventos/')) return '/eventos';
+  return '/';
+});
+
 const navLinks = computed(() => [
-  { name: t('navbar.home'), href: '/' },
-  { name: t('navbar.events'), href: '/eventos' },
-  { name: t('navbar.info'), href: `${route.params.eventoId ? `/eventos/${route.params.eventoId}` : '/eventos'}#informacion` },
-  { name: t('navbar.organization'), href: `${route.params.eventoId ? `/eventos/${route.params.eventoId}` : '/eventos'}#organizacion` },
-  { name: t('navbar.location'), href: `${route.params.eventoId ? `/eventos/${route.params.eventoId}` : '/eventos'}#ubicacion` },
-  { name: t('navbar.contact'), href: `${route.params.eventoId ? `/eventos/${route.params.eventoId}` : '/eventos'}#footer` },
+  { name: t('navbar.home'), href: '/', section: 'inicio' },
+  { name: t('navbar.events'), href: '/eventos', section: 'eventos' },
+  { name: t('navbar.info'), href: `${baseSeccion.value}#informacion`, section: 'informacion' },
+  { name: t('navbar.organization'), href: `${baseSeccion.value}#organizacion`, section: 'organizacion' },
+  { name: t('navbar.location'), href: `${baseSeccion.value}#ubicacion`, section: 'ubicacion' },
+  { name: t('navbar.contact'), href: `${baseSeccion.value}#footer`, section: 'footer' },
 ]);
 
 const isMenuOpen = ref(false);
 const isDark = ref(false);
 
+const seccionesConHash = ['informacion', 'organizacion', 'ubicacion', 'footer'];
+
+const seccionActiva = computed(() => {
+  const hash = (route.hash || '').replace(/^#/, '');
+  if (hash && seccionesConHash.includes(hash)) return hash;
+  if (route.path === '/eventos' || route.path.startsWith('/eventos/')) return 'eventos';
+  if (route.path === '/') return 'inicio';
+  return '';
+});
+
+const isActiveLink = (link: { section: string }) => seccionActiva.value === link.section;
+
 const scrollTo = async (destination: string) => {
   isMenuOpen.value = false;
   const [path, hash] = destination.split('#');
-  if (route.path !== path) await router.push(path || '/');
+  const target = hash ? `${path || '/'}#${hash}` : (path || '/');
+  if (route.fullPath !== target) await router.push(target);
   await nextTick();
   if (hash) (document.getElementById(hash) || document.getElementById('eventos'))?.scrollIntoView({ behavior: 'smooth' });
   else window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -66,7 +84,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <VSheet tag="nav" v-if="!authStore.isAuthenticated || ['/', '/login', '/register'].includes(route.path)"
+  <VSheet tag="nav"
        class="fixed top-0 left-0 right-0 z-[100] transition-all duration-500 bg-white/90 dark:bg-[#020810]/95 backdrop-blur-lg border-b border-slate-200/50 dark:border-slate-800/50 shadow-md">
     <div class="w-full px-4 md:px-6">
       <div class="flex justify-between items-center h-16 md:h-18">
@@ -97,19 +115,25 @@ onMounted(async () => {
         <div class="hidden 2xl:flex flex-1 justify-center px-1">
           <ul class="flex items-center gap-0.5">
             <li v-for="link in navLinks" :key="link.name">
-              <a :href="link.href" 
-                 @click.prevent="scrollTo(link.href)" 
-                 class="relative px-3 py-1.5 text-[10px] xl:text-xs font-black text-slate-600 dark:text-slate-300 transition-all duration-500 uppercase tracking-widest hover:scale-105 rounded-lg group overflow-hidden">
-                
-                <span class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-lg"
-                      :style="{ 
-                        backgroundColor: isDark ? '#0ea5e908' : '#2563eb08',
-                        boxShadow: isDark 
-                          ? `inset 0 0 8px #0ea5e915`
-                          : 'inset 0 0 8px #2563eb15'
-                      }"></span>
-                
-                <span class="relative z-10 transition-all duration-300 group-hover:text-slate-900 dark:group-hover:text-sky-300 dark:group-hover:[text-shadow:0_0_5px_rgba(14,165,233,0.6)]">
+              <a
+                :href="link.href"
+                @click.prevent="scrollTo(link.href)"
+                class="relative overflow-hidden rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all duration-500 hover:scale-105 xl:text-xs group"
+                :class="isActiveLink(link)
+                  ? 'nav-section-pulse text-[#0070BB] dark:text-sky-300'
+                  : 'text-slate-600 dark:text-slate-300'"
+              >
+                <span
+                  class="absolute inset-0 rounded-lg transition-opacity duration-500"
+                  :class="isActiveLink(link) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+                  :style="{
+                    backgroundColor: isDark ? '#0ea5e918' : '#2563eb12',
+                    boxShadow: isDark ? 'inset 0 0 8px #0ea5e925' : 'inset 0 0 8px #2563eb18',
+                  }"
+                ></span>
+                <span
+                  class="relative z-10 transition-all duration-300 group-hover:text-slate-900 dark:group-hover:text-sky-300 dark:group-hover:[text-shadow:0_0_5px_rgba(14,165,233,0.6)]"
+                >
                   {{ link.name }}
                 </span>
               </a>
@@ -194,9 +218,14 @@ onMounted(async () => {
           <!-- Enlaces de Navegación -->
           <ul class="flex flex-col gap-4">
             <li v-for="link in navLinks" :key="link.name">
-              <a :href="link.href" 
-                 @click.prevent="scrollTo(link.href)" 
-                 class="flex items-center justify-between text-base font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest hover:text-sky-500 dark:hover:text-sky-400 transition-colors">
+              <a
+                :href="link.href"
+                @click.prevent="scrollTo(link.href)"
+                class="flex items-center justify-between rounded-xl px-3 py-2 text-base font-black uppercase tracking-widest transition-colors"
+                :class="isActiveLink(link)
+                  ? 'nav-section-pulse text-[#0070BB] dark:text-sky-300'
+                  : 'text-slate-700 hover:text-sky-500 dark:text-slate-200 dark:hover:text-sky-400'"
+              >
                 {{ link.name }}
                 <VIcon class="material-symbols-outlined text-slate-400">chevron_right</VIcon>
               </a>

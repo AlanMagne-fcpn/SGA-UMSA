@@ -44,4 +44,22 @@ const showFooter = computed(() => route.path === '/' || route.path === '/eventos
   </VApp>
 </template>
 
+<style>
+html,
+body,
+.v-application,
+.v-application :is(
+  .text-h1, .text-h2, .text-h3, .text-h4, .text-h5, .text-h6,
+  .text-subtitle-1, .text-subtitle-2, .text-body-1, .text-body-2,
+  .text-button, .text-caption, .text-overline,
+  .v-btn, .v-card, .v-card-title, .v-card-subtitle, .v-field, .v-label, .v-input, .v-table
+) {
+  font-family: Urbanist, sans-serif !important;
+}
+
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined" !important;
+}
+</style>
+
 

@@ -92,10 +92,10 @@ const getStatusColor = (status: string) => {
 <template>
   <div class="animate-in fade-in duration-500 max-w-7xl mx-auto space-y-8">
     <div class="border-b border-slate-200 dark:border-gray-800 pb-6 mb-8 mt-2">
-      <VBtn @click="router.push({ name: 'ponente-eventos' })" class="text-[10px] font-bold text-slate-500 hover:text-umsa-blue uppercase tracking-widest mb-4 flex items-center group transition-colors">
-        <VIcon class="material-symbols-outlined text-[16px] mr-1 group-hover:-translate-x-1 transition-transform">arrow_back</VIcon>
+      <button type="button" class="btn-hint-pulse mb-4 inline-flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-500 transition-colors hover:text-umsa-blue group" @click="router.push({ name: 'ponente-eventos' })">
+        <span class="material-symbols-outlined mr-1 text-[16px] leading-none transition-transform group-hover:-translate-x-1">arrow_back</span>
         Volver a Mis Eventos Asignados
-      </VBtn>
+      </button>
       <h2 class="text-3xl font-black text-primary-dark dark:text-white uppercase italic">Mis Actividades</h2>
       <p class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mt-1">Gestiona estudiantes, asistencia y certificados de The World Academy of Sciences</p>
     </div>

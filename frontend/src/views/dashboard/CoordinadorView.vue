@@ -51,7 +51,7 @@ const statsComputed = computed(() => {
     const evts = eventosFiltrados.value;
     const acts = actividadesFiltradas.value;
     
-    const activosCount = evts.filter((e: any) => e.estado === 1).length.toString();
+    const activosCount = evts.filter((e: any) => Number(e.estado) === 1).length.toString();
     const actividadesCount = acts.length.toString();
     
     const inscritosIds = new Set();
@@ -59,8 +59,9 @@ const statsComputed = computed(() => {
     acts.forEach((a: any) => {
         if (Array.isArray(a.inscripciones)) {
             a.inscripciones.forEach((i: any) => {
-                if (i.id_usuario) inscritosIds.add(i.id_usuario);
-                if (i.estado === 0) pendingInscripCount++;
+                const usuarioId = i.id_usuario || i.usuario?.id || i.id;
+                if (usuarioId != null) inscritosIds.add(usuarioId);
+                if (Number(i.estado) === 0) pendingInscripCount++;
             });
         }
     });
@@ -84,30 +85,6 @@ const actividadesGrafico = computed(() => {
             nombre:    a.nombre || 'Sin nombre',
             inscritos: a.inscripciones?.length ?? 0,
         }));
-});
-
-const barChartUrl = computed(() => {
-    const labels = actividadesGrafico.value.map((_, idx) => `#${idx + 1}`);
-    const data = actividadesGrafico.value.map(a => a.inscritos);
-    const config = {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Inscritos',
-                backgroundColor: '#0ea5e9',
-                maxBarThickness: 45,
-                data
-            }]
-        },
-        options: {
-            title: { display: true, text: 'Inscritos por Actividad', fontColor: '#64748b' },
-            scales: {
-                yAxes: [{ ticks: { beginAtZero: true } }]
-            }
-        }
-    };
-    return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(config))}&w=500&h=250`;
 });
 
 // ─────────────────────────────────────────────── Carga de datos ──
@@ -181,6 +158,40 @@ function escala(inscritos: number): number {
     return Math.max((inscritos / max) * 100, 4);
 }
 
+function anchoBarra(valor: number, valores: number[]): number {
+    const max = Math.max(...valores, 1);
+    return valor > 0 ? Math.max((valor / max) * 100, 8) : 0;
+}
+
+const distribucionInscripciones = computed(() => {
+    let pendientes = 0;
+    let enCurso = 0;
+    let finalizados = 0;
+    let rechazados = 0;
+    actividadesFiltradas.value.forEach((actividad: any) => {
+        (actividad.inscripciones || []).forEach((inscripcion: any) => {
+            const estado = Number(inscripcion.estado);
+            if (estado === 0) pendientes += 1;
+            else if (estado === 1) enCurso += 1;
+            else if (estado === 2) rechazados += 1;
+            else if (estado === 3) finalizados += 1;
+        });
+    });
+    return [
+        { label: 'En curso', value: enCurso, color: 'bg-[#0070BB]' },
+        { label: 'Pendientes', value: pendientes, color: 'bg-amber-500' },
+        { label: 'Finalizados', value: finalizados, color: 'bg-emerald-600' },
+        { label: 'Rechazados', value: rechazados, color: 'bg-slate-400' },
+    ];
+});
+
+const metricasGestion = computed(() => [
+    { label: 'Eventos', value: eventosFiltrados.value.length, color: 'bg-[#003B71]' },
+    { label: 'Actividades', value: actividadesFiltradas.value.length, color: 'bg-[#0070BB]' },
+    { label: 'Usuarios', value: Number(statsComputed.value[2]?.value || 0), color: 'bg-sky-400' },
+    { label: 'Solicitudes', value: Number(statsComputed.value[3]?.value || 0), color: 'bg-teal-600' },
+]);
+
 onMounted(cargarDatos);
 </script>
 
@@ -188,20 +199,23 @@ onMounted(cargarDatos);
   <div class="space-y-10 animate-in fade-in duration-700 pb-24">
 
     <!-- ══════════════════ CABECERA ══════════════════ -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-gray-800">
-      <div>
-        <h2 class="text-3xl md:text-4xl font-black text-sky-600 dark:text-sky-400 uppercase italic tracking-tighter">
-          Centro de Mando
-        </h2>
-        <p class="text-sm text-slate-400 dark:text-gray-500 mt-1">
-          Monitoreo en tiempo real · SGEA Gestión Académica UMSA
-        </p>
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#003B71] to-[#0070BB] shadow-lg shadow-[#003B71]/30">
+          <VIcon class="material-symbols-outlined text-[22px] text-white">monitoring</VIcon>
+        </div>
+        <div>
+          <p class="text-[10px] font-black uppercase leading-none tracking-widest text-umsa-blue dark:text-sky-400">Gestión académica</p>
+          <h2 class="text-2xl font-black uppercase tracking-tight text-slate-800 dark:text-white">Centro de Mando</h2>
+          <p class="mt-1 text-sm text-slate-500">Eventos asignados · SGEA Gestión Académica UMSA</p>
+        </div>
       </div>
-      <div class="flex items-center gap-3 flex-wrap">
-        <VBtn @click="abrirModal('general')"
-          class="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-sm hover:shadow-md hover:border-sky-400 transition-all">
-          <VIcon class="material-symbols-outlined text-[17px]">summarize</VIcon> Reporte General
-        </VBtn>
+      <div class="flex items-center gap-3">
+        <button type="button" @click="abrirModal('general')"
+          class="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-sky-200 bg-white px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-sky-600 shadow-sm transition hover:border-sky-400 hover:shadow-md dark:border-sky-800 dark:bg-gray-800 dark:text-sky-400">
+          <VIcon class="material-symbols-outlined text-[17px]">summarize</VIcon>
+          Reporte general
+        </button>
       </div>
     </div>
 
@@ -209,6 +223,48 @@ onMounted(cargarDatos);
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       <StatCard v-for="(s, i) in statsComputed" :key="i"
         :title="s.title" :value="s.value" :icon="s.icon" :variant="s.variant as any" />
+    </div>
+
+    <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+      <div class="rounded-[2.5rem] border border-slate-200 bg-white p-8 shadow-sm dark:border-white/5 dark:bg-[#13131f]">
+        <div class="mb-6 flex items-center gap-2">
+          <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-900/25">
+            <VIcon class="material-symbols-outlined text-lg text-umsa-blue">leaderboard</VIcon>
+          </div>
+          <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-800 dark:text-slate-300">Análisis de participación</h3>
+        </div>
+        <div class="space-y-4 rounded-[2rem] border border-slate-100 bg-slate-50 p-5 dark:border-white/5 dark:bg-black/20">
+          <div v-for="item in distribucionInscripciones" :key="item.label" class="space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-semibold text-slate-700 dark:text-slate-200">{{ item.label }}</span>
+              <span class="font-black text-slate-800 dark:text-white">{{ item.value }}</span>
+            </div>
+            <div class="h-3 overflow-hidden rounded-full bg-white dark:bg-gray-800">
+              <div class="h-full rounded-full" :class="item.color" :style="{ width: `${anchoBarra(item.value, distribucionInscripciones.map((fila) => fila.value))}%` }"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-[2.5rem] border border-slate-200 bg-white p-8 shadow-sm dark:border-white/5 dark:bg-[#13131f]">
+        <div class="mb-6 flex items-center gap-2">
+          <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-900/25">
+            <VIcon class="material-symbols-outlined text-lg text-umsa-blue">bar_chart</VIcon>
+          </div>
+          <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-800 dark:text-slate-300">Métricas de gestión</h3>
+        </div>
+        <div class="space-y-4 rounded-[2rem] border border-slate-100 bg-slate-50 p-5 dark:border-white/5 dark:bg-black/20">
+          <div v-for="item in metricasGestion" :key="item.label" class="space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-semibold text-slate-700 dark:text-slate-200">{{ item.label }}</span>
+              <span class="font-black text-slate-800 dark:text-white">{{ item.value }}</span>
+            </div>
+            <div class="h-3 overflow-hidden rounded-full bg-white dark:bg-gray-800">
+              <div class="h-full rounded-full" :class="item.color" :style="{ width: `${anchoBarra(item.value, metricasGestion.map((fila) => fila.value))}%` }"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ══════════════════ SECCIÓN CENTRAL ══════════════════ -->
@@ -251,9 +307,17 @@ onMounted(cargarDatos);
         </div>
 
         <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center relative z-10 w-full">
-          <!-- Gráfico (col-span-2) -->
-          <div class="md:col-span-2 flex justify-center p-2 bg-slate-50 dark:bg-black/20 rounded-[2rem] border border-slate-100 dark:border-white/5">
-            <img :src="barChartUrl" alt="Top Participación" class="max-w-full h-auto rounded-xl hover:scale-105 transition-transform duration-700" />
+          <div class="md:col-span-2 space-y-4 rounded-[2rem] border border-slate-100 bg-slate-50 p-5 dark:border-white/5 dark:bg-black/20">
+            <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Inscritos por actividad</p>
+            <div v-for="(a, idx) in actividadesGrafico" :key="`barra-${idx}`" class="space-y-1.5">
+              <div class="flex items-center justify-between gap-3 text-xs">
+                <span class="truncate font-semibold text-slate-700 dark:text-slate-200">{{ a.nombre }}</span>
+                <span class="shrink-0 font-bold text-sky-600">{{ a.inscritos }}</span>
+              </div>
+              <div class="h-3 overflow-hidden rounded-full bg-white dark:bg-gray-800">
+                <div class="h-full rounded-full bg-sky-500" :style="{ width: `${escala(a.inscritos)}%` }"></div>
+              </div>
+            </div>
           </div>
           
           <!-- Ranking (col-span-1) -->

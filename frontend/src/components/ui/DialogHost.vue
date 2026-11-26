@@ -40,9 +40,9 @@ function outside() {
       <p v-if="dialogUi.validation" role="alert" class="mt-3 text-sm text-red-600">{{ dialogUi.validation }}</p>
       <p v-if="options.footer" class="mt-4 text-xs text-slate-500 text-center">{{ options.footer }}</p>
       <div v-if="dialogUi.loading" class="flex justify-center py-5"><VProgressCircular indeterminate color="primary" /></div>
-      <div v-else-if="options.showConfirmButton !== false || options.showCancelButton" class="flex flex-wrap justify-center gap-3 mt-7">
-        <VBtn v-if="options.showCancelButton" variant="tonal" @click="dialogs.cancel()">{{ options.cancelButtonText || 'Cancelar' }}</VBtn>
-        <VBtn v-if="options.showConfirmButton !== false" color="primary" :style="options.confirmButtonColor ? { backgroundColor: options.confirmButtonColor } : undefined" @click="dialogs.confirm()">{{ options.confirmButtonText || 'Aceptar' }}</VBtn>
+      <div v-else-if="options.showConfirmButton !== false || options.showCancelButton" class="mt-7 flex flex-wrap justify-center gap-3">
+        <button v-if="options.showCancelButton" type="button" class="rounded-xl border border-slate-200 bg-white px-6 py-2.5 text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50" @click="dialogs.cancel()">{{ options.cancelButtonText || 'Cancelar' }}</button>
+        <button v-if="options.showConfirmButton !== false" type="button" class="rounded-xl bg-[#003B71] px-8 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-md hover:bg-[#0070BB]" @click="dialogs.confirm()">{{ options.confirmButtonText || 'Aceptar' }}</button>
       </div>
     </VCard>
   </VDialog>

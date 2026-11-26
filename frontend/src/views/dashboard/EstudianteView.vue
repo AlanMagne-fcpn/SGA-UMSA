@@ -19,7 +19,7 @@ const handleLogout = () => {
 </script>
 
 <template>
-  <div class='min-h-screen flex flex-col font-montserrat bg-white'>
+  <div class='min-h-screen flex flex-col bg-white'>
     <!-- Top Bar -->
     <header class='bg-white border-b border-gray-200 h-20 flex items-center justify-between px-4 sm:px-6 lg:px-8 shadow-sm relative z-20'>
       <div class='flex items-center'>
@@ -113,8 +113,3 @@ const handleLogout = () => {
   </div>
 </template>
 
-<style scoped>
-.font-montserrat {
-  font-family: 'Montserrat Alternates', sans-serif;
-}
-</style>

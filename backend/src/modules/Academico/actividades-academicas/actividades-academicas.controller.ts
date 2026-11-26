@@ -139,6 +139,27 @@ export class ActividadesAcademicasController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('Ponente', 'Coordinador', 'Super Usuario')
+  @Get(':id/notas-rubrica')
+  notasRubrica(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    return this.service.listarNotasRubrica(id, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Ponente', 'Coordinador', 'Super Usuario')
+  @Put(':id/notas-rubrica')
+  guardarNotaRubrica(@Param('id', ParseIntPipe) id: number, @Body() body: any, @Request() req: any) {
+    return this.service.guardarNotaRubrica(id, body, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Ponente', 'Coordinador', 'Super Usuario')
+  @Put(':id/esquema-evaluacion')
+  guardarEsquemaEvaluacion(@Param('id', ParseIntPipe) id: number, @Body() body: any, @Request() req: any) {
+    return this.service.guardarEsquemaEvaluacion(id, body, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Ponente', 'Coordinador', 'Super Usuario')
   @Put(':id/entregas/:progresoId/nota')
   calificar(@Param('id', ParseIntPipe) id: number, @Param('progresoId', ParseIntPipe) progresoId: number, @Body() body: any, @Request() req: any) {
     return this.service.calificarPractica(id, progresoId, body, req.user);
@@ -280,6 +301,15 @@ export class ActividadesAcademicasController {
     @Request() req: any
   ) {
     return this.service.actualizarMateriales(id, req.body.materiales, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Ponente', 'Coordinador', 'Super Usuario')
+  @ApiBearerAuth()
+  @Patch(':id/acceso-sesion')
+  @ApiOperation({ summary: 'El ponente actualiza el aula, el enlace y el horario de su actividad' })
+  actualizarAccesoYSesiones(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    return this.service.actualizarAccesoYSesiones(id, req.body, req.user);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

@@ -10,7 +10,10 @@ import api, { getImageUrl, imagenActividad } from '@/services/api';
 import Swal from '@/services/dialogs';
 import { prepararBanner } from '@/utils/bannerImage';
 import ActivityContentAccess from '@/components/actividades/ActivityContentAccess.vue';
-import { permisosContenido } from '@/utils/activityLearning';
+import ActivityAudienceSelect from '@/components/actividades/ActivityAudienceSelect.vue';
+import SectionHelpModal from '@/components/ui/SectionHelpModal.vue';
+import { guiaEvaluacion, permisosContenido, reglasConfigurables } from '@/utils/activityLearning';
+import { accesoVacio, modalidadPideAula, modalidadPideEnlace } from '@/utils/activityAcceso';
 
 const router = useRouter();
 const route = useRoute();
@@ -37,12 +40,21 @@ const editActividadId = ref<number | null>(null);
 const editEventoId = ref<number | null>(null);
 const currentStep = ref(1);
 const totalSteps = 6;
+const activityStep = ref(1);
+const activityTotalSteps = 5;
 const nextStep = () => { if (currentStep.value < totalSteps) currentStep.value++; };
 const prevStep = () => { if (currentStep.value > 1) currentStep.value--; };
 const irAlPaso = (step: number) => {
-    if (step >= 1) {
+    if (step >= 1 && step <= totalSteps) {
         currentStep.value = step;
     }
+};
+const irAlPasoActividad = (step: number) => {
+    if (step >= 1 && step <= activityTotalSteps) activityStep.value = step;
+};
+const changeActivityStep = (delta: number) => {
+    const siguiente = activityStep.value + delta;
+    if (siguiente >= 1 && siguiente <= activityTotalSteps) activityStep.value = siguiente;
 };
 const filtroBusqueda = ref('');
 
@@ -495,6 +507,7 @@ const nuevaActividad = ref({
     sesiones: [] as any[],
     requisitos: {
         presentacion: { objetivos: '', publico_objetivo: '' },
+        acceso: accesoVacio(),
         aula: { video: false, material: false, practica: false, examen: false },
         base: {
             nombres: true,
@@ -509,12 +522,15 @@ const nuevaActividad = ref({
             grado_academico: false
         },
         custom: [
-            { label: 'Matrícula / Título / Aval (Documento de Respaldo)', type: 'file', mandatory: true }
+            { label: 'Matrícula, título o aval (documento de respaldo)', type: 'file', mandatory: false }
         ] as any[]
     },
     lockTipo: false as boolean,
     logistica_ids: [] as number[]
 });
+
+const reglasAbiertas = computed(() => reglasConfigurables(nuevaActividad.value.tipo, nuevaActividad.value.requisitos));
+const guiaActividad = computed(() => guiaEvaluacion(nuevaActividad.value.tipo, nuevaActividad.value.requisitos));
 
 // Lista local de IDs inhabilitados (usaremos Strings para máxima compatibilidad)
 const inhabilitadosLocal = ref<string[]>([]);
@@ -537,7 +553,8 @@ const resetNuevaActividad = (eventoId: number) => {
         sesiones: [],
         requisitos: {
             presentacion: { objetivos: '', publico_objetivo: '' },
-        aula: { video: false, material: false, practica: false, examen: false },
+            acceso: accesoVacio(),
+            aula: { video: false, material: false, practica: false, examen: false },
             base: {
                 nombres: true, primer_apellido: true, segundo_apellido: true,
                 email: true, documento_identidad: true, genero: true,
@@ -545,7 +562,7 @@ const resetNuevaActividad = (eventoId: number) => {
                 grado_academico: false
             },
             custom: [
-                { label: 'Matrícula / Título / Aval (Documento de Respaldo)', type: 'file', mandatory: true }
+                { label: 'Matrícula, título o aval (documento de respaldo)', type: 'file', mandatory: false }
             ] as any[]
         },
         lockTipo: false as boolean,
@@ -553,7 +570,7 @@ const resetNuevaActividad = (eventoId: number) => {
     };
     imagenArchivo.value = null;
     imagenPreview.value = null;
-    currentStep.value = 1;
+    activityStep.value = 1;
 };
 
 const editarActividad = async (act: any) => {
@@ -577,9 +594,10 @@ const editarActividad = async (act: any) => {
             fecha_fin: act.fecha_fin_raw || '',
             sesiones: [],
             lockTipo: false as boolean,
-            requisitos: { presentacion: { objetivos: '', publico_objetivo: '' }, aula: permisosContenido(act.tipo, act.requisitos), base: {}, custom: [], ...(act.requisitos || {}) },
+            requisitos: { presentacion: { objetivos: '', publico_objetivo: '' }, acceso: accesoVacio(), aula: permisosContenido(act.tipo, act.requisitos), base: {}, custom: [], ...(act.requisitos || {}) },
             logistica_ids: act.logistica_ids || []
         };
+        if (!nuevaActividad.value.requisitos.acceso) nuevaActividad.value.requisitos.acceso = accesoVacio();
         
         // Intentar obtener descripción completa y campos extras si no están
         const res = await api.get(`/actividades-academicas/${act.id}`);
@@ -594,11 +612,12 @@ const editarActividad = async (act: any) => {
         nuevaActividad.value.horas = fullAct.horas ?? act.horas ?? null;
         nuevaActividad.value.modalidad = fullAct.modalidad ?? act.modalidad ?? 'Presencial';
         nuevaActividad.value.logistica_ids = fullAct.logistica_ids || [];
-        nuevaActividad.value.requisitos = { presentacion: { objetivos: '', publico_objetivo: '' }, aula: permisosContenido(fullAct.tipo || act.tipo, fullAct.requisitos), base: {}, custom: [], ...(fullAct.requisitos || {}) };
+        nuevaActividad.value.requisitos = { presentacion: { objetivos: '', publico_objetivo: '' }, acceso: accesoVacio(), aula: permisosContenido(fullAct.tipo || act.tipo, fullAct.requisitos), base: {}, custom: [], ...(fullAct.requisitos || {}) };
+        if (!nuevaActividad.value.requisitos.acceso) nuevaActividad.value.requisitos.acceso = accesoVacio();
 
         imagenPreview.value = fullAct.imagen || null;
         isCreating.value = true;
-        currentStep.value = 1;
+        activityStep.value = 1;
     } catch (e) {
         Swal.fire('Error', 'No se pudo cargar la actividad', 'error');
     }
@@ -648,27 +667,53 @@ const imagenPreview = ref<string | null>(null);
 const nuevoRequisito = ref({
     label: '',
     type: 'text',
-    optionsRaw: ''
+    min: '',
+    max: '',
+    opcion: '',
+    options: [] as string[]
 });
+
+const ejemploRequisito = computed(() => {
+    if (nuevoRequisito.value.type === 'number') return 'Ej.: Años de experiencia';
+    if (nuevoRequisito.value.type === 'select') return 'Ej.: Talla de polera';
+    return 'Ej.: Facultad o carrera';
+});
+
+const agregarOpcionRequisito = () => {
+    const texto = nuevoRequisito.value.opcion.trim();
+    if (!texto || nuevoRequisito.value.options.includes(texto)) {
+        nuevoRequisito.value.opcion = '';
+        return;
+    }
+    nuevoRequisito.value.options.push(texto);
+    nuevoRequisito.value.opcion = '';
+};
 
 const agregarRequisitoPersonalizado = () => {
     if (nuevaActividad.value.requisitos.custom.length >= 10) {
         Swal.fire('Límite alcanzado', 'Solo puedes añadir hasta 10 requisitos personalizados.', 'warning');
         return;
     }
-    
-    const req: any = {
-        label: nuevoRequisito.value.label,
-        type: nuevoRequisito.value.type,
-        options: []
-    };
-
-    if (req.type === 'select' && nuevoRequisito.value.optionsRaw) {
-        req.options = nuevoRequisito.value.optionsRaw.split(',').map(o => o.trim()).filter(o => o !== '');
+    if (nuevoRequisito.value.type === 'select' && nuevoRequisito.value.options.length < 2) {
+        Swal.fire('Faltan opciones', 'Agrega al menos dos opciones. Por ejemplo: S, M y L.', 'warning');
+        return;
+    }
+    const minimo = nuevoRequisito.value.min === '' ? null : Number(nuevoRequisito.value.min);
+    const maximo = nuevoRequisito.value.max === '' ? null : Number(nuevoRequisito.value.max);
+    if (nuevoRequisito.value.type === 'number' && minimo !== null && maximo !== null && minimo > maximo) {
+        Swal.fire('Rango inválido', 'El mínimo no puede ser mayor que el máximo.', 'warning');
+        return;
     }
 
-    nuevaActividad.value.requisitos.custom.push(req);
-    nuevoRequisito.value = { label: '', type: 'text', optionsRaw: '' };
+    nuevaActividad.value.requisitos.custom.push({
+        label: nuevoRequisito.value.label.trim(),
+        type: nuevoRequisito.value.type,
+        mandatory: false,
+        options: nuevoRequisito.value.type === 'select' ? [...nuevoRequisito.value.options] : [],
+        min: nuevoRequisito.value.type === 'number' ? minimo : null,
+        max: nuevoRequisito.value.type === 'number' ? maximo : null,
+    });
+    nuevoRequisito.value = { label: '', type: 'text', min: '', max: '', opcion: '', options: [] };
 };
 
 const handleFileUpload = async (event: Event) => {
@@ -765,8 +810,6 @@ const publicarActividad = async () => {
         }
         if (nuevaActividad.value.horas !== undefined && nuevaActividad.value.horas !== null && String(nuevaActividad.value.horas) !== '') {
             formData.append('horas', String(nuevaActividad.value.horas));
-        } else {
-            formData.append('horas', '');
         }
         if (nuevaActividad.value.modalidad) {
             formData.append('modalidad', nuevaActividad.value.modalidad);
@@ -833,17 +876,13 @@ const publicarActividad = async () => {
     } catch (error: any) {
         console.error(error);
         // --- ALERTA ERROR (PREMIUM) ---
+        const detalle = error.response?.data?.message;
+        const texto = Array.isArray(detalle) ? detalle.join('<br>') : (detalle || 'Ocurrió un problema técnico inesperado.');
         Swal.fire({
             icon: 'error',
-            title: 'ERROR DE PUBLICACIÓN',
-            text: error.response?.data?.message || 'Ocurrió un problema técnico inesperado.',
-            confirmButtonText: 'ENTENDIDO',
-            confirmButtonColor: '#A38628',
-            customClass: {
-                popup: 'rounded-[2rem] border-none shadow-2xl dark:bg-gray-900',
-                title: 'font-black uppercase tracking-tight text-red-600 dark:text-red-400',
-                confirmButton: 'rounded-xl px-10 py-3 font-black text-xs uppercase tracking-widest'
-            }
+            title: 'No se pudo publicar',
+            html: `<p class="text-center text-sm leading-6 text-slate-600">${texto}</p>`,
+            confirmButtonText: 'Entendido',
         });
     } finally {
         isLoading.value = false;
@@ -1107,7 +1146,7 @@ const habilitarActividad = async (id: number, nombre: string) => {
                 <h3 class="text-xl md:text-2xl font-black text-primary-dark dark:text-white uppercase tracking-tighter">{{ categoria }}</h3>
                 <p class="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-widest mt-1">Explorar {{ (acts as any[]).length }} disponibles</p>
               </div>
-              <VBtn v-if="evento.estado !== 0 && evento.estado !== -1 && evento.fase !== 4 && evento.fase !== 5" @click="resetNuevaActividad(evento.id); isCreating = true; nuevaActividad.tipo = String(categoria); nuevaActividad.lockTipo = true; currentStep = 1;" class="text-[10px] font-black uppercase tracking-widest bg-white dark:bg-gray-800 hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-700 px-4 py-2 rounded-xl transition-all flex items-center gap-2 relative z-20 cursor-pointer shadow-sm hover:shadow-md">
+              <VBtn v-if="evento.estado !== 0 && evento.estado !== -1 && evento.fase !== 4 && evento.fase !== 5" @click="resetNuevaActividad(evento.id); isCreating = true; nuevaActividad.tipo = String(categoria); nuevaActividad.lockTipo = true; activityStep = 1;" class="text-[10px] font-black uppercase tracking-widest bg-white dark:bg-gray-800 hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-700 px-4 py-2 rounded-xl transition-all flex items-center gap-2 relative z-20 cursor-pointer shadow-sm hover:shadow-md">
                 <VIcon class="material-symbols-outlined text-[14px]">add</VIcon> Crear {{ categoria }}
               </VBtn>
             </div>
@@ -1240,18 +1279,43 @@ const habilitarActividad = async (id: number, nombre: string) => {
     
     <div v-show="isCreating" id="view-creacion" class="space-y-10 animate-in fade-in duration-500">
       
-      <div class="flex items-center justify-between border-b border-slate-200 dark:border-gray-800 pb-6">
-          <div>
-              <h2 class="text-3xl font-black text-primary-dark dark:text-white tracking-tighter uppercase italic">{{ isEditingActividad ? 'Editar Actividad' : 'Configurar Nueva Actividad' }}</h2>
-              <p class="text-slate-400 dark:text-gray-500 font-medium mt-1 text-sm">Diseño, reglas y horarios del curso.</p>
+      <div class="relative overflow-hidden rounded-3xl border border-white/40 shadow-lg dark:border-white/10">
+          <div class="absolute inset-0">
+              <img v-if="eventoActual?.imagen" :src="eventoActual.imagen" alt="" class="h-full w-full object-cover" />
+              <div v-else class="h-full w-full bg-gradient-to-br from-[#003B71] via-[#0070bb] to-slate-800" />
+              <div class="absolute inset-0 bg-gradient-to-r from-[#003B71]/92 via-[#003B71]/75 to-[#003B71]/40" />
           </div>
-          <div class="flex items-center gap-3">
-              <VBtn v-if="isEditingActividad" @click="publicarActividad()" :disabled="isLoading" class="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] uppercase rounded-xl transition-all shadow-sm">
-                  <VIcon class="material-symbols-outlined text-sm">save</VIcon> Guardar Cambios
-              </VBtn>
-              <VBtn @click="isCreating = false" class="flex items-center gap-2 px-6 py-2.5 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-slate-500 dark:text-gray-400 font-black text-[10px] uppercase rounded-xl hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 transition-all shadow-sm">
-                  <VIcon class="material-symbols-outlined text-sm">arrow_back</VIcon> Volver al Listado
-              </VBtn>
+          <div class="relative z-10 flex flex-col gap-4 px-6 py-7 md:flex-row md:items-end md:justify-between md:px-8 md:py-8">
+              <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-center gap-2">
+                      <p class="text-[10px] font-black uppercase tracking-[0.22em] text-[#BC9C31]">
+                          {{ isEditingActividad ? 'Editar actividad en' : 'Agregar actividad a' }}
+                      </p>
+                      <p class="max-w-xl truncate text-sm font-bold text-white/85 md:text-base">
+                          {{ eventoActual?.nombreCorto || eventoActual?.nombre || '—' }}
+                      </p>
+                      <span
+                          v-if="eventoActual?.gestionLabel || eventoActual?.gestion"
+                          class="rounded-full border border-white/25 bg-white/10 px-3 py-0.5 text-[10px] font-bold text-white backdrop-blur-md"
+                      >
+                          Gestión {{ eventoActual.gestionLabel || eventoActual.gestion }}
+                      </span>
+                  </div>
+                  <p
+                      v-if="nuevaActividad.nombre?.trim()"
+                      class="mt-3 text-3xl font-black leading-tight tracking-tight text-white drop-shadow md:text-5xl md:leading-snug"
+                  >
+                      {{ nuevaActividad.nombre }}
+                  </p>
+              </div>
+              <div class="flex shrink-0 flex-wrap items-center gap-2">
+                  <VBtn v-if="isEditingActividad" @click="publicarActividad()" :disabled="isLoading" class="flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-[10px] font-black uppercase text-white shadow-sm hover:bg-emerald-600">
+                      <VIcon class="material-symbols-outlined text-sm">save</VIcon> Guardar
+                  </VBtn>
+                  <VBtn @click="isCreating = false" class="flex items-center gap-2 rounded-xl border border-white/30 bg-white/15 px-5 py-2.5 text-[10px] font-black uppercase text-white backdrop-blur-sm hover:bg-white/25">
+                      <VIcon class="material-symbols-outlined text-sm">arrow_back</VIcon> Volver
+                  </VBtn>
+              </div>
           </div>
       </div>
 
@@ -1260,70 +1324,62 @@ const habilitarActividad = async (id: number, nombre: string) => {
               <div class="absolute top-1/2 left-0 w-full h-0.5 bg-slate-200 dark:bg-gray-800 -z-10 -translate-y-1/2"></div>
               
               <!-- Step 1 -->
-              <div @click="irAlPaso(1)" class="flex flex-col items-center bg-white dark:bg-gray-950 px-4 cursor-pointer select-none hover:opacity-80 transition-all">
+              <div @click="irAlPasoActividad(1)" class="flex flex-col items-center bg-white dark:bg-gray-950 px-4 cursor-pointer select-none hover:opacity-80 transition-all">
                   <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-500"
-                       :class="currentStep === 1 ? 'bg-primary-dark text-white border-umsa-gold scale-110 shadow-[0_0_15px_rgba(188,156,49,0.4)] dark:bg-blue-600' : (currentStep > 1 ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg' : 'bg-white dark:bg-gray-800 text-slate-300 dark:text-gray-500 border-slate-200 dark:border-gray-700')">
-                      <VIcon v-if="currentStep > 1" class="material-symbols-outlined text-xl">check</VIcon>
+                       :class="activityStep === 1 ? 'bg-primary-dark text-white border-umsa-gold scale-110 shadow-[0_0_15px_rgba(188,156,49,0.4)] dark:bg-blue-600' : (activityStep > 1 ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg' : 'bg-white dark:bg-gray-800 text-slate-300 dark:text-gray-500 border-slate-200 dark:border-gray-700')">
+                      <VIcon v-if="activityStep > 1" class="material-symbols-outlined text-xl">check</VIcon>
                       <VIcon v-else class="material-symbols-outlined text-xl">demography</VIcon>
                   </div>
-                  <span class="text-[10px] font-black uppercase mt-3" :class="currentStep === 1 ? 'text-primary-dark dark:text-white' : (currentStep > 1 ? 'text-emerald-500 dark:text-emerald-400 font-black' : 'text-slate-400 dark:text-gray-500')">Diseño</span>
+                  <span class="text-[10px] font-black uppercase mt-3" :class="activityStep === 1 ? 'text-primary-dark dark:text-white' : (activityStep > 1 ? 'text-emerald-500 dark:text-emerald-400 font-black' : 'text-slate-400 dark:text-gray-500')">Diseño</span>
               </div>
               
               <!-- Step 2 -->
-              <div @click="irAlPaso(2)" class="flex flex-col items-center bg-white dark:bg-gray-950 px-4 cursor-pointer select-none hover:opacity-80 transition-all">
+              <div @click="irAlPasoActividad(2)" class="flex flex-col items-center bg-white dark:bg-gray-950 px-4 cursor-pointer select-none hover:opacity-80 transition-all">
                   <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-500"
-                       :class="currentStep === 2 ? 'bg-primary-dark text-white border-umsa-gold scale-110 shadow-[0_0_15px_rgba(37,99,235,0.2)] dark:bg-blue-600' : (currentStep > 2 ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg' : 'bg-white dark:bg-gray-800 text-slate-300 dark:text-gray-500 border-slate-200 dark:border-gray-700')">
-                      <VIcon v-if="currentStep > 2" class="material-symbols-outlined text-xl">check</VIcon>
+                       :class="activityStep === 2 ? 'bg-primary-dark text-white border-umsa-gold scale-110 shadow-[0_0_15px_rgba(37,99,235,0.2)] dark:bg-blue-600' : (activityStep > 2 ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg' : 'bg-white dark:bg-gray-800 text-slate-300 dark:text-gray-500 border-slate-200 dark:border-gray-700')">
+                      <VIcon v-if="activityStep > 2" class="material-symbols-outlined text-xl">check</VIcon>
                       <VIcon v-else class="material-symbols-outlined text-xl">verified</VIcon>
                   </div>
-                  <span class="text-[10px] font-black uppercase mt-3" :class="currentStep === 2 ? 'text-primary-dark dark:text-white' : (currentStep > 2 ? 'text-emerald-500 dark:text-emerald-400 font-black' : 'text-slate-400 dark:text-gray-500')">Aprobación</span>
+                  <span class="text-[10px] font-black uppercase mt-3" :class="activityStep === 2 ? 'text-primary-dark dark:text-white' : (activityStep > 2 ? 'text-emerald-500 dark:text-emerald-400 font-black' : 'text-slate-400 dark:text-gray-500')">Aprobación</span>
               </div>
 
               <!-- Step 3 -->
-              <div @click="irAlPaso(3)" class="flex flex-col items-center bg-white dark:bg-gray-950 px-4 cursor-pointer select-none hover:opacity-80 transition-all">
+              <div @click="irAlPasoActividad(3)" class="flex flex-col items-center bg-white dark:bg-gray-950 px-4 cursor-pointer select-none hover:opacity-80 transition-all">
                   <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-500"
-                       :class="currentStep === 3 ? 'bg-primary-dark text-white border-umsa-gold scale-110 shadow-[0_0_15px_rgba(37,99,235,0.2)] dark:bg-blue-600' : (currentStep > 3 ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg' : 'bg-white dark:bg-gray-800 text-slate-300 dark:text-gray-500 border-slate-200 dark:border-gray-700')">
-                      <VIcon v-if="currentStep > 3" class="material-symbols-outlined text-xl">check</VIcon>
+                       :class="activityStep === 3 ? 'bg-primary-dark text-white border-umsa-gold scale-110 shadow-[0_0_15px_rgba(37,99,235,0.2)] dark:bg-blue-600' : (activityStep > 3 ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg' : 'bg-white dark:bg-gray-800 text-slate-300 dark:text-gray-500 border-slate-200 dark:border-gray-700')">
+                      <VIcon v-if="activityStep > 3" class="material-symbols-outlined text-xl">check</VIcon>
                       <VIcon v-else class="material-symbols-outlined text-xl">schedule</VIcon>
                   </div>
-                  <span class="text-[10px] font-black uppercase mt-3" :class="currentStep === 3 ? 'text-primary-dark dark:text-white' : (currentStep > 3 ? 'text-emerald-500 dark:text-emerald-400 font-black' : 'text-slate-400 dark:text-gray-500')">Horarios</span>
+                  <span class="text-[10px] font-black uppercase mt-3" :class="activityStep === 3 ? 'text-primary-dark dark:text-white' : (activityStep > 3 ? 'text-emerald-500 dark:text-emerald-400 font-black' : 'text-slate-400 dark:text-gray-500')">Horarios</span>
               </div>
 
               <!-- Step 4 -->
-              <div @click="irAlPaso(4)" class="flex flex-col items-center bg-white dark:bg-gray-950 px-4 cursor-pointer select-none hover:opacity-80 transition-all">
+              <div @click="irAlPasoActividad(4)" class="flex flex-col items-center bg-white dark:bg-gray-950 px-4 cursor-pointer select-none hover:opacity-80 transition-all">
                   <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-500"
-                       :class="currentStep === 4 ? 'bg-primary-dark text-white border-umsa-gold scale-110 shadow-[0_0_15px_rgba(37,99,235,0.2)] dark:bg-blue-600' : (currentStep > 4 ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg' : 'bg-white dark:bg-gray-800 text-slate-300 dark:text-gray-500 border-slate-200 dark:border-gray-700')">
-                      <VIcon v-if="currentStep > 4" class="material-symbols-outlined text-xl">check</VIcon>
+                       :class="activityStep === 4 ? 'bg-primary-dark text-white border-umsa-gold scale-110 shadow-[0_0_15px_rgba(37,99,235,0.2)] dark:bg-blue-600' : (activityStep > 4 ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg' : 'bg-white dark:bg-gray-800 text-slate-300 dark:text-gray-500 border-slate-200 dark:border-gray-700')">
+                      <VIcon v-if="activityStep > 4" class="material-symbols-outlined text-xl">check</VIcon>
                       <VIcon v-else class="material-symbols-outlined text-xl">person_add_alt</VIcon>
                   </div>
-                  <span class="text-[10px] font-black uppercase mt-3" :class="currentStep === 4 ? 'text-primary-dark dark:text-white' : (currentStep > 4 ? 'text-emerald-500 dark:text-emerald-400 font-black' : 'text-slate-400 dark:text-gray-500')">Requisitos</span>
+                  <span class="text-[10px] font-black uppercase mt-3" :class="activityStep === 4 ? 'text-primary-dark dark:text-white' : (activityStep > 4 ? 'text-emerald-500 dark:text-emerald-400 font-black' : 'text-slate-400 dark:text-gray-500')">Requisitos</span>
               </div>
 
               <!-- Step 5 -->
-              <div @click="irAlPaso(5)" class="flex flex-col items-center bg-white dark:bg-gray-950 px-4 cursor-pointer select-none hover:opacity-80 transition-all">
+              <div @click="irAlPasoActividad(5)" class="flex flex-col items-center bg-white dark:bg-gray-950 px-4 cursor-pointer select-none hover:opacity-80 transition-all">
                   <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-500"
-                       :class="currentStep === 5 ? 'bg-primary-dark text-white border-umsa-gold scale-110 shadow-[0_0_15px_rgba(188,156,49,0.4)] dark:bg-blue-600' : (currentStep > 5 ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg' : 'bg-white dark:bg-gray-800 text-slate-300 dark:text-gray-500 border-slate-200 dark:border-gray-700')">
-                      <VIcon v-if="currentStep > 5" class="material-symbols-outlined text-xl">check</VIcon>
+                       :class="activityStep === 5 ? 'bg-primary-dark text-white border-umsa-gold scale-110 shadow-[0_0_15px_rgba(188,156,49,0.4)] dark:bg-blue-600' : (activityStep > 5 ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg' : 'bg-white dark:bg-gray-800 text-slate-300 dark:text-gray-500 border-slate-200 dark:border-gray-700')">
+                      <VIcon v-if="activityStep > 5" class="material-symbols-outlined text-xl">check</VIcon>
                       <VIcon v-else class="material-symbols-outlined text-xl">check_circle</VIcon>
                   </div>
-                  <span class="text-[10px] font-black uppercase mt-3" :class="currentStep === 5 ? 'text-primary-dark dark:text-white' : (currentStep > 5 ? 'text-emerald-500 dark:text-emerald-400 font-black' : 'text-slate-400 dark:text-gray-500')">Resumen</span>
+                  <span class="text-[10px] font-black uppercase mt-3" :class="activityStep === 5 ? 'text-primary-dark dark:text-white' : (activityStep > 5 ? 'text-emerald-500 dark:text-emerald-400 font-black' : 'text-slate-400 dark:text-gray-500')">Resumen</span>
               </div>
           </div>
       </div>
 
       <!-- Contenido del Step 1 -->
-      <div v-show="currentStep === 1" class="activity-creation space-y-8 animate-in slide-in-from-right-8 duration-500">
-          <ActivityContentAccess v-model="nuevaActividad.requisitos" :activity-type="nuevaActividad.tipo === 'Otro' ? nuevaActividad.tipoPersonalizado : nuevaActividad.tipo" :busy="isLoading" />
+      <div v-show="activityStep === 1" class="activity-creation space-y-8 animate-in slide-in-from-right-8 duration-500">
           <VCard class="bg-white dark:bg-gray-900 p-8 rounded-[2rem] shadow-sm border border-slate-100 dark:border-gray-800">
-              <div class="flex items-center justify-between mb-8">
+              <div class="mb-8">
                   <h3 class="text-xl font-black text-primary-dark dark:text-white uppercase italic">1. Diseño de la Actividad</h3>
-                  <div class="flex flex-col items-end">
-                      <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Contexto del Evento</span>
-                      <div v-if="eventoActual" class="flex items-center gap-2">
-                          <span class="text-[10px] font-bold text-umsa-blue bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-md border border-blue-100 dark:border-blue-800">{{ eventoActual.nombreCorto }}</span>
-                          <span class="text-[10px] font-bold text-slate-500 dark:text-gray-400">/ {{ eventoActual.version }}</span>
-                      </div>
-                  </div>
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10">
                   <div class="space-y-6">
@@ -1338,6 +1394,7 @@ const habilitarActividad = async (id: number, nombre: string) => {
                               <option value="Especialidad">Especialidad</option>
                               <option value="Taller">Taller</option>
                               <option value="Seminario">Seminario</option>
+                              <option value="Simposio">Simposio</option>
                               <option value="Curso">Curso</option>
                               <option value="Otro">Otro (Especificar)</option>
                           </select>
@@ -1359,14 +1416,14 @@ const habilitarActividad = async (id: number, nombre: string) => {
                           <textarea aria-label="Qué aprenderán los participantes" v-model="nuevaActividad.requisitos.presentacion.objetivos" rows="3" placeholder="Un objetivo por línea" class="w-full bg-slate-50 dark:bg-gray-800"></textarea>
                       </div>
                       <div>
-                          <label class="mb-2 block text-xs font-bold text-slate-700 dark:text-gray-300">A quién está dirigido</label>
-                          <textarea aria-label="A quién está dirigido" v-model="nuevaActividad.requisitos.presentacion.publico_objetivo" rows="2" placeholder="Ej.: estudiantes y profesionales interesados" class="w-full bg-slate-50 dark:bg-gray-800"></textarea>
+                          <label class="text-[10px] font-black text-slate-400 dark:text-gray-500 uppercase tracking-widest block mb-2">A quién está dirigido</label>
+                          <ActivityAudienceSelect v-model="nuevaActividad.requisitos.presentacion.publico_objetivo" />
                       </div>
                   </div>
                   <div class="space-y-4">
                       <div>
                           <label class="text-[10px] font-black text-slate-400 dark:text-gray-500 uppercase tracking-widest block mb-2">Imagen de Portada (Opcional)</label>
-                          <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 dark:border-gray-700 border-dashed rounded-xl hover:border-umsa-blue dark:hover:border-blue-500 transition-colors bg-slate-50 dark:bg-gray-800/40 group overflow-hidden relative">
+                          <div class="relative mt-1 flex aspect-video min-h-64 w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-5 transition-colors hover:border-umsa-blue group dark:border-gray-700 dark:bg-gray-800/40 dark:hover:border-blue-500">
                               <div v-if="imagenPreview" class="absolute inset-0 z-10 overflow-hidden rounded-xl">
                                   <img :src="imagenPreview" class="w-full h-full object-cover">
                                   <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
@@ -1381,7 +1438,7 @@ const habilitarActividad = async (id: number, nombre: string) => {
                                           <input id="actividad_img" name="actividad_img" type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" @change="handleFileUpload">
                                       </label>
                                   </div>
-                                  <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-3">JPG, PNG o WebP · mínimo 1280 × 720 px. Los archivos grandes se optimizan.</p>
+                                  <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-3">JPG, PNG o WebP. Cualquier tamaño se ajusta solo al formato de la portada.</p>
                                   <p v-if="imagenArchivo" class="text-[9px] text-emerald-500 font-bold mt-2 truncate max-w-[200px]">{{ imagenArchivo.name }}</p>
                               </div>
                           </div>
@@ -1392,17 +1449,35 @@ const habilitarActividad = async (id: number, nombre: string) => {
       </div>
 
       <!-- Contenido del Step 2 -->
-      <div v-show="currentStep === 2" class="activity-creation space-y-8 animate-in slide-in-from-right-8 duration-500">
+      <div v-show="activityStep === 2" class="activity-creation space-y-8 animate-in slide-in-from-right-8 duration-500">
           <VCard class="bg-white dark:bg-gray-900 p-8 rounded-[2rem] shadow-sm border border-slate-100 dark:border-gray-800">
-              <h3 class="text-xl font-black text-primary-dark dark:text-white uppercase italic mb-8">2. Parámetros de Aprobación</h3>
+              <div class="mb-6">
+                  <div class="flex flex-wrap items-center gap-2">
+                      <h3 class="text-xl font-black text-primary-dark dark:text-white uppercase italic">2. Aprobación y reglas</h3>
+                      <SectionHelpModal
+                        title="¿Tiene duda con…?"
+                        :context="guiaActividad.titulo"
+                        :topics="[
+                          { id: 'califica', label: 'Cómo se califica', items: guiaActividad.comoSeCalifica },
+                          { id: 'certificados', label: 'Certificados', items: guiaActividad.certificados },
+                          { id: 'configuras', label: 'Qué configuras aquí', items: guiaActividad.queConfiguras },
+                          { id: 'nota', label: 'Nota mínima', items: ['Umbral para certificado de aprobación.', 'Se compara con la nota final del participante.'] },
+                          { id: 'asistencia', label: 'Asistencia mínima', items: ['Sin este umbral no hay certificado.', 'Se calcula con las sesiones registradas.'] },
+                        ]"
+                      />
+                  </div>
+                  <p class="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{{ guiaActividad.titulo }} · {{ guiaActividad.tipico }}</p>
+              </div>
               <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                   <div class="p-8 rounded-[2rem] border-2 border-slate-100 dark:border-gray-800 border-l-[8px] border-l-primary-dark bg-slate-50 dark:bg-gray-800">
                       <h4 class="font-black text-primary-dark dark:text-white mb-2 uppercase text-sm">Nota Mínima</h4>
                       <input v-model="nuevaActividad.min_nota" type="number" min="0" max="100" class="w-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 font-black text-xl text-center text-primary-dark dark:text-gray-200" />
+                      <p class="mt-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">Para certificado de aprobación</p>
                   </div>
                   <div class="p-8 rounded-[2rem] border-2 border-slate-100 dark:border-gray-800 border-l-[8px] border-l-umsa-gold bg-slate-50 dark:bg-gray-800">
                       <h4 class="font-black text-primary-dark dark:text-white mb-2 uppercase text-sm">Asistencia Mínima (%)</h4>
                       <input v-model="nuevaActividad.min_asistencia" type="number" min="0" max="100" class="w-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl px-4 py-3 font-black text-xl text-center text-primary-dark dark:text-gray-200" />
+                      <p class="mt-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">Sin esto no hay certificado</p>
                   </div>
                   <div class="p-8 rounded-[2rem] border-2 border-slate-100 dark:border-gray-800 border-l-[8px] border-l-umsa-blue bg-slate-50 dark:bg-gray-800">
                       <h4 class="font-black text-primary-dark dark:text-white mb-2 uppercase text-sm">Carga Horaria (Hrs Académicas)</h4>
@@ -1410,6 +1485,7 @@ const habilitarActividad = async (id: number, nombre: string) => {
                   </div>
               </div>
           </VCard>
+          <ActivityContentAccess v-model="nuevaActividad.requisitos" :activity-type="nuevaActividad.tipo" :modalidad="nuevaActividad.modalidad" :busy="isLoading" />
 
           <!-- Asignación de Personal de Logística -->
           <VCard class="bg-white dark:bg-gray-900 p-8 rounded-[2rem] shadow-sm border border-slate-100 dark:border-gray-800 mt-6">
@@ -1462,7 +1538,7 @@ const habilitarActividad = async (id: number, nombre: string) => {
       </div>
 
       <!-- Contenido del Step 3 -->
-      <div v-show="currentStep === 3" class="activity-creation space-y-8 animate-in slide-in-from-right-8 duration-500">
+      <div v-show="activityStep === 3" class="activity-creation space-y-8 animate-in slide-in-from-right-8 duration-500">
           <VCard class="bg-white dark:bg-gray-900 p-8 rounded-[2rem] shadow-sm border border-slate-100 dark:border-gray-800">
               <h3 class="text-xl font-black text-primary-dark dark:text-white uppercase italic mb-8">3. Cronograma y Modalidad</h3>
               
@@ -1488,6 +1564,39 @@ const habilitarActividad = async (id: number, nombre: string) => {
                               {{ mod }}
                           </VBtn>
                       </div>
+                  </div>
+              </div>
+
+              <div class="mb-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div v-if="modalidadPideAula(nuevaActividad.modalidad)" class="rounded-[2rem] border-2 border-slate-100 border-l-[8px] border-l-[#003B71] bg-slate-50 p-6 dark:border-gray-700 dark:bg-gray-800">
+                      <label class="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-gray-400">
+                          <VIcon class="material-symbols-outlined text-sm text-[#003B71]">meeting_room</VIcon>
+                          Aula / lugar físico
+                      </label>
+                      <input
+                          v-model="nuevaActividad.requisitos.acceso.aula_fisica"
+                          type="text"
+                          maxlength="200"
+                          placeholder="Ej: Auditorio Facultad de Ciencias · Bloque A, aula 302"
+                          aria-label="Aula o lugar físico"
+                          class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-primary-dark outline-none transition-all focus:ring-2 focus:ring-umsa-blue dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                      />
+                      <p class="mt-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">Visible solo para inscritos, ponentes y organización</p>
+                  </div>
+                  <div v-if="modalidadPideEnlace(nuevaActividad.modalidad)" class="rounded-[2rem] border-2 border-slate-100 border-l-[8px] border-l-[#0070bb] bg-slate-50 p-6 dark:border-gray-700 dark:bg-gray-800">
+                      <label class="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-gray-400">
+                          <VIcon class="material-symbols-outlined text-sm text-[#0070bb]">videocam</VIcon>
+                          Enlace de reunión virtual
+                      </label>
+                      <input
+                          v-model="nuevaActividad.requisitos.acceso.enlace_virtual"
+                          type="url"
+                          maxlength="500"
+                          placeholder="https://meet.google.com/... o Zoom"
+                          aria-label="Enlace de reunión virtual"
+                          class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-primary-dark outline-none transition-all focus:ring-2 focus:ring-umsa-blue dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                      />
+                      <p class="mt-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">No se publica en el catálogo público</p>
                   </div>
               </div>
 
@@ -1552,7 +1661,7 @@ const habilitarActividad = async (id: number, nombre: string) => {
       </div>
 
       <!-- Contenido del Paso 4: Requisitos de Pre-inscripción -->
-      <div v-show="currentStep === 4" class="activity-creation space-y-8 animate-in slide-in-from-right-8 duration-500">
+      <div v-show="activityStep === 4" class="activity-creation space-y-8 animate-in slide-in-from-right-8 duration-500">
           <VCard class="bg-white dark:bg-gray-900 p-8 rounded-[2rem] shadow-sm border border-slate-100 dark:border-gray-800">
               <div class="flex items-center justify-between mb-8">
                   <div>
@@ -1602,33 +1711,53 @@ const habilitarActividad = async (id: number, nombre: string) => {
 
                       <div class="space-y-3">
                           <VCard v-for="(req, idx) in nuevaActividad.requisitos.custom" :key="idx"
-                               class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl animate-in slide-in-from-bottom-2">
-                              <VIcon class="material-symbols-outlined text-sm text-blue-500">{{ req.type === 'select' ? 'list' : (req.type === 'number' ? '123' : 'text_fields') }}</VIcon>
-                              <div class="flex-1 min-w-0">
-                                  <p class="text-xs font-black text-slate-700 dark:text-white truncate">{{ req.label }}</p>
-                                  <p class="text-[9px] font-bold text-slate-400 uppercase">{{ req.type }} <span v-if="req.type === 'select'">({{ req.options.length }} opciones)</span></p>
+                               class="flex items-start gap-3 p-3 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl animate-in slide-in-from-bottom-2">
+                              <VIcon class="material-symbols-outlined mt-0.5 text-sm text-blue-500">{{ req.type === 'select' ? 'list' : (req.type === 'number' ? '123' : (req.type === 'file' ? 'upload_file' : 'text_fields')) }}</VIcon>
+                              <div class="min-w-0 flex-1">
+                                  <p class="truncate text-xs font-black text-slate-700 dark:text-white">{{ req.label }}</p>
+                                  <p class="text-[9px] font-bold uppercase text-slate-400">{{ req.type === 'select' ? 'Lista de opciones' : (req.type === 'number' ? 'Número' : (req.type === 'file' ? 'Documento' : 'Texto libre')) }}</p>
+                                  <p v-if="req.type === 'number' && (req.min != null || req.max != null)" class="mt-1 text-[10px] font-semibold text-[#3C6893]">De {{ req.min ?? 'sin mínimo' }} a {{ req.max ?? 'sin máximo' }}</p>
+                                  <p v-if="req.type === 'select' && req.options?.length" class="mt-1 text-[10px] font-semibold text-[#3C6893]">{{ req.options.join(' · ') }}</p>
                               </div>
-                              <VBtn v-if="!req.mandatory" @click="nuevaActividad.requisitos.custom.splice(idx, 1)" class="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 rounded-lg transition-all">
+                              <label class="flex shrink-0 items-center gap-2 text-[9px] font-black uppercase text-slate-500">
+                                  Obligatorio
+                                  <span class="relative inline-flex items-center">
+                                      <input v-model="req.mandatory" type="checkbox" class="peer sr-only">
+                                      <span class="relative h-4 w-8 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-3 after:w-3 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-[#0070BB] peer-checked:after:translate-x-full"></span>
+                                  </span>
+                              </label>
+                              <VBtn @click="nuevaActividad.requisitos.custom.splice(idx, 1)" class="flex h-8 w-8 items-center justify-center text-red-400 transition-all hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950" aria-label="Quitar requisito">
                                   <VIcon class="material-symbols-outlined text-sm">delete</VIcon>
                               </VBtn>
-                              <span v-else class="text-[8px] font-black text-blue-500 uppercase px-2 italic">Fijo</span>
                           </VCard>
                       </div>
 
-                      <div v-if="nuevaActividad.requisitos.custom.length < 10" class="p-5 bg-blue-50/30 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/50 rounded-2xl space-y-4">
-                          <div class="grid grid-cols-2 gap-3">
-                              <input v-model="nuevoRequisito.label" type="text" placeholder="Ej: Talla de Polera" class="col-span-2 px-4 py-2 text-xs font-bold bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl outline-none focus:border-blue-500" />
-                              <select v-model="nuevoRequisito.type" class="px-4 py-2 text-xs font-bold bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl outline-none">
-                                  <option value="text">Texto Libre</option>
-                                  <option value="number">Número</option>
-                                  <option value="select">Selección</option>
-                              </select>
-                              <div v-if="nuevoRequisito.type === 'select'" class="col-span-2">
-                                  <input v-model="nuevoRequisito.optionsRaw" type="text" placeholder="Opciones sep. por comas (Ej: S, M, L)" class="w-full px-4 py-2 text-xs font-bold bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl outline-none focus:border-blue-500" />
-                              </div>
+                      <div v-if="nuevaActividad.requisitos.custom.length < 10" class="space-y-4 rounded-2xl border border-blue-100 bg-blue-50/30 p-5 dark:border-blue-900/50 dark:bg-blue-900/10">
+                          <input v-model="nuevoRequisito.label" type="text" :placeholder="ejemploRequisito" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900" />
+                          <select v-model="nuevoRequisito.type" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold outline-none dark:border-gray-700 dark:bg-gray-900">
+                              <option value="text">Texto libre</option>
+                              <option value="number">Número</option>
+                              <option value="select">Lista de opciones</option>
+                          </select>
+                          <div v-if="nuevoRequisito.type === 'number'" class="grid grid-cols-2 gap-3">
+                              <input v-model="nuevoRequisito.min" type="number" placeholder="Mínimo, ej. 0" class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900" />
+                              <input v-model="nuevoRequisito.max" type="number" placeholder="Máximo, ej. 40" class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900" />
                           </div>
-                          <VBtn @click="agregarRequisitoPersonalizado" :disabled="!nuevoRequisito.label" class="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md">
-                              + Añadir Requisito
+                          <div v-if="nuevoRequisito.type === 'select'" class="space-y-2">
+                              <div class="flex gap-2">
+                                  <input v-model="nuevoRequisito.opcion" type="text" placeholder="Escribe una opción, ej. S" class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-900" @keydown.enter.prevent="agregarOpcionRequisito" />
+                                  <button type="button" class="rounded-xl bg-[#0070BB] px-3 text-[10px] font-black uppercase text-white" @click="agregarOpcionRequisito">Agregar</button>
+                              </div>
+                              <div v-if="nuevoRequisito.options.length" class="flex flex-wrap gap-2">
+                                  <span v-for="(opcion, indice) in nuevoRequisito.options" :key="opcion" class="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[10px] font-bold text-[#012248]">
+                                      {{ opcion }}
+                                      <button type="button" class="text-red-500" :aria-label="`Quitar ${opcion}`" @click="nuevoRequisito.options.splice(indice, 1)">×</button>
+                                  </span>
+                              </div>
+                              <p v-else class="text-[10px] font-semibold text-slate-500">Agrega al menos dos opciones. Por ejemplo: S, M y L.</p>
+                          </div>
+                          <VBtn @click="agregarRequisitoPersonalizado" :disabled="!nuevoRequisito.label.trim()" class="w-full rounded-xl bg-blue-600 py-2 text-[10px] font-black uppercase tracking-widest text-white shadow-md transition-all hover:bg-blue-700 disabled:opacity-50">
+                              + Añadir requisito
                           </VBtn>
                       </div>
                   </div>
@@ -1637,7 +1766,7 @@ const habilitarActividad = async (id: number, nombre: string) => {
       </div>
 
       <!-- Contenido del Paso 5 (Anterior 4) -->
-      <div v-show="currentStep === 5" class="activity-creation space-y-8 animate-in zoom-in-95 duration-500">
+      <div v-show="activityStep === 5" class="activity-creation space-y-8 animate-in zoom-in-95 duration-500">
           <VCard class="bg-white dark:bg-gray-900 p-8 rounded-[2rem] shadow-sm border-l-[10px] border-l-umsa-gold dark:border-l-yellow-600 border border-slate-100 dark:border-gray-800">
               <h3 class="text-xl font-black text-primary-dark dark:text-white uppercase italic mb-4">5. Confirmación y Revisión</h3>
               <p class="text-sm font-bold text-slate-500 dark:text-gray-400 mb-8 italic">Por favor, verifica los detalles finales antes de publicar la actividad en el sistema.</p>
@@ -1675,7 +1804,7 @@ const habilitarActividad = async (id: number, nombre: string) => {
                           </p>
                       </div>
 
-                      <div class="grid grid-cols-3 gap-4 text-center">
+                      <div class="grid grid-cols-2 gap-4 text-center sm:grid-cols-4">
                           <div class="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-800/50">
                               <span class="text-[8px] font-black text-emerald-600 uppercase block">Nota Mínima</span>
                               <p class="text-lg font-black text-emerald-700">{{ nuevaActividad.min_nota }}</p>
@@ -1683,6 +1812,10 @@ const habilitarActividad = async (id: number, nombre: string) => {
                           <div class="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-800/50">
                               <span class="text-[8px] font-black text-amber-600 uppercase block">Asistencia</span>
                               <p class="text-lg font-black text-amber-700">{{ nuevaActividad.min_asistencia }}%</p>
+                          </div>
+                          <div class="p-4 bg-slate-50 dark:bg-gray-800 rounded-2xl border border-slate-100 dark:border-gray-700">
+                              <span class="text-[8px] font-black text-slate-500 uppercase block">Evaluación</span>
+                              <p class="text-[10px] font-black text-slate-700 dark:text-slate-200 leading-snug">{{ guiaActividad.titulo }}</p>
                           </div>
                           <div class="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-800/50">
                               <span class="text-[8px] font-black text-blue-600 uppercase block">Fecha Inicio</span>
@@ -1745,8 +1878,8 @@ const habilitarActividad = async (id: number, nombre: string) => {
       </div>
 
       <div class="flex justify-between items-center pt-8 border-t border-slate-200 dark:border-gray-800 mt-8">
-          <VBtn @click="changeStep(-1)"
-            :class="currentStep === 1 ? 'opacity-0 pointer-events-none' : 'opacity-100'" 
+          <VBtn @click="changeActivityStep(-1)"
+            :class="activityStep === 1 ? 'opacity-0 pointer-events-none' : 'opacity-100'" 
             class="px-8 py-3 bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-gray-300 font-black text-[11px] uppercase rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 hover:border-red-200 flex items-center gap-2 transition-all shadow-sm">
               <VIcon class="material-symbols-outlined text-[18px]">arrow_back</VIcon> Regresar
           </VBtn>
@@ -1757,7 +1890,7 @@ const habilitarActividad = async (id: number, nombre: string) => {
                   <VIcon class="material-symbols-outlined text-[18px]">save</VIcon> Guardar Cambios
               </VBtn>
               
-              <VBtn v-if="currentStep < 5" @click="changeStep(1)"
+              <VBtn v-if="activityStep < 5" @click="changeActivityStep(1)"
                 class="px-8 py-3 bg-primary-dark dark:bg-blue-600 text-white font-black text-[11px] uppercase rounded-xl hover:bg-umsa-blue dark:hover:bg-blue-500 flex items-center gap-2 transition-all shadow-xl hover:-translate-y-0.5">
                   Continuar <VIcon class="material-symbols-outlined text-[18px]">arrow_forward</VIcon>
               </VBtn>

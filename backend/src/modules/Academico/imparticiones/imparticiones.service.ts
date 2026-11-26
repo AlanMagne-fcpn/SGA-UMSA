@@ -1,5 +1,5 @@
 import { CoordinacionEvento } from '../coordinaciones/entities/coordinacion.entity';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Imparticion } from './entities/imparticion.entity';
@@ -27,25 +27,40 @@ export class ImparticionesService {
    */
   async asignarPonente(dto: AsignarPonenteDto) {
     const { email, nombres, primer_apellido, id_actividad, id_evento } = dto;
+    const emailNorm = String(email || '').trim().toLowerCase();
 
     // 1. Buscar si el usuario ya existe
-    let usuario = await this.usuariosService.findOptionalByEmail(email);
+    let usuario = await this.usuariosService.findOptionalByEmail(emailNorm);
 
-    if (!usuario) {
+    if (usuario) {
+      // No permitir que un inscrito/postulante de la misma actividad figure como docente.
+      const inscrito = await this.actividadRepository.manager.query(
+        `SELECT i.id
+         FROM inscripciones i
+         WHERE i.id_actividad_academica = $1
+           AND i.id_usuario = $2
+           AND i.estado IN (0, 1, 3)
+         LIMIT 1`,
+        [id_actividad, usuario.id],
+      );
+      if (inscrito?.length) {
+        throw new BadRequestException(
+          'Este correo pertenece a un estudiante inscrito o postulante de esta actividad. No puede asignarse como ponente aquí.',
+        );
+      }
+      await this.usuariosService.asignarRol(usuario.id, RoleId.PONENTE);
+    } else {
       // 2. Si no existe, crearlo como Ponente
       usuario = (await this.usuariosService.crearPonente({
-        email,
+        email: emailNorm,
         password: 'Tyan.2026!', // Password temporal por defecto
         nombres,
         primer_apellido,
         id_rol: RoleId.PONENTE,
       })) as any;
-    } else {
-      // 3. Si existe, asegurar que tenga el rol de Ponente
-      await this.usuariosService.asignarRol(usuario.id, RoleId.PONENTE);
     }
 
-    // 4. Crear la Impartición (vincular a la actividad)
+    // 3. Crear la Impartición (vincular a la actividad)
     if (!usuario) {
       throw new NotFoundException('No se pudo encontrar ni crear el usuario para el ponente.');
     }

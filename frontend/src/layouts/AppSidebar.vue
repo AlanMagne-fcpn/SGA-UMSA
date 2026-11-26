@@ -113,15 +113,22 @@ const cambiarRol = async () => {
     'w-72 bg-white dark:bg-gray-950 text-slate-600 dark:text-gray-300 flex flex-col px-4 py-8 fixed left-0 bottom-0 top-[75px] z-[45] border-r border-slate-200 dark:border-gray-800 overflow-y-auto transition-all duration-300 ease-in-out'
   ]">
 
-    <div class="mb-6 p-5 bg-slate-50 dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm">
-      <p class="text-[10px] uppercase tracking-widest text-umsa-blue dark:text-blue-400 font-bold mb-1">Bienvenido</p>
-      <h3 class="text-sm font-black text-primary-dark dark:text-white leading-tight">
-        {{ authStore.user?.persona?.nombres || 'Super' }} {{ authStore.user?.persona?.primer_apellido || 'Admin' }}
-      </h3>
-      <p class="text-xs text-slate-500 dark:text-gray-400 mt-1">
-        {{ authStore.user?.persona?.segundo_apellido || 'Sistema' }}
-      </p>
-
+    <div class="mb-8 rounded-2xl border border-sky-100 bg-sky-50 p-4 dark:border-sky-900/30 dark:bg-sky-900/15">
+      <div class="mb-2 flex items-center gap-3">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-umsa-blue shadow-lg">
+          <VIcon class="material-symbols-outlined text-[20px] text-white">manage_accounts</VIcon>
+        </div>
+        <div class="min-w-0">
+          <p class="mb-1 text-[9px] font-black uppercase leading-none tracking-widest text-umsa-blue">Coordinador</p>
+          <h3 class="truncate text-xs font-black leading-tight text-slate-800 dark:text-white">
+            {{ authStore.user?.persona?.nombres || 'Coordinador' }} {{ authStore.user?.persona?.primer_apellido || '' }}
+          </h3>
+        </div>
+      </div>
+      <div class="mt-3 flex items-center gap-2 border-t border-slate-200 pt-3 dark:border-white/10">
+        <div class="h-2 w-2 animate-pulse rounded-full bg-umsa-blue"></div>
+        <span class="text-[9px] font-bold uppercase tracking-widest text-slate-500">SGEA | Acceso Gestión</span>
+      </div>
     </div>
 
 
@@ -130,42 +137,51 @@ const cambiarRol = async () => {
       <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 mt-2 pl-2">Menú Principal</p>
 
       <VBtn @click="navigate('coordinador-dashboard')"
-        :class="[ $route.name === 'coordinador-dashboard' ? 'nav-active bg-umsa-blue text-white shadow-md shadow-umsa-blue/20' : 'hover:bg-slate-50 dark:hover:bg-gray-900 text-slate-500' ]"
-        class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group">
-        <span class="text-[10px] sm:text-xs uppercase tracking-wider font-bold">Dashboard</span>
-        <VIcon class="material-symbols-outlined text-[18px] transition-colors" :class="[ $route.name === 'coordinador-dashboard' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">dashboard</VIcon>
+        :class="[ $route.name === 'coordinador-dashboard' ? 'bg-umsa-blue text-white shadow-md' : 'text-slate-600 hover:bg-sky-50 dark:text-slate-400 dark:hover:bg-sky-900/20' ]"
+        class="group flex w-full items-center justify-between rounded-xl px-4 py-3 font-bold transition-all">
+        <div class="flex items-center gap-3">
+          <VIcon class="material-symbols-outlined text-[20px]">monitoring</VIcon>
+          <span class="text-[11px] uppercase tracking-wider">Dashboard</span>
+        </div>
+        <VIcon class="material-symbols-outlined text-[16px] opacity-0 transition-opacity group-hover:opacity-100">chevron_right</VIcon>
       </VBtn>
 
       <VBtn @click="navigate('coordinador-gestion-eventos')"
-        :class="[ $route.name === 'coordinador-gestion-eventos' ? 'nav-active bg-umsa-blue text-white shadow-md shadow-umsa-blue/20' : 'hover:bg-slate-50 dark:hover:bg-gray-900 text-slate-500' ]"
-        class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group mt-2">
-        <span class="text-[10px] sm:text-xs uppercase tracking-wider font-bold">Gestión de Eventos</span>
-        <VIcon class="material-symbols-outlined text-[18px] transition-colors" :class="[ $route.name === 'coordinador-gestion-eventos' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">event_note</VIcon>
+        :class="[ $route.name === 'coordinador-gestion-eventos' ? 'bg-umsa-blue text-white shadow-md' : 'text-slate-600 hover:bg-sky-50 dark:text-slate-400 dark:hover:bg-sky-900/20' ]"
+        class="group mt-1.5 flex w-full items-center justify-between rounded-xl px-4 py-3 font-bold transition-all">
+        <div class="flex items-center gap-3">
+          <VIcon class="material-symbols-outlined text-[20px]">corporate_fare</VIcon>
+          <span class="text-[11px] uppercase tracking-wider">Gestión de Eventos</span>
+        </div>
       </VBtn>
 
       <VBtn @click="navigate('coordinador-solicitudes')"
-        :class="[ $route.name === 'coordinador-solicitudes' ? 'nav-active bg-umsa-blue text-white shadow-md shadow-umsa-blue/20' : 'hover:bg-slate-50 dark:hover:bg-gray-900 text-slate-500' ]"
-        class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group mt-2">
-        <span class="text-[10px] sm:text-xs uppercase tracking-wider font-bold">Solicitudes y Asignación</span>
-        <VIcon class="material-symbols-outlined text-[18px] transition-colors" :class="[ $route.name === 'coordinador-solicitudes' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">how_to_reg</VIcon>
+        :class="[ $route.name === 'coordinador-solicitudes' ? 'bg-umsa-blue text-white shadow-md' : 'text-slate-600 hover:bg-sky-50 dark:text-slate-400 dark:hover:bg-sky-900/20' ]"
+        class="group mt-1.5 flex w-full items-center justify-between rounded-xl px-4 py-3 font-bold transition-all">
+        <div class="flex items-center gap-3">
+          <VIcon class="material-symbols-outlined text-[20px]">how_to_reg</VIcon>
+          <span class="text-[11px] uppercase tracking-wider">Solicitudes</span>
+        </div>
       </VBtn>
 
       <VBtn @click="navigate('coordinador-inscripciones-excel')"
-        :class="[ $route.name === 'coordinador-inscripciones-excel' ? 'nav-active bg-umsa-blue text-white shadow-md shadow-umsa-blue/20' : 'hover:bg-slate-50 dark:hover:bg-gray-900 text-slate-500' ]"
-        class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group mt-2">
-        <span class="text-[10px] sm:text-xs uppercase tracking-wider font-bold">Importar Excel</span>
-        <div class="flex items-center gap-2">
-          <span class="text-[8px] font-black text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Nuevo</span>
-          <VIcon class="material-symbols-outlined text-[18px] transition-colors" :class="[ $route.name === 'coordinador-inscripciones-excel' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">upload_file</VIcon>
+        :class="[ $route.name === 'coordinador-inscripciones-excel' ? 'bg-umsa-blue text-white shadow-md' : 'text-slate-600 hover:bg-sky-50 dark:text-slate-400 dark:hover:bg-sky-900/20' ]"
+        class="group mt-1.5 flex w-full items-center justify-between rounded-xl px-4 py-3 font-bold transition-all">
+        <div class="flex items-center gap-3">
+          <VIcon class="material-symbols-outlined text-[20px]">upload_file</VIcon>
+          <span class="text-[11px] uppercase tracking-wider">Carga masiva</span>
         </div>
+        <span class="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-emerald-500">Nuevo</span>
       </VBtn>
       <p v-if="authStore.esAdmin" class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 mt-6 pl-2">Configuración</p>
 
       <VBtn v-if="authStore.esAdmin" @click="navigate('coordinador-mail-templates')"
-        :class="[ $route.name === 'coordinador-mail-templates' ? 'nav-active bg-umsa-blue text-white shadow-md shadow-umsa-blue/20' : 'hover:bg-slate-50 dark:hover:bg-gray-900 text-slate-500' ]"
-        class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all group mt-2">
-        <span class="text-[10px] sm:text-xs uppercase tracking-wider font-bold">Plantillas de Correo</span>
-        <VIcon class="material-symbols-outlined text-[18px] transition-colors" :class="[ $route.name === 'coordinador-mail-templates' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">mail</VIcon>
+        :class="[ $route.name === 'coordinador-mail-templates' ? 'bg-umsa-blue text-white shadow-md' : 'text-slate-600 hover:bg-sky-50 dark:text-slate-400 dark:hover:bg-sky-900/20' ]"
+        class="group mt-1.5 flex w-full items-center justify-between rounded-xl px-4 py-3 font-bold transition-all">
+        <div class="flex items-center gap-3">
+          <VIcon class="material-symbols-outlined text-[20px]">mail</VIcon>
+          <span class="text-[11px] uppercase tracking-wider">Correos</span>
+        </div>
       </VBtn>
 
     </VSheet>

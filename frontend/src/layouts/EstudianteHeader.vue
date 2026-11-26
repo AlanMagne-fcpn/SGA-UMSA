@@ -272,40 +272,39 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <VSheet tag="header" class="fixed top-0 left-0 right-0 h-[75px] bg-white dark:bg-gray-900 border-b border-slate-200 dark:border-gray-800 z-[100] px-4 md:px-8 flex items-center justify-between shadow-sm transition-colors duration-300">
-    <!-- Logo & Title matching Ponente -->
-    <!-- Logo & Title -->
-    <div class="flex items-center flex-1 space-x-4 md:space-x-6">
-      <VBtn @click="uiStore.toggleSidebar()" class="lg:hidden w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-50 dark:hover:bg-gray-800 text-slate-500">
+  <VSheet tag="header" class="fixed left-0 right-0 top-0 z-[100] flex h-[75px] items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 shadow-sm transition-colors duration-300 dark:border-gray-800 dark:bg-gray-900 sm:px-4 md:px-8">
+    <div class="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
+      <VBtn
+        @click="uiStore.toggleSidebar()"
+        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-50 dark:hover:bg-gray-800 lg:hidden"
+        aria-label="Abrir menú"
+      >
         <VIcon class="material-symbols-outlined text-[24px]">menu</VIcon>
       </VBtn>
 
-      <div class="hidden sm:flex flex-col flex-shrink-0 cursor-pointer border-r border-slate-200 dark:border-gray-800 pr-4 md:pr-6 justify-center">
-        <h2 class="text-black dark:text-white font-clarendon font-black text-[10px] md:text-xs tracking-tighter leading-none">Sistema de Gestión de Eventos</h2>
-        <p class="text-[8px] text-slate-500 dark:text-gray-400 font-clarendon mt-0.5">Plataforma Académica</p>
+      <div class="flex min-w-0 cursor-pointer items-center gap-2 sm:gap-3" @click="$router.push('/estudiante')">
+        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#003B71] to-[#0070BB] shadow-lg shadow-[#003B71]/40">
+          <VIcon class="material-symbols-outlined text-[16px] text-white">school</VIcon>
+        </div>
+        <div class="min-w-0">
+          <p class="text-[9px] font-black uppercase leading-none tracking-widest text-umsa-blue dark:text-sky-400 sm:text-[10px]">Sistema SGEA</p>
+          <h1 class="truncate text-xs font-black leading-tight text-slate-800 dark:text-white sm:text-sm">Panel del Estudiante</h1>
+        </div>
       </div>
-
-      <h1 class="text-xs md:text-sm font-black text-umsa-blue dark:text-blue-500 tracking-widest uppercase italic hidden md:block">
-        Portal Estudiante
-      </h1>
     </div>
 
-    <!-- Center Search Bar (Hidden to match exact layout, but can be kept if wanted. I'll hide it for identical structural match) -->
-    <div class="hidden md:flex flex-1 max-w-xl mx-8">
+    <div class="mx-2 hidden max-w-xl flex-1 lg:mx-8 lg:flex">
       <div class="relative w-full">
         <VIcon class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</VIcon>
         <UiInput
-          type="text" 
-          placeholder="Buscar cursos, calificaciones..." 
-          class="w-full bg-slate-50 dark:bg-gray-900 border-none rounded-xl pl-12 pr-4 py-3 
-                 text-sm outline-none focus:ring-2 focus:ring-umsa-blue/50 focus:bg-white dark:focus:bg-gray-800 
-                 transition-all text-slate-700 dark:text-gray-200 shadow-inner"
+          type="text"
+          placeholder="Buscar cursos, calificaciones..."
+          class="w-full rounded-xl border-none bg-slate-50 py-3 pl-12 pr-4 text-sm text-slate-700 shadow-inner outline-none transition-all focus:bg-white focus:ring-2 focus:ring-umsa-blue/50 dark:bg-gray-900 dark:text-gray-200 dark:focus:bg-gray-800"
         />
       </div>
     </div>
 
-    <!-- Actions & Profile -->
-    <div class="flex items-center space-x-2 md:space-x-4">
+    <div class="flex shrink-0 items-center gap-1.5 sm:gap-2 md:gap-3">
       <VBtn
         @click="toggleDark"
         class="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-gray-800 text-slate-500 dark:text-gray-400 hover:text-umsa-blue hover:bg-slate-100 dark:hover:text-blue-500 dark:hover:bg-gray-700 transition-all shadow-sm border border-slate-200 dark:border-gray-700 mx-1 md:mx-2"
@@ -328,7 +327,7 @@ onUnmounted(() => {
 
         <!-- Dropdown Estudiante -->
         <div v-if="showStudentNotifications" @click.stop @mousemove="resetAutoClose"
-          class="absolute right-0 mt-4 w-72 md:w-80 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-gray-800 z-[200] overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
+          class="absolute right-0 z-[200] mt-4 w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-2xl animate-in fade-in slide-in-from-top-4 duration-300 dark:border-gray-800 dark:bg-slate-900">
           <div class="p-5 border-b border-slate-100 dark:border-gray-800 flex justify-between items-center bg-slate-50/50 dark:bg-gray-800/50">
             <h3 class="text-[10px] font-black text-primary-dark dark:text-white uppercase tracking-widest">Alertas del Sistema</h3>
             <span class="text-[8px] font-bold text-slate-400 uppercase bg-slate-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">{{ studentNotifications.length }}</span>
@@ -381,7 +380,7 @@ onUnmounted(() => {
         </VBtn>
 
         <!-- Dropdown -->
-        <div v-if="isProfileOpen" @mousemove="resetAutoClose" class="absolute right-0 top-full mt-2 w-[220px] bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+        <div v-if="isProfileOpen" @mousemove="resetAutoClose" class="absolute right-0 top-full z-50 mt-2 w-[min(220px,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl animate-in fade-in slide-in-from-top-2 dark:border-gray-700 dark:bg-gray-900">
           
           <div class="p-4 border-b border-slate-100 dark:border-gray-800 bg-slate-50 dark:bg-gray-800/50 block md:hidden">
              <span class="block text-xs font-black text-primary-dark dark:text-white">{{ authStore.user?.persona?.nombres || 'Usuario' }} {{ authStore.user?.persona?.primer_apellido || '' }}</span>
@@ -428,9 +427,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@900&display=swap');
-
 .font-clarendon {
-  font-family: 'Roboto Slab', serif;
+  font-family: Urbanist, sans-serif;
 }
 </style>

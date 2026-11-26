@@ -8,21 +8,23 @@ const uiStore = useUIStore();
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f8f9fc] dark:bg-black transition-colors duration-300 relative">
+  <div class="relative min-h-screen overflow-x-hidden bg-[#f8f9fc] transition-colors duration-300 dark:bg-black">
     <EstudianteHeader />
     <EstudianteSidebar />
-    
-    <!-- Overlay para móviles -->
-    <div v-if="uiStore.isSidebarOpen" 
-         @click="uiStore.closeSidebar"
-         class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[105] lg:hidden animate-in fade-in duration-300">
-    </div>
 
-    <main :class="[
-            uiStore.isSidebarOpen ? 'lg:ml-72' : 'ml-0',
-            'transition-all duration-300 p-4 md:p-10 pt-[100px] md:pt-[105px] min-h-screen relative'
-          ]">
-      <div class="max-w-7xl mx-auto">
+    <div
+      v-if="uiStore.isSidebarOpen"
+      class="fixed inset-0 z-[105] bg-black/50 backdrop-blur-sm animate-in fade-in duration-300 lg:hidden"
+      @click="uiStore.closeSidebar"
+    />
+
+    <main
+      :class="[
+        uiStore.isSidebarOpen ? 'lg:ml-72' : 'ml-0',
+        'relative min-h-screen min-w-0 transition-all duration-300 pt-[75px]',
+      ]"
+    >
+      <div class="mx-auto w-full max-w-7xl px-3 py-4 sm:px-5 sm:py-6 md:px-8 md:py-8">
         <RouterView />
       </div>
     </main>

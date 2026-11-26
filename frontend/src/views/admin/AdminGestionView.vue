@@ -240,6 +240,29 @@ const fechaCorta = (value: unknown) => {
   return texto.length >= 10 ? texto.substring(0, 10) : texto;
 };
 
+const horasActividad = (act: any) => {
+  const valor = act?.horas ?? act?.horas_academicas;
+  return valor != null && valor !== '' && Number(valor) > 0 ? Number(valor) : null;
+};
+
+/** Quita metadatos internos ([INHABILITACION_MOTIVO], [FECHA], etc.) del preview de descripción. */
+const resumenDescripcion = (descripcion?: string | null, max = 72) => {
+  if (!descripcion) return '';
+  const motivo = descripcion.split(/\[INHABILITACION_MOTIVO\]:?/i)?.[1]?.split(/\[|\n/)?.[0]?.trim();
+  const limpia = descripcion
+    .replace(/\[INHABILITACION_MOTIVO\]:?[^\n\[]*/gi, '')
+    .replace(/\[FECHA(_INHABILITACION)?\]:?[^\n\[]*/gi, '')
+    .replace(/\[SOLICITUD_ACTIVACION\]:?[^\n\[]*/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (limpia) return limpia.length > max ? `${limpia.slice(0, max)}…` : limpia;
+  if (motivo) {
+    const texto = `Inhabilitada: ${motivo}`;
+    return texto.length > max ? `${texto.slice(0, max)}…` : texto;
+  }
+  return '';
+};
+
 const estadoActividadLabel = (estado: number) =>
   estado === 1 ? 'En curso' : estado === 0 ? 'Concluida' : estado === -1 ? 'Inhabilitada' : 'Borrador';
 
@@ -773,7 +796,7 @@ const exportarExcelSegmentado = (categoria: string) => {
     contentHtml = `
       <tr><td colspan="5" style="background-color: #f59e0b; color: white; font-weight: bold; font-size: 16pt; text-align: center;">REPORTE DE ACTIVIDADES ACADÉMICAS</td></tr>
       <tr style="background-color: #fef3c7; font-weight: bold;"><td>ID</td><td>Actividad</td><td>Tipo</td><td>Horas</td><td>Fecha</td></tr>
-      ${actividades.value.map(a => `<tr><td>${a.id}</td><td>${a.nombre}</td><td>${a.tipo}</td><td>${a.horas_academicas || 0}</td><td>${a.fecha_inicio || '—'}</td></tr>`).join('')}
+      ${actividades.value.map(a => `<tr><td>${a.id}</td><td>${a.nombre}</td><td>${a.tipo}</td><td>${horasActividad(a) ?? 0}</td><td>${a.fecha_inicio || '—'}</td></tr>`).join('')}
     `;
   } else if (categoria === 'usuarios') {
     contentHtml = `
@@ -837,7 +860,7 @@ const exportarPDFSegmentado = async (categoria: string) => {
       body = eventos.value.map(e => [e.id, e.nombre, e.gestion, e.modalidad || 'Presencial', e.estado === 1 ? 'Activo' : 'Planificación']);
     } else if (categoria === 'actividades') {
       head = [['ID', 'ACTIVIDAD', 'TIPO', 'HORAS', 'FECHA']];
-      body = actividades.value.map(a => [a.id, a.nombre, a.tipo, a.horas_academicas || 0, a.fecha_inicio || '—']);
+      body = actividades.value.map(a => [a.id, a.nombre, a.tipo, horasActividad(a) ?? 0, a.fecha_inicio || '—']);
     } else if (categoria === 'usuarios') {
       head = [['NOMBRE', 'EMAIL', 'ROL', 'REGISTRO']];
       body = usuariosDetalle.value.map(u => [u.nombre || u.persona?.nombre, u.email, u.rol, u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—']);
@@ -934,60 +957,106 @@ const exportarPDFSegmentado = async (categoria: string) => {
     <!-- FILTROS -->
     <VCard class="bg-white dark:bg-[#13131f] border border-slate-200 dark:border-white/5 rounded-2xl p-4 shadow-sm">
       <div class="flex flex-wrap gap-3 items-center">
-        <div class="flex-1 min-w-[200px] relative">
-          <VIcon class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[18px]">search</VIcon>
-          <UiInput v-model="filtroTexto" type="text" :placeholder="`Buscar ${tabActivo === 'eventos' ? 'evento' : 'actividad'}...`"
-                 class="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm outline-none focus:border-umsa-blue/50 text-slate-800 dark:text-white transition-all" />
+        <div class="relative min-w-[200px] flex-1">
+          <span class="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 material-symbols-outlined text-[18px] text-slate-400">search</span>
+          <div class="rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 dark:border-white/10 dark:bg-white/5">
+            <UiInput
+              v-model="filtroTexto"
+              type="text"
+              :placeholder="`Buscar ${tabActivo === 'eventos' ? 'evento' : 'actividad'}...`"
+              class="w-full border-0 bg-transparent py-2.5 text-sm text-slate-800 outline-none dark:text-white"
+            />
+          </div>
         </div>
         <template v-if="tabActivo === 'eventos'">
-          <div class="flex gap-1.5 flex-wrap items-center">
-            <VBtn v-for="(cfg, est) in estadoEventoConfig" :key="est"
-                    @click="filtroEstado = filtroEstado === String(est) ? '' : String(est)"
-                    :class="filtroEstado === String(est) ? 'bg-slate-800 dark:bg-white text-white dark:text-slate-900' : 'bg-slate-100 dark:bg-white/5 text-slate-500'"
-                    class="px-3 py-1.5 text-[9px] font-black uppercase rounded-lg transition-all">
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              v-for="(cfg, est) in estadoEventoConfig"
+              :key="est"
+              type="button"
+              class="rounded-lg border px-3 py-1.5 text-[9px] font-black uppercase transition-all"
+              :class="filtroEstado === String(est)
+                ? 'border-slate-800 bg-slate-800 text-white dark:border-white dark:bg-white dark:text-slate-900'
+                : 'border-slate-200 bg-slate-100 text-slate-600 hover:border-slate-300 dark:border-white/10 dark:bg-white/10 dark:text-slate-300'"
+              @click="filtroEstado = filtroEstado === String(est) ? '' : String(est)"
+            >
               {{ cfg.label }}
-            </VBtn>
-            <VBtn v-if="filtroEstado || filtroTexto" @click="limpiarFiltros"
-                    class="px-3 py-1.5 text-[9px] font-black uppercase rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all border border-red-100">
+            </button>
+            <button
+              v-if="filtroEstado || filtroTexto"
+              type="button"
+              class="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-[9px] font-black uppercase text-red-600 transition-all hover:bg-red-100"
+              @click="limpiarFiltros"
+            >
               Limpiar Filtros
-            </VBtn>
-            <VBtn @click="toggleTodasLasActividades"
-                    class="px-3 py-1.5 text-[9px] font-black uppercase rounded-lg bg-sky-50 text-[#003B71] hover:bg-sky-100 transition-all border border-sky-100">
-              {{ todasLasActividadesAbiertas ? 'Cerrar actividades' : 'Abrir todas las actividades' }}
-            </VBtn>
+            </button>
           </div>
-          <div class="flex items-center gap-2 ml-auto">
-            <VBtn @click="generarReporteGeneral('eventos', 'excel')" title="Reporte Excel de Eventos" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all">
-              <VIcon class="material-symbols-outlined text-[16px]">grid_on</VIcon> Excel
-            </VBtn>
-            <VBtn @click="generarReporteGeneral('eventos', 'pdf')" title="Reporte PDF de Eventos" class="bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all">
-              <VIcon class="material-symbols-outlined text-[16px]">picture_as_pdf</VIcon> PDF
-            </VBtn>
+          <div class="ml-auto flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              class="btn-hint-pulse rounded-lg border border-sky-200 bg-sky-50 px-3.5 py-2 text-[9px] font-black uppercase tracking-wide text-[#003B71] transition-all hover:bg-sky-100"
+              @click="toggleTodasLasActividades"
+            >
+              {{ todasLasActividadesAbiertas ? 'Cerrar actividades' : 'Abrir todas las actividades' }}
+            </button>
+            <button
+              type="button"
+              title="Reporte Excel de Eventos"
+              class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-black uppercase text-emerald-700 transition-all hover:bg-emerald-600 hover:text-white"
+              @click="generarReporteGeneral('eventos', 'excel')"
+            >
+              <span class="material-symbols-outlined text-[16px] leading-none">grid_on</span> Excel
+            </button>
+            <button
+              type="button"
+              title="Reporte PDF de Eventos"
+              class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-black uppercase text-rose-700 transition-all hover:bg-rose-600 hover:text-white"
+              @click="generarReporteGeneral('eventos', 'pdf')"
+            >
+              <span class="material-symbols-outlined text-[16px] leading-none">picture_as_pdf</span> PDF
+            </button>
           </div>
         </template>
 
         <template v-if="tabActivo === 'actividades'">
-          <div class="relative min-w-[200px] max-w-xs">
-            <UiSelect v-model="filtroEventoId"
-                    class="w-full px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm outline-none focus:border-amber-500/50 text-slate-700 dark:text-slate-350 cursor-pointer appearance-none">
+          <label class="relative min-w-[200px] max-w-xs">
+            <span class="sr-only">Filtrar por evento</span>
+            <select
+              v-model="filtroEventoId"
+              class="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-4 pr-10 text-sm font-semibold text-slate-700 outline-none focus:border-amber-500/50 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"
+            >
               <option value="">Todos los eventos</option>
               <option v-for="ev in eventos" :key="ev.id" :value="ev.id">{{ ev.nombre }}</option>
-            </UiSelect>
-            <VIcon class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">unfold_more</VIcon>
-          </div>
+            </select>
+            <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-slate-400">unfold_more</span>
+          </label>
 
-          <VBtn v-if="filtroEventoId || filtroTexto" @click="limpiarFiltros"
-                  class="px-3 py-1.5 text-[9px] font-black uppercase rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-all border border-amber-100">
+          <button
+            v-if="filtroEventoId || filtroTexto"
+            type="button"
+            class="rounded-lg border border-amber-100 bg-amber-50 px-3 py-1.5 text-[9px] font-black uppercase text-amber-600 transition-all hover:bg-amber-100"
+            @click="limpiarFiltros"
+          >
             Limpiar Filtros
-          </VBtn>
+          </button>
 
-          <div class="flex items-center gap-2 ml-auto">
-            <VBtn @click="generarReporteGeneral('actividades', 'excel')" title="Reporte Excel de Actividades" class="bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all">
-              <VIcon class="material-symbols-outlined text-[16px]">grid_on</VIcon> Excel
-            </VBtn>
-            <VBtn @click="generarReporteGeneral('actividades', 'pdf')" title="Reporte PDF de Actividades" class="bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-1 transition-all">
-              <VIcon class="material-symbols-outlined text-[16px]">picture_as_pdf</VIcon> PDF
-            </VBtn>
+          <div class="ml-auto flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              title="Reporte Excel de Actividades"
+              class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-black uppercase text-emerald-700 transition-all hover:bg-emerald-600 hover:text-white"
+              @click="generarReporteGeneral('actividades', 'excel')"
+            >
+              <span class="material-symbols-outlined text-[16px] leading-none">grid_on</span> Excel
+            </button>
+            <button
+              type="button"
+              title="Reporte PDF de Actividades"
+              class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-black uppercase text-rose-700 transition-all hover:bg-rose-600 hover:text-white"
+              @click="generarReporteGeneral('actividades', 'pdf')"
+            >
+              <span class="material-symbols-outlined text-[16px] leading-none">picture_as_pdf</span> PDF
+            </button>
           </div>
         </template>
       </div>
@@ -1085,12 +1154,16 @@ const exportarPDFSegmentado = async (categoria: string) => {
           <div class="px-6 md:px-8 py-6">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h3 class="text-xs font-black uppercase tracking-widest text-slate-400">Actividades del evento</h3>
-              <VBtn v-if="(ev.actividades || []).length" @click="toggleActividadesEvento(ev.id)"
-                      class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 dark:bg-white/10 text-[#003B71] dark:text-sky-200 text-[10px] font-black uppercase tracking-widest">
-                <VIcon class="material-symbols-outlined text-[16px]">{{ actividadesVisibles[ev.id] ? 'expand_less' : 'expand_more' }}</VIcon>
-                {{ actividadesVisibles[ev.id] ? 'Ocultar actividades' : 'Ver actividades' }}
-                <span class="px-2 py-0.5 rounded-full bg-[#0070BB] text-white">{{ (ev.actividades || []).length }}</span>
-              </VBtn>
+              <button
+                v-if="(ev.actividades || []).length"
+                type="button"
+                class="btn-hint-pulse inline-flex items-center gap-2.5 rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-[#003B71] dark:border-white/10 dark:bg-white/10 dark:text-sky-200"
+                @click="toggleActividadesEvento(ev.id)"
+              >
+                <span class="material-symbols-outlined text-[16px] leading-none">{{ actividadesVisibles[ev.id] ? 'expand_less' : 'expand_more' }}</span>
+                <span>{{ actividadesVisibles[ev.id] ? 'Ocultar actividades' : 'Ver actividades' }}</span>
+                <span class="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-[#0070BB] px-2.5 py-0.5 leading-none text-white">{{ (ev.actividades || []).length }}</span>
+              </button>
             </div>
             <p v-if="!(ev.actividades || []).length" class="text-sm text-slate-500">Este evento todavía no tiene actividades.</p>
             <div v-else-if="actividadesVisibles[ev.id]" class="space-y-4">
@@ -1109,7 +1182,7 @@ const exportarPDFSegmentado = async (categoria: string) => {
                     </div>
                     <p class="mt-2 text-sm font-bold text-slate-600 dark:text-slate-300">{{ fechaCorta(act.fecha_inicio) }} → {{ fechaCorta(act.fecha_fin) }}</p>
                     <p class="mt-1 text-[11px] text-slate-500">
-                      {{ act.horas ? `${act.horas} horas` : 'Sin carga horaria' }}
+                      {{ horasActividad(act) != null ? `${horasActividad(act)} horas` : 'Sin carga horaria' }}
                       · nota mínima {{ act.min_nota ?? '—' }}
                       · asistencia {{ act.min_asistencia ?? '—' }}%
                       · {{ usuariosDeActividad(act).length }} inscritos
@@ -1175,47 +1248,63 @@ const exportarPDFSegmentado = async (categoria: string) => {
               <tr v-for="act in actividadesFiltradas" :key="act.id"
                   class="hover:bg-slate-50 dark:hover:bg-white/3 transition-colors group">
                 <td class="px-6 py-4">
-                  <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 overflow-hidden border border-slate-200 dark:border-gray-700 bg-gradient-to-br from-[#003B71] to-[#0070BB]">
-                      <img :src="imagenActividad(act)" data-course-image class="w-full h-full object-cover" :alt="act.nombre">
+                  <div class="flex min-w-0 max-w-[18rem] items-center gap-3">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-[#003B71] to-[#0070BB] dark:border-gray-700">
+                      <img :src="imagenActividad(act)" data-course-image class="h-full w-full object-cover" :alt="act.nombre">
                     </div>
-                    <div>
-                      <p class="text-sm font-black text-slate-800 dark:text-white">{{ act.nombre }}</p>
-                      <p class="text-[10px] text-slate-500 font-medium">{{ act.descripcion?.substring(0, 50) || '' }}</p>
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-black text-slate-800 dark:text-white" :title="act.nombre">{{ act.nombre }}</p>
+                      <p v-if="resumenDescripcion(act.descripcion)" class="truncate text-[10px] font-medium text-slate-500" :title="resumenDescripcion(act.descripcion, 160)">
+                        {{ resumenDescripcion(act.descripcion) }}
+                      </p>
                     </div>
                   </div>
                 </td>
                 <td class="px-6 py-4">
-                  <span class="text-[10px] font-bold bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 px-2 py-1 rounded-lg border border-slate-200 dark:border-white/10">
+                  <span
+                    class="inline-block max-w-[12rem] truncate rounded-lg border border-slate-200 bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400"
+                    :title="act.evento?.nombre || ''"
+                  >
                     {{ act.evento?.nombre || '—' }}
                   </span>
                 </td>
                 <td class="px-6 py-4">
-                  <span class="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase">{{ act.tipo || '—' }}</span>
+                  <span class="whitespace-nowrap text-[10px] font-black uppercase text-amber-700 dark:text-amber-400">{{ act.tipo || '—' }}</span>
                 </td>
                 <td class="px-6 py-4 text-center">
-                  <span class="text-sm font-black text-slate-700 dark:text-slate-300">{{ act.horas ? `${act.horas}h` : '—' }}</span>
+                  <span class="whitespace-nowrap text-sm font-black text-slate-700 dark:text-slate-300">{{ horasActividad(act) != null ? `${horasActividad(act)}h` : '—' }}</span>
                 </td>
                 <td class="px-6 py-4">
-                  <p class="text-[10px] font-bold text-slate-500">
-                    {{ act.fecha_inicio?.substring(0, 10) || '—' }}
-                    <span v-if="act.fecha_fin"> → {{ act.fecha_fin?.substring(0, 10) }}</span>
+                  <p class="whitespace-nowrap text-[10px] font-bold text-slate-500">
+                    {{ fechaCorta(act.fecha_inicio) }}
+                    <span v-if="act.fecha_fin"> → {{ fechaCorta(act.fecha_fin) }}</span>
                   </p>
                 </td>
                 <td class="px-6 py-4 text-right">
-                  <div class="flex justify-end items-center gap-1">
-                    <router-link :to="{ name: 'admin-gestion-eventos-detalle', params: { id: act.id } }" title="Administrar Estudiantes y Notas"
-                            class="p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-slate-400 hover:text-emerald-600 transition-all">
-                      <VIcon class="material-symbols-outlined text-[18px]">manage_accounts</VIcon>
+                  <div class="flex items-center justify-end gap-1">
+                    <router-link
+                      :to="{ name: 'admin-gestion-eventos-detalle', params: { id: act.id } }"
+                      title="Administrar Estudiantes y Notas"
+                      class="rounded-lg p-2 text-slate-400 transition-all hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/20"
+                    >
+                      <span class="material-symbols-outlined text-[18px] leading-none">manage_accounts</span>
                     </router-link>
-                    <VBtn @click="abrirEditarActividad(act)" title="Editar"
-                            class="p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-slate-400 hover:text-blue-600 transition-all">
-                      <VIcon class="material-symbols-outlined text-[18px]">edit</VIcon>
-                    </VBtn>
-                    <VBtn @click="confirmarEliminarActividad(act)" title="Eliminar"
-                            class="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-600 transition-all">
-                      <VIcon class="material-symbols-outlined text-[18px]">delete</VIcon>
-                    </VBtn>
+                    <button
+                      type="button"
+                      title="Editar"
+                      class="rounded-lg p-2 text-slate-400 transition-all hover:bg-sky-50 hover:text-[#028191] dark:hover:bg-sky-900/20"
+                      @click="abrirEditarActividad(act)"
+                    >
+                      <span class="material-symbols-outlined text-[18px] leading-none">edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      title="Eliminar"
+                      class="rounded-lg p-2 text-slate-400 transition-all hover:bg-[#F04D65]/10 hover:text-[#F04D65] dark:hover:bg-rose-900/20"
+                      @click="confirmarEliminarActividad(act)"
+                    >
+                      <span class="material-symbols-outlined text-[18px] leading-none">delete</span>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -1518,9 +1607,10 @@ const exportarPDFSegmentado = async (categoria: string) => {
               class="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-[#0070BB] focus:ring-2 focus:ring-[#0070BB]/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white" />
           </label>
           <div class="flex flex-wrap gap-2" role="group" aria-label="Filtrar usuarios por rol">
+            <p class="w-full text-xs font-semibold text-[#3C6893] dark:text-sky-200">Toca un rol para ver solo esos usuarios.</p>
             <button v-for="filtro in filtrosParticipante" :key="filtro.value" type="button" :aria-pressed="filtroRolParticipante === filtro.value"
               class="rounded-lg border px-3 py-2 text-xs font-semibold transition-colors"
-              :class="filtroRolParticipante === filtro.value ? 'border-[#003B71] bg-[#003B71] text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-[#0070BB] dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200'"
+              :class="filtroRolParticipante === filtro.value ? 'border-[#003B71] bg-[#003B71] text-white' : 'btn-didactico border-[#0070BB] bg-white text-[#003B71] hover:bg-[#E5F3FC] dark:border-sky-400 dark:bg-slate-900 dark:text-sky-100'"
               @click="filtroRolParticipante = filtro.value">
               {{ filtro.label }} <span class="ml-1 opacity-70">{{ filtro.value === 'todos' ? participantesEvento.length : participantesEvento.filter((persona) => persona.roles.includes(filtro.value)).length }}</span>
             </button>
@@ -1585,7 +1675,7 @@ const exportarPDFSegmentado = async (categoria: string) => {
 
     <!-- MODAL COORDINADORES -->
     <VDialog :model-value="true" persistent class="sgea-dialog" width="100%" max-width="calc(100vw - 32px)" v-if="showModalCoordinadores" >
-      <VCard class="bg-white dark:bg-[#0d0d14] w-full max-w-2xl rounded-[2.5rem] border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+      <VCard class="bg-white dark:bg-[#0d0d14] w-full max-w-3xl rounded-[2.5rem] border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden animate-in zoom-in duration-300">
         <div class="p-8">
           <div class="flex justify-between items-center mb-8">
             <div class="flex items-center gap-3">
@@ -1604,64 +1694,60 @@ const exportarPDFSegmentado = async (categoria: string) => {
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <!-- Actuales -->
-            <div class="space-y-4">
+            <div class="min-w-0 space-y-4">
               <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <VIcon class="material-symbols-outlined text-sm">groups</VIcon> Responsables Actuales
               </h3>
               <div v-if="cargandoCoordinadores" class="py-10 flex justify-center"><div class="w-6 h-6 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin"></div></div>
               <div v-else-if="coordinadoresActuales.length === 0" class="py-10 text-center border-2 border-dashed border-slate-100 rounded-2xl text-[10px] font-bold text-slate-300 uppercase">Sin responsables asignados</div>
               <div v-else class="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                <VCard v-for="c in coordinadoresActuales" :key="c.id" class="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5">
-                  <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-gray-700 flex items-center justify-center text-[10px] font-black text-slate-500">
-                      {{ c.usuario?.persona?.nombres?.charAt(0) }}{{ c.usuario?.persona?.primer_apellido?.charAt(0) }}
-                    </div>
-                    <div>
-                      <div class="flex items-center gap-2">
-                        <p class="text-[10px] font-black text-slate-800 dark:text-white uppercase">{{ c.usuario?.persona?.nombres }} {{ c.usuario?.persona?.primer_apellido }}</p>
-                        <span class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-white/10 text-[8px] font-black text-slate-500 uppercase">
-                          {{ getRoleName(c.usuario) }}
-                        </span>
-                      </div>
-                      <p class="text-[8px] text-slate-400 font-bold uppercase tracking-tighter">{{ c.usuario?.email }}</p>
-                    </div>
+                <div v-for="c in coordinadoresActuales" :key="c.id" class="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-white/5 dark:bg-white/5">
+                  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-black text-slate-500 dark:bg-gray-700">
+                    {{ c.usuario?.persona?.nombres?.charAt(0) }}{{ c.usuario?.persona?.primer_apellido?.charAt(0) }}
                   </div>
-                  <VBtn @click="quitarCoordinador(c)" class="text-slate-300 hover:text-red-500 transition-colors"><VIcon class="material-symbols-outlined text-lg">remove_circle</VIcon></VBtn>
-                </VCard>
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-[10px] font-black uppercase text-slate-800 dark:text-white">{{ c.usuario?.persona?.nombres }} {{ c.usuario?.persona?.primer_apellido }}</p>
+                    <span class="mt-1 inline-block rounded bg-slate-200 px-1.5 py-0.5 text-[8px] font-black uppercase text-slate-500 dark:bg-white/10">
+                      {{ getRoleName(c.usuario) }}
+                    </span>
+                    <p class="truncate text-[8px] font-bold uppercase tracking-tighter text-slate-400">{{ c.usuario?.email }}</p>
+                  </div>
+                  <button type="button" class="shrink-0 text-slate-300 transition-colors hover:text-red-500" aria-label="Quitar responsable" @click="quitarCoordinador(c)">
+                    <VIcon class="material-symbols-outlined text-lg">remove_circle</VIcon>
+                  </button>
+                </div>
               </div>
             </div>
 
             <!-- Candidatos -->
-            <div class="space-y-4">
+            <div class="min-w-0 space-y-4">
               <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <VIcon class="material-symbols-outlined text-sm">person_search</VIcon> Asignar Nuevo
               </h3>
               <UiInput v-model="queryCandidato" type="text" placeholder="BUSCAR POR NOMBRE O EMAIL..." class="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-[10px] font-bold uppercase outline-none focus:border-slate-800/50 transition-all" />
-              <div class="flex gap-1">
-                <VBtn v-for="op in [{ id: 'todos', label: 'Todos' }, { id: 'libre', label: 'Libres' }, { id: 'restringido', label: 'Restringidos' }]" :key="op.id" type="button" @click="filtroAlcance = op.id as any" class="px-2 py-1 rounded-lg text-[8px] font-black uppercase" :class="filtroAlcance === op.id ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500'">{{ op.label }}</VBtn>
+              <div class="flex flex-wrap gap-1">
+                <button v-for="op in [{ id: 'todos', label: 'Todos' }, { id: 'libre', label: 'Libres' }, { id: 'restringido', label: 'Restringidos' }]" :key="op.id" type="button" class="rounded-lg px-2.5 py-1 text-[10px] font-black uppercase" :class="filtroAlcance === op.id ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500'" @click="filtroAlcance = op.id as any">{{ op.label }}</button>
               </div>
               <div class="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
                 <p v-if="candidatosFiltrados.length === 0" class="py-6 text-center text-[10px] font-bold uppercase text-slate-300">No hay coordinadores con ese filtro</p>
-                <VCard v-for="u in candidatosFiltrados" :key="u.id" class="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-colors border border-transparent hover:border-slate-100">
-                  <VBtn type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" @click="asignarCoordinador(u)">
-                    <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-gray-800 flex items-center justify-center text-[10px] font-black text-slate-400">
+                <div v-for="u in candidatosFiltrados" :key="u.id" class="min-w-0 rounded-xl border border-transparent p-3 transition-colors hover:border-slate-100 hover:bg-slate-50 dark:hover:bg-white/5">
+                  <button type="button" class="flex w-full min-w-0 items-center gap-3 text-left" @click="asignarCoordinador(u)">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-400 dark:bg-gray-800">
                       <VIcon class="material-symbols-outlined text-sm">person</VIcon>
                     </div>
-                    <div class="min-w-0">
-                      <div class="flex items-center gap-2">
-                        <p class="text-[10px] font-black text-slate-700 dark:text-gray-200 uppercase truncate">{{ nombreCompleto(u) }}</p>
-                        <span class="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-[7px] font-black text-blue-600 uppercase border border-blue-100 dark:border-blue-800/30">
-                          {{ getRoleName(u) }}
-                        </span>
-                      </div>
-                      <p class="text-[8px] text-slate-400 truncate">{{ u.email }}</p>
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-[10px] font-black uppercase text-slate-700 dark:text-gray-200">{{ nombreCompleto(u) }}</p>
+                      <p class="truncate text-[8px] text-slate-400">{{ u.email }}</p>
+                      <span class="mt-1 inline-block rounded border border-blue-100 bg-blue-50 px-1.5 py-0.5 text-[8px] font-black uppercase text-blue-600 dark:border-blue-800/30 dark:bg-blue-900/20">
+                        {{ getRoleName(u) }}
+                      </span>
                     </div>
-                  </VBtn>
-                  <div v-if="esCoordinador(u)" class="flex shrink-0 flex-col gap-1">
-                    <VBtn type="button" class="rounded px-1.5 py-0.5 text-[7px] font-black uppercase" :class="u.alcance_eventos === 'libre' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'" @click="definirAlcance(u, 'libre')">Libre</VBtn>
-                    <VBtn type="button" class="rounded px-1.5 py-0.5 text-[7px] font-black uppercase" :class="u.alcance_eventos !== 'libre' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-400'" @click="definirAlcance(u, 'restringido')">Restringido</VBtn>
+                  </button>
+                  <div v-if="esCoordinador(u)" class="mt-2 flex flex-wrap gap-2 pl-11">
+                    <button type="button" class="rounded-lg px-2.5 py-1 text-[10px] font-black uppercase" :class="u.alcance_eventos === 'libre' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'" @click="definirAlcance(u, 'libre')">Libre</button>
+                    <button type="button" class="rounded-lg px-2.5 py-1 text-[10px] font-black uppercase" :class="u.alcance_eventos !== 'libre' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-400'" @click="definirAlcance(u, 'restringido')">Restringido</button>
                   </div>
-                </VCard>
+                </div>
               </div>
             </div>
           </div>
@@ -1680,4 +1766,18 @@ const exportarPDFSegmentado = async (categoria: string) => {
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; }
+
+.btn-didactico {
+  animation: sgea-pulso 1.6s ease-out infinite;
+}
+
+@keyframes sgea-pulso {
+  0% { box-shadow: 0 0 0 0 rgba(0, 112, 187, 0.55); }
+  70% { box-shadow: 0 0 0 8px rgba(0, 112, 187, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 112, 187, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-didactico { animation: none; }
+}
 </style>

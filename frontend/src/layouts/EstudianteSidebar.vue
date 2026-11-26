@@ -133,66 +133,82 @@ const cambiarRol = async () => {
 <template>
   <VSheet tag="aside" :class="[
     uiStore.isSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full',
-    'w-72 bg-white dark:bg-gray-950 text-slate-600 dark:text-gray-300 flex flex-col px-4 py-8 fixed left-0 bottom-0 top-[75px] z-[110] border-r border-slate-200 dark:border-gray-800 overflow-y-auto transition-all duration-300 ease-in-out'
+    'fixed bottom-0 left-0 top-[75px] z-[110] flex w-[min(18rem,85vw)] flex-col overflow-y-auto overscroll-contain border-r border-slate-200 bg-white px-4 py-6 text-slate-600 transition-transform duration-300 ease-in-out dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 sm:w-72 sm:py-8 lg:shadow-none'
   ]">
-    <div class="mb-8 p-5 bg-slate-50 dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm relative overflow-hidden group">
-      <!-- Decorative color (UMSA Green/Blue) -->
-      <div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 dark:bg-emerald-600"></div>
-
-      <div class="flex items-center gap-3 mb-2">
-        <div class="w-10 h-10 rounded-full overflow-hidden bg-emerald-100 dark:bg-gray-800 text-emerald-600 font-black flex items-center justify-center text-lg border border-emerald-200 dark:border-gray-700 shadow-inner shrink-0">
-          <img v-if="profilePhotoUrl" :src="profilePhotoUrl" alt="Foto" class="w-full h-full object-cover" />
-          <span v-else>{{ authStore.user?.persona?.nombres?.[0] || 'U' }}</span>
+    <div class="mb-8 rounded-2xl border border-sky-100 bg-sky-50 p-4 dark:border-sky-900/30 dark:bg-sky-900/15">
+      <div class="mb-2 flex items-center gap-3">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-umsa-blue text-sm font-black text-white shadow-lg">
+          <img v-if="profilePhotoUrl" :src="profilePhotoUrl" alt="Foto" class="h-full w-full object-cover" />
+          <VIcon v-else class="material-symbols-outlined text-[20px] text-white">school</VIcon>
         </div>
-        <div>
-          <p class="text-[9px] uppercase tracking-widest text-slate-400 font-bold mb-0.5">Bienvenid@</p>
-          <h3 class="text-sm font-black text-slate-800 dark:text-white leading-tight uppercase">{{ authStore.user?.persona?.nombres || 'Usuario' }}</h3>
+        <div class="min-w-0">
+          <p class="mb-1 text-[9px] font-black uppercase leading-none tracking-widest text-umsa-blue">Estudiante</p>
+          <h3 class="truncate text-xs font-black leading-tight text-slate-800 dark:text-white">
+            {{ authStore.user?.persona?.nombres || 'Estudiante' }}
+          </h3>
         </div>
       </div>
-      <p class="text-[10px] text-emerald-600 dark:text-emerald-400 mt-2 uppercase tracking-widest font-black bg-emerald-50 w-max px-2 py-1 rounded-md dark:bg-gray-800 border border-emerald-100 dark:border-gray-700">Estudiante</p>
+      <div class="mt-3 flex items-center gap-2 border-t border-slate-200 pt-3 dark:border-white/10">
+        <div class="h-2 w-2 animate-pulse rounded-full bg-umsa-blue"></div>
+        <span class="text-[9px] font-bold uppercase tracking-widest text-slate-500">SGEA | Portal académico</span>
+      </div>
     </div>
 
     <VSheet tag="nav" class="space-y-1 flex-1">
-      <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 mt-2 pl-2 border-b border-slate-100 dark:border-gray-800 pb-2">Descubrimiento</p>
-
-      <VBtn @click="navigate('estudiante-catalogo')"
-        :class="[ $route.name === 'estudiante-catalogo' ? 'nav-active bg-umsa-blue text-white shadow-md shadow-umsa-blue/20' : 'hover:bg-slate-50 dark:hover:bg-gray-900 text-slate-500' ]"
-        class="w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all group">
-        <span class="text-xs uppercase tracking-widest font-bold">Actividades Académicas</span>
-        <VIcon class="material-symbols-outlined text-[20px] transition-colors" :class="[ $route.name === 'estudiante-catalogo' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">travel_explore</VIcon>
-      </VBtn>
-
-      <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 mt-6 pl-2 border-b border-slate-100 dark:border-gray-800 pb-2">Mi Portal</p>
+      <p class="mb-3 mt-2 pl-2 text-[9px] font-black uppercase tracking-widest text-slate-400">General</p>
 
       <VBtn @click="navigate('estudiante-dashboard')"
-        :class="[ $route.name === 'estudiante-dashboard' ? 'nav-active bg-umsa-blue text-white shadow-md shadow-umsa-blue/20' : 'hover:bg-slate-50 dark:hover:bg-gray-900 text-slate-500' ]"
-        class="w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all group mt-2">
-        <span class="text-xs uppercase tracking-widest font-bold">Mis Cursos</span>
-        <VIcon class="material-symbols-outlined text-[20px] transition-colors" :class="[ $route.name === 'estudiante-dashboard' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">school</VIcon>
+        :class="[ $route.name === 'estudiante-dashboard' ? 'bg-umsa-blue text-white shadow-md' : 'text-slate-600 hover:bg-sky-50 dark:text-slate-400 dark:hover:bg-sky-900/20' ]"
+        class="flex min-h-12 w-full items-center gap-3 rounded-xl px-4 py-3.5 font-bold transition-all">
+        <VIcon class="material-symbols-outlined text-[22px]">monitoring</VIcon>
+        <span class="text-xs uppercase tracking-wider">Dashboard</span>
+      </VBtn>
+
+      <p class="mb-3 mt-6 pl-2 text-[9px] font-black uppercase tracking-widest text-slate-400">Descubrimiento</p>
+
+      <VBtn @click="navigate('estudiante-catalogo')"
+        :class="[ $route.name === 'estudiante-catalogo' ? 'bg-umsa-blue text-white shadow-md' : 'text-slate-600 hover:bg-sky-50 dark:text-slate-400 dark:hover:bg-sky-900/20' ]"
+        class="mt-1.5 flex min-h-12 w-full items-center gap-3 rounded-xl px-4 py-3.5 font-bold transition-all">
+        <VIcon class="material-symbols-outlined text-[22px]">travel_explore</VIcon>
+        <span class="text-xs uppercase tracking-wider">Eventos disponibles</span>
+      </VBtn>
+
+      <p class="mb-3 mt-6 pl-2 text-[9px] font-black uppercase tracking-widest text-slate-400">Mi portal</p>
+
+      <VBtn @click="navigate('estudiante-actividades')"
+        :class="[ $route.name === 'estudiante-actividades' || $route.name === 'estudiante-actividades-detalle' ? 'bg-umsa-blue text-white shadow-md' : 'text-slate-600 hover:bg-sky-50 dark:text-slate-400 dark:hover:bg-sky-900/20' ]"
+        class="mt-1.5 flex min-h-12 w-full items-center gap-3 rounded-xl px-4 py-3.5 font-bold transition-all">
+        <VIcon class="material-symbols-outlined text-[22px]">school</VIcon>
+        <span class="text-xs uppercase tracking-wider">Mis actividades</span>
       </VBtn>
 
       <VBtn @click="navigate('estudiante-certificados')"
-        :class="[ $route.name === 'estudiante-certificados' ? 'nav-active bg-umsa-blue text-white shadow-md shadow-umsa-blue/20' : 'hover:bg-slate-50 dark:hover:bg-gray-900 text-slate-500' ]"
-        class="w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all group mt-2">
-        <span class="text-xs uppercase tracking-widest font-bold">Mis Certificados</span>
-        <VIcon class="material-symbols-outlined text-[20px] transition-colors" :class="[ $route.name === 'estudiante-certificados' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">workspace_premium</VIcon>
+        :class="[ $route.name === 'estudiante-certificados' ? 'bg-umsa-blue text-white shadow-md' : 'text-slate-600 hover:bg-sky-50 dark:text-slate-400 dark:hover:bg-sky-900/20' ]"
+        class="mt-1.5 flex min-h-12 w-full items-center gap-3 rounded-xl px-4 py-3.5 font-bold transition-all">
+        <VIcon class="material-symbols-outlined text-[22px]">workspace_premium</VIcon>
+        <span class="text-xs uppercase tracking-wider">Certificados</span>
       </VBtn>
-
-
-
     </VSheet>
 
-    <div class="mt-auto space-y-2">
-      <VBtn @click="cambiarRol" v-if="authStore.tieneMultiplesRoles"
-        class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-bold text-slate-500 hover:bg-slate-50 dark:hover:bg-gray-900 border border-transparent mb-2">
-        <span class="text-[10px] uppercase tracking-widest">Cambiar Rol</span>
-        <VIcon class="material-symbols-outlined text-[18px]">cached</VIcon>
-      </VBtn>
+    <div class="mt-auto space-y-2.5">
+      <button
+        v-if="authStore.tieneMultiplesRoles"
+        type="button"
+        @click="cambiarRol"
+        class="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 font-bold text-slate-600 transition-all hover:bg-slate-100 dark:border-gray-700 dark:bg-gray-900 dark:text-slate-300 dark:hover:bg-gray-800"
+      >
+        <span class="text-xs uppercase tracking-widest">Cambiar Rol</span>
+        <VIcon class="material-symbols-outlined shrink-0 text-[20px]">cached</VIcon>
+      </button>
 
-      <VBtn @click="handleLogout" class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-bold text-slate-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 border border-transparent mb-2">
-        <span class="text-[10px] uppercase tracking-widest">Cerrar Sesión</span>
-        <VIcon class="material-symbols-outlined text-[18px]">logout</VIcon>
-      </VBtn>
+      <button
+        type="button"
+        @click="handleLogout"
+        class="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 font-bold text-slate-600 transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-500 dark:border-gray-700 dark:bg-gray-900 dark:text-slate-300 dark:hover:border-red-900/40 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+      >
+        <span class="text-xs uppercase tracking-widest">Cerrar Sesión</span>
+        <VIcon class="material-symbols-outlined shrink-0 text-[20px]">logout</VIcon>
+      </button>
     </div>
   </VSheet>
 </template>

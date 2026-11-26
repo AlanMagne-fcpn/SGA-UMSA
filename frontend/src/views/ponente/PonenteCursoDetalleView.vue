@@ -2,9 +2,13 @@
 import { ref, onMounted, computed, nextTick, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
-import api, { resolveMediaUrl } from '@/services/api';
+import api, { imagenActividad, imagenEvento, resolveMediaUrl } from '@/services/api';
 import Swal from '@/services/dialogs';
 import { permisosContenido } from '@/utils/activityLearning';
+import { leerAcceso } from '@/utils/activityAcceso';
+import ActivityAccesoBanner from '@/components/actividades/ActivityAccesoBanner.vue';
+import NotasRubricaGrid from '@/components/actividades/NotasRubricaGrid.vue';
+import CursoVirtualView from '@/views/actividades/CursoVirtualView.vue';
 import QrcodeVue from 'qrcode.vue';
 import { Html5QrcodeScanner, Html5QrcodeScanType } from 'html5-qrcode';
 
@@ -14,12 +18,15 @@ const authStore = useAuthStore();
 
 // Materiales
 const materiales = ref<any[]>([]);
+const fechaDeHoy = () => new Date().toISOString().slice(0, 10);
 const nuevoMaterial = ref({
     titulo: '',
-    tipo: 'Enlace', // 'Enlace' | 'Archivo'
+    tipo: 'Archivo',
     url: '',
-    tamano: ''
+    tamano: '',
+    fecha: fechaDeHoy(),
 });
+const archivoInput = ref<HTMLInputElement | null>(null);
 const selectedFile = ref<File | null>(null);
 const subiendoMaterial = ref(false);
 const mostrarFormMaterial = ref(false);
@@ -30,10 +37,50 @@ const actividadId = route.params.id;
 
 const curso = ref<any>(null);
 const puedeSubirMaterial = computed(() => curso.value && permisosContenido(curso.value.tipo, curso.value.requisitos).material);
+const claveFecha = (mat: any) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(mat.fechaClase || ''))) return mat.fechaClase;
+    const partes = String(mat.fecha || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (partes) return `${partes[3]!}-${partes[2]!.padStart(2, '0')}-${partes[1]!.padStart(2, '0')}`;
+    return 'sin-fecha';
+};
+const tituloFecha = (clave: string) => {
+    if (clave === 'sin-fecha') return 'Sin fecha de clase';
+    return new Date(`${clave}T12:00:00`).toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+};
+const materialesPorFecha = computed(() => {
+    const grupos = new Map<string, any[]>();
+    for (const mat of materiales.value) {
+        const clave = claveFecha(mat);
+        grupos.set(clave, [...(grupos.get(clave) || []), mat]);
+    }
+    return [...grupos.entries()]
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .map(([clave, items]) => ({ clave, titulo: tituloFecha(clave), items }));
+});
 const estudiantes = ref<any[]>([]);
 
 // Sesiones y QR
 const sesiones = ref<any[]>([]);
+const aulaDraft = ref('');
+const enlaceDraft = ref('');
+const sesionesDraft = ref<{ dia: string; hora_inicio: string; hora_fin: string }[]>([]);
+const guardandoLugar = ref(false);
+const editandoNotas = ref(false);
+const repartoNota = computed(() => {
+  const items = Array.isArray(curso.value?.requisitos?.evaluacion?.items) ? curso.value.requisitos.evaluacion.items : [];
+  const suma = (tipos: string[]) => items.filter((item: any) => tipos.includes(item.tipo)).reduce((total: number, item: any) => total + Number(item.puntaje || 0), 0);
+  return {
+    asistencia: Number(curso.value?.requisitos?.evaluacion?.asistencia || 0),
+    parciales: suma(['examen', 'seccion']),
+    practicas: suma(['practica', 'laboratorio']),
+  };
+});
+const aulaTipo = ref<'material' | 'practica' | 'examen'>('material');
+function abrirAula(tipo: 'material' | 'practica' | 'examen' = 'material') {
+  aulaTipo.value = tipo;
+  switchTab('aula');
+}
+const avisoAsistencia = ref('');
 const activeSessionId = ref<number | null>(null);
 const qrMode = ref<'project' | 'scan'>('project');
 const registrosRequeridos = ref(1); // "registros para el dia de hoy"
@@ -88,8 +135,8 @@ const tienePermisos = computed(() => {
     );
 });
 
-const fetchDetalleActividad = async () => {
-    loading.value = true;
+const fetchDetalleActividad = async (silencioso = false) => {
+    if (!silencioso) loading.value = true;
     try {
         const res = await api.get(`/actividades-academicas/${actividadId}`);
         const data = res.data;
@@ -106,18 +153,28 @@ const fetchDetalleActividad = async () => {
             return;
         }
         
+        const descripcionLimpia = String(data.descripcion || '')
+          .replace(/\[INHABILITACION_MOTIVO\]:?[^\n\[]*/gi, '')
+          .replace(/\[FECHA(_INHABILITACION)?\]:?[^\n\[]*/gi, '')
+          .replace(/\[SOLICITUD_ACTIVACION\]:?[^\n\[]*/gi, '')
+          .replace(/\s+/g, ' ')
+          .trim();
         curso.value = {
             id: data.id,
             tipo: data.tipo,
             requisitos: data.requisitos,
             nombre: data.nombre || 'Simposio / Actividad',
             evento: data.evento?.nombre || 'Evento Académico',
-            version: data.version || 'Gestión 2026',
+            eventoId: data.evento?.id || data.id_evento || null,
+            version: data.version || data.evento?.gestion || 'Gestión 2026',
             fechas: `${data.fecha_inicio ? new Date(data.fecha_inicio).toLocaleDateString() : 'Pendiente'} - ${data.fecha_fin ? new Date(data.fecha_fin).toLocaleDateString() : 'Pendiente'}`,
             estudiantesInscritos: data.inscripciones?.length || 0,
             estado: data.estado === 1 ? 'Activo' : 'Cerrado',
-            modalidad: data.modalidad || 'Presencial',
-            descripcion: data.descripcion || 'Sin descripción disponible.',
+            modalidad: data.modalidad || data.modalidades?.[0]?.tipo || 'Presencial',
+            descripcion: descripcionLimpia,
+            imagen: imagenActividad(data),
+            imagenEvento: imagenEvento(data.evento),
+            horas: data.horas ?? null,
             imparticiones: data.imparticiones || [],
             materiales: data.materiales || []
         };
@@ -127,44 +184,53 @@ const fetchDetalleActividad = async () => {
         estudiantes.value = (data.inscripciones || []).map((ins: any) => ({
             id: ins.id,
             nombre: `${ins.usuario?.persona?.nombres || 'Estudiante'} ${ins.usuario?.persona?.primer_apellido || ''}`,
-            correo: ins.usuario.email,
+            correo: ins.usuario?.email || '',
             asistencia: '---', 
             estado: ins.nota_principal >= (data.min_nota ?? 51) ? 'Excelente' : 'Regular'
         }));
 
-        // Extraer Sesiones
         const allSesiones: any[] = [];
-        if (data.modalidades) {
+        if (Array.isArray(data.modalidades)) {
             data.modalidades.forEach((mod: any) => {
-                if (mod.sesiones) {
+                if (Array.isArray(mod.sesiones)) {
                     mod.sesiones.forEach((s: any) => {
                         allSesiones.push({
                             ...s,
-                            modalidad_nombre: mod.nombre || 'General'
+                            modalidad_nombre: mod.tipo || 'Presencial'
                         });
                     });
                 }
             });
         }
-        
-        // SI NO HAY SESIONES, AGREGAMOS UNAS MOCK PARA PRUEBAS
-        if (allSesiones.length === 0) {
-            allSesiones.push({
-                id: 101,
-                fecha: new Date().toISOString(),
-                modalidad_nombre: 'Teoría (Presencial)'
-            });
-            allSesiones.push({
-                id: 102,
-                fecha: new Date(Date.now() + 86400000).toISOString(),
-                modalidad_nombre: 'Práctica (Virtual)'
-            });
+
+        avisoAsistencia.value = '';
+        if (allSesiones.length === 0 && Number(data.estado) === 1) {
+            try {
+                const abierta = await api.post(`/ponente/sesiones-academicas/actividad/${actividadId}/abierta`);
+                allSesiones.push(abierta.data);
+            } catch (error: any) {
+                const mensaje = error?.response?.data?.message;
+                avisoAsistencia.value = Array.isArray(mensaje) ? mensaje.join(' ') : (mensaje || 'La asistencia se abre mientras la actividad está vigente.');
+            }
+        }
+        if (allSesiones.length === 0 && !avisoAsistencia.value) {
+            avisoAsistencia.value = 'No hay sesiones configuradas para esta actividad.';
         }
         
         sesiones.value = allSesiones;
         if (allSesiones.length > 0) {
             activeSessionId.value = allSesiones[0].id;
         }
+        const acceso = leerAcceso(data.requisitos);
+        aulaDraft.value = acceso.aula_fisica;
+        enlaceDraft.value = acceso.enlace_virtual;
+        sesionesDraft.value = allSesiones
+          .filter((s) => !s.fecha && s.dia)
+          .map((s) => ({
+            dia: s.dia,
+            hora_inicio: String(s.hora_inicio || '19:00').slice(0, 5),
+            hora_fin: String(s.hora_fin || '21:00').slice(0, 5),
+          }));
 
     } catch (error) {
         console.error('Error al cargar detalle:', error);
@@ -180,10 +246,30 @@ onUnmounted(() => {
 });
 
 const navigateToCalificaciones = () => {
-    router.push({ 
-        name: 'ponente-actividad-calificaciones',
-        params: { actividadId: actividadId }
+    switchTab('notas');
+};
+
+const guardarLugarYSesion = async (payload?: { aula_fisica: string; enlace_virtual: string; sesiones: { dia: string; hora_inicio: string; hora_fin: string }[] }) => {
+  if (payload) {
+    aulaDraft.value = payload.aula_fisica;
+    enlaceDraft.value = payload.enlace_virtual;
+    sesionesDraft.value = payload.sesiones.map((sesion) => ({ ...sesion }));
+  }
+  guardandoLugar.value = true;
+  try {
+    await api.patch(`/actividades-academicas/${actividadId}/acceso-sesion`, {
+      aula_fisica: aulaDraft.value,
+      enlace_virtual: enlaceDraft.value,
+      sesiones: sesionesDraft.value,
     });
+    Swal.fire({ icon: 'success', title: 'Aula y horario guardados', timer: 1400, showConfirmButton: false });
+    await fetchDetalleActividad();
+  } catch (error: any) {
+    const detalle = error?.response?.data?.message;
+    Swal.fire('No se guardó', Array.isArray(detalle) ? detalle.join(' ') : (detalle || 'Revisa el aula y el horario.'), 'error');
+  } finally {
+    guardandoLugar.value = false;
+  }
 };
 
 const switchTab = (tab: string) => {
@@ -303,11 +389,9 @@ const simularEscaneo = async () => {
     }
 };
 
-const handleFileChange = (e: any) => {
-    const file = e.target.files[0];
-    if (file) {
-        selectedFile.value = file;
-    }
+const handleFileChange = (e: Event) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    selectedFile.value = file || null;
 };
 
 const guardarMaterial = async () => {
@@ -349,13 +433,16 @@ const guardarMaterial = async () => {
         }
 
         // Agregar al array local
+        const fechaClase = nuevoMaterial.value.fecha || fechaDeHoy();
         const nuevo = {
             id: Date.now().toString(),
             titulo: nuevoMaterial.value.titulo.trim(),
-            tipo: nuevoMaterial.value.tipo === 'Archivo' ? 'PDF' : 'Enlace',
+            tipo: nuevoMaterial.value.tipo === 'Archivo' ? 'Archivo' : 'Enlace',
+            nombreArchivo: selectedFile.value?.name || '',
             url: finalUrl,
-            tamaño: finalSize || '---',
-            fecha: new Date().toLocaleDateString('es-ES')
+            tamaño: finalSize || '',
+            fechaClase,
+            fecha: new Date(`${fechaClase}T12:00:00`).toLocaleDateString('es-BO')
         };
 
         const listaActualizada = [...materiales.value, nuevo];
@@ -370,11 +457,13 @@ const guardarMaterial = async () => {
         // Resetear form
         nuevoMaterial.value = {
             titulo: '',
-            tipo: 'Enlace',
+            tipo: 'Archivo',
             url: '',
-            tamano: ''
+            tamano: '',
+            fecha: fechaDeHoy(),
         };
         selectedFile.value = null;
+        if (archivoInput.value) archivoInput.value.value = '';
         mostrarFormMaterial.value = false;
 
         Swal.fire({
@@ -434,112 +523,238 @@ const openMaterial = (mat: any) => {
       <p class="text-[10px] font-black uppercase tracking-widest mt-4">Sincronizando información académica...</p>
   </div>
 
-  <div v-else-if="curso" class="animate-in fade-in duration-500 max-w-7xl mx-auto space-y-8 pb-20">
-    <!-- Header Retorno -->
-    <VBtn @click="router.back()" class="flex items-center gap-2 text-slate-500 hover:text-umsa-blue transition-colors font-black text-[11px] uppercase tracking-widest">
-      <VIcon class="material-symbols-outlined text-[16px]">arrow_back</VIcon>
-      Volver al Listado
-    </VBtn>
+  <div v-else-if="curso" class="mx-auto max-w-7xl animate-in space-y-6 pb-20 fade-in duration-500">
+    <nav aria-label="Dónde estás" class="flex flex-wrap items-center gap-2 text-sm font-semibold text-[#1A4756]">
+      <RouterLink :to="{ name: 'ponente-eventos' }" class="hover:text-[#028191]">Mis eventos</RouterLink>
+      <span aria-hidden="true">›</span>
+      <RouterLink v-if="curso.eventoId" :to="{ name: 'ponente-curso', params: { evento_id: curso.eventoId } }" class="hover:text-[#028191]">{{ curso.evento }}</RouterLink>
+      <span v-else>{{ curso.evento }}</span>
+      <span aria-hidden="true">›</span>
+      <span class="text-[#012248]">{{ curso.nombre }}</span>
+    </nav>
 
-    <!-- Header Principal -->
-    <div class="bg-gradient-to-br from-umsa-blue via-[#005a96] to-[#004270] rounded-[1.5rem] md:rounded-[2.5rem] p-6 md:p-12 text-white relative overflow-hidden shadow-2xl shadow-umsa-blue/20 flex flex-col lg:flex-row justify-between items-center gap-6 md:gap-8 border border-white/10">
-      <div class="absolute top-0 right-0 w-96 h-96 bg-umsa-gold/20 rounded-full blur-3xl -mr-32 -mt-32 mix-blend-screen pointer-events-none"></div>
-      
-      <div class="relative z-10 w-full lg:w-2/3 text-center lg:text-left">
-        <div class="flex items-center justify-center lg:justify-start gap-2 md:gap-3 mb-6 flex-wrap">
-          <span class="px-3 md:px-4 py-1 md:py-1.5 bg-umsa-gold text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-umsa-gold/30">
-            {{ curso.version }}
-          </span>
-          <span class="px-3 md:px-4 py-1 md:py-1.5 bg-white/10 backdrop-blur-md border border-white/20 text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest rounded-full">
-            <span class="mr-1 inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> {{ curso.estado }}
-          </span>
+    <!-- Hero tipo estudiante: banner del evento / portada del curso -->
+    <section class="overflow-hidden rounded-[2rem] border border-slate-200/60 shadow-2xl dark:border-slate-800">
+      <div class="group/hero relative flex min-h-[320px] flex-col justify-end md:min-h-[420px]">
+        <img
+          :src="curso.imagenEvento || curso.imagen"
+          data-course-image
+          :alt="curso.evento"
+          class="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-[2s] ease-out group-hover/hero:scale-105"
+        >
+        <div class="absolute inset-0 bg-gradient-to-t from-[#011628] via-[#012248]/85 to-[#012248]/25"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(2,129,145,0.28),transparent_55%)]"></div>
+
+        <div class="relative z-10 flex flex-col gap-6 p-6 md:p-10 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
+          <div class="min-w-0 max-w-3xl">
+            <div class="mb-4 flex flex-wrap items-center gap-2">
+              <span class="rounded-full bg-umsa-gold px-3 py-1 text-[9px] font-black tracking-widest text-white uppercase shadow-lg md:text-[10px]">{{ curso.version }}</span>
+              <span class="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[9px] font-black tracking-widest text-white uppercase backdrop-blur-md md:text-[10px]">
+                <span class="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400"></span>{{ curso.estado }}
+              </span>
+              <span class="rounded-full border border-white/20 bg-black/25 px-3 py-1 text-[9px] font-black tracking-widest text-sky-100 uppercase backdrop-blur-md md:text-[10px]">{{ curso.tipo || curso.modalidad }}</span>
+            </div>
+
+            <h1 class="text-3xl leading-none font-black tracking-tight text-white drop-shadow-lg md:text-5xl lg:text-6xl">{{ curso.nombre }}</h1>
+
+            <RouterLink
+              v-if="curso.eventoId"
+              :to="{ name: 'ponente-curso', params: { evento_id: curso.eventoId } }"
+              class="mt-5 inline-flex max-w-full items-center gap-3 rounded-2xl border border-white/20 bg-white/95 px-4 py-3 text-left text-[#012248] shadow-xl backdrop-blur-sm transition hover:bg-white"
+            >
+              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#012248] text-white">
+                <span class="material-symbols-outlined text-[20px] leading-none">event</span>
+              </span>
+              <span class="min-w-0">
+                <span class="block text-[10px] font-black tracking-[0.18em] text-[#028191] uppercase">Pertenece al evento</span>
+                <span class="block truncate text-base font-black">{{ curso.evento }}</span>
+              </span>
+            </RouterLink>
+            <div v-else class="mt-5 inline-flex max-w-full items-center gap-3 rounded-2xl border border-white/20 bg-white/95 px-4 py-3 text-left text-[#012248]">
+              <span class="min-w-0">
+                <span class="block text-[10px] font-black tracking-[0.18em] text-[#028191] uppercase">Pertenece al evento</span>
+                <span class="block text-base font-black">{{ curso.evento }}</span>
+              </span>
+            </div>
+
+            <p v-if="curso.descripcion" class="mt-4 max-w-2xl text-sm leading-relaxed text-slate-200/95 md:text-base">{{ curso.descripcion }}</p>
+            <p class="mt-3 text-xs font-bold tracking-wide text-sky-100/90 uppercase">{{ curso.modalidad }} · {{ curso.fechas }}</p>
+          </div>
+
+          <div v-if="tienePermisos" class="flex w-full shrink-0 flex-col gap-2.5 sm:flex-row lg:w-[240px] lg:flex-col">
+            <button type="button" class="btn-hint-pulse flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white px-5 text-sm font-bold text-[#028191] shadow-xl" @click="abrirAula('material')">
+              <span class="material-symbols-outlined text-[20px] leading-none">view_list</span>
+              Secciones del curso
+            </button>
+            <button type="button" class="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/30 bg-white/15 px-5 text-xs font-black tracking-widest text-white uppercase backdrop-blur-md transition hover:bg-white/25" @click="switchTab('qr')">
+              <span class="material-symbols-outlined text-[20px] leading-none">qr_code_scanner</span>
+              Generar QR
+            </button>
+            <button type="button" class="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#028191] px-5 text-xs font-black tracking-widest text-white uppercase shadow-xl" @click="navigateToCalificaciones()">
+              <span class="material-symbols-outlined text-[20px] leading-none">grading</span>
+              Distribución de notas
+            </button>
+          </div>
+
+          <div v-else class="flex min-w-[180px] flex-col items-center gap-2 rounded-2xl border border-white/20 bg-black/35 p-5 text-center backdrop-blur-md">
+            <span class="material-symbols-outlined text-3xl text-umsa-gold/70">visibility</span>
+            <p class="text-[10px] font-black tracking-widest text-white/80 uppercase">Vista de catálogo</p>
+            <p class="text-[9px] font-bold text-white/50 uppercase">No asignado como ponente</p>
+          </div>
         </div>
-        
-        <h1 class="text-2xl md:text-4xl lg:text-5xl font-black leading-tight uppercase italic mb-2 tracking-tight">
-          {{ curso.nombre }}
-        </h1>
-        <p class="text-blue-200 text-[10px] font-black uppercase tracking-widest mb-4">
-          Evento: {{ curso.evento }}
-        </p>
-        <p class="text-blue-50 text-xs md:text-sm lg:text-base leading-relaxed max-w-3xl border-l-4 border-umsa-gold pl-4 font-medium opacity-90 mx-auto lg:mx-0">
-          {{ curso.descripcion }}
-        </p>
       </div>
 
-      <!-- Acciones Rápidas: SOLAMENTE SI TIENE PERMISOS -->
-      <div v-if="tienePermisos" class="relative z-10 flex flex-col sm:flex-row lg:flex-col gap-3 w-full lg:w-auto lg:min-w-[220px]">
-        <RouterLink :to="`/ponente/curso/${actividadId}/aula`" class="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-[#003B71]"><VIcon size="20">video_library</VIcon>Editar aula virtual</RouterLink>
-        <VBtn @click="switchTab('qr')" class="group bg-white text-umsa-blue hover:bg-slate-50 font-black text-[10px] md:text-xs uppercase tracking-widest px-6 py-3.5 rounded-xl md:rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 flex-1 lg:w-full">
-            <VIcon class="material-symbols-outlined text-[18px] md:text-[20px] group-hover:scale-110 transition-transform">qr_code_scanner</VIcon>
-            Generar QR
-        </VBtn>
-        <VBtn @click="navigateToCalificaciones()" class="group bg-umsa-gold hover:bg-yellow-600 text-white font-black text-[10px] md:text-xs uppercase tracking-widest px-6 py-3.5 rounded-xl md:rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl hover:shadow-2xl shadow-umsa-gold/20 hover:-translate-y-1 flex-1 lg:w-full">
-            <VIcon class="material-symbols-outlined text-[18px] md:text-[20px] group-hover:scale-110 transition-transform">grading</VIcon>
-            Notas
-        </VBtn>
+      <div class="border-t border-slate-100 bg-[#f7fbfd] p-4 md:p-5 dark:border-slate-800 dark:bg-slate-950">
+        <ActivityAccesoBanner
+          compact
+          :editable="tienePermisos"
+          :requisitos="curso.requisitos"
+          :modalidad="curso.modalidad"
+          :sesiones="sesionesDraft"
+          :guardando="guardandoLugar"
+          @guardar="guardarLugarYSesion"
+        />
       </div>
-      
-      <!-- Si no tiene permisos, mostrar badge de catálogo -->
-      <VCard v-else class="relative z-10 bg-white/5 backdrop-blur-xl p-6 rounded-3xl border border-white/10 text-center flex flex-col items-center gap-2 w-full lg:w-auto">
-            <VIcon class="material-symbols-outlined text-3xl md:text-4xl text-umsa-gold/50">visibility</VIcon>
-            <p class="text-[10px] font-black uppercase tracking-widest text-white/60">Vista de Catálogo</p>
-            <p class="text-[8px] font-bold text-white/40 uppercase">No asignado como ponente</p>
-      </VCard>
-    </div>
+    </section>
 
-    <!-- Pestañas Modernas -->
-    <div class="flex gap-2 overflow-x-auto no-scrollbar p-1.5 bg-slate-100 dark:bg-gray-900 rounded-2xl border border-slate-200 dark:border-gray-800 scroll-smooth">
-      <VBtn v-for="tab in ['resumen', 'estudiantes']" :key="tab" @click="switchTab(tab)" :class="[activeTab === tab ? 'bg-white dark:bg-gray-800 text-umsa-blue dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700']" class="px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2 flex-shrink-0">
-        <VIcon class="material-symbols-outlined text-[18px]" :class="{'text-umsa-gold': activeTab === tab}">{{ tab === 'resumen' ? 'dashboard' : 'groups' }}</VIcon>
-        {{ tab === 'resumen' ? 'Panel Central' : `Nómina (${curso.estudiantesInscritos})` }}
-      </VBtn>
-      
-      <!-- Pestañas Extras solo si tiene permisos -->
+    <div class="flex gap-2 overflow-x-auto rounded-2xl border border-[#028191]/25 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <button type="button" class="flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold" :class="activeTab === 'resumen' ? 'bg-[#028191] text-white shadow-sm' : 'text-[#1A4756] hover:bg-[#E4F1DD]/60'" @click="switchTab('resumen')">
+        <span class="material-symbols-outlined text-[18px] leading-none">dashboard</span>
+        Panel central
+      </button>
       <template v-if="tienePermisos">
-          <VBtn @click="switchTab('materiales')" :class="[activeTab === 'materiales' ? 'bg-white dark:bg-gray-800 text-umsa-blue dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700']" class="px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2 flex-shrink-0">
-            <VIcon class="material-symbols-outlined text-[18px]" :class="{'text-umsa-gold': activeTab === 'materiales'}">auto_stories</VIcon>
-            Materiales
-          </VBtn>
-          <VBtn @click="switchTab('qr')" :class="[activeTab === 'qr' ? 'bg-white dark:bg-gray-800 text-umsa-blue dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700']" class="px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2 flex-shrink-0 relative">
-            <VIcon class="material-symbols-outlined text-[18px]" :class="{'text-umsa-gold': activeTab === 'qr'}">qr_code_2</VIcon>
-            Asistencia
-          </VBtn>
-          <VBtn @click="switchTab('certificados')" :class="[activeTab === 'certificados' ? 'bg-white dark:bg-gray-800 text-umsa-blue dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700']" class="px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center gap-2 flex-shrink-0">
-            <VIcon class="material-symbols-outlined text-[18px]" :class="{'text-umsa-gold': activeTab === 'certificados'}">workspace_premium</VIcon>
-            Mis Certificados
-          </VBtn>
+        <button type="button" class="flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold" :class="activeTab === 'aula' ? 'bg-[#028191] text-white shadow-sm' : 'text-[#1A4756] hover:bg-[#E4F1DD]/60'" @click="abrirAula('material')">
+          <span class="material-symbols-outlined text-[18px] leading-none">view_list</span>
+          Secciones
+        </button>
+      </template>
+      <button type="button" class="flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold" :class="activeTab === 'estudiantes' ? 'bg-[#028191] text-white shadow-sm' : 'text-[#1A4756] hover:bg-[#E4F1DD]/60'" @click="switchTab('estudiantes')">
+        <span class="material-symbols-outlined text-[18px] leading-none">groups</span>
+        Nómina ({{ curso.estudiantesInscritos }})
+      </button>
+      <template v-if="tienePermisos">
+        <button type="button" class="flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold" :class="activeTab === 'notas' ? 'bg-[#028191] text-white shadow-sm' : 'text-[#1A4756] hover:bg-[#E4F1DD]/60'" @click="switchTab('notas')">
+          <span class="material-symbols-outlined text-[18px] leading-none">grading</span>
+          Notas
+        </button>
+        <button type="button" class="flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold" :class="activeTab === 'qr' ? 'bg-[#028191] text-white shadow-sm' : 'text-[#1A4756] hover:bg-[#E4F1DD]/60'" @click="switchTab('qr')">
+          <span class="material-symbols-outlined text-[18px] leading-none">qr_code_2</span>
+          Asistencia
+        </button>
+        <button type="button" class="flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold" :class="activeTab === 'certificados' ? 'bg-[#028191] text-white shadow-sm' : 'text-[#1A4756] hover:bg-[#E4F1DD]/60'" @click="router.push({ name: 'ponente-certificados' })">
+          <span class="material-symbols-outlined text-[18px] leading-none">workspace_premium</span>
+          Mis certificados
+        </button>
       </template>
     </div>
 
-    <!-- Contenido dinámico según permisos -->
-    <div v-show="activeTab === 'resumen'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-       <VCard class="col-span-1 md:col-span-2 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2.5rem] p-8 shadow-sm flex items-center justify-between group hover:border-umsa-blue/30 transition-all">
-            <div>
-                <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2 flex items-center gap-2">Modalidad y Fechas</p>
-                <h4 class="text-xl md:text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tighter italic">{{ curso.modalidad }} - {{ curso.fechas }}</h4>
-            </div>
-            <div class="w-14 h-14 bg-blue-50 dark:bg-gray-800 rounded-2xl flex items-center justify-center text-umsa-blue">
-                <VIcon class="material-symbols-outlined text-3xl">event_upcoming</VIcon>
-            </div>
-       </VCard>
+    <div v-show="activeTab === 'resumen'" class="space-y-5">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[#E4F1DD] text-[#1A4756]">
+            <span class="material-symbols-outlined text-[22px] leading-none">event_upcoming</span>
+          </div>
+          <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Modalidad y fechas</p>
+          <h4 class="mt-1 text-base font-black text-[#012248] dark:text-white">{{ curso.modalidad }}</h4>
+          <p class="mt-1 text-sm font-semibold text-slate-500">{{ curso.fechas }}</p>
+          <p v-if="curso.horas" class="mt-2 text-xs font-bold text-[#028191]">{{ curso.horas }} hrs académicas</p>
+        </article>
 
-       <VCard class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2.5rem] p-8 shadow-sm group hover:border-umsa-gold/50 transition-all text-center md:text-left">
-           <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-3">Participantes Inscritos</p>
-           <h4 class="text-4xl font-black text-slate-800 dark:text-white leading-none">{{ curso.estudiantesInscritos }}</h4>
-       </VCard>
+        <button type="button" class="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-[#028191] hover:shadow-md dark:border-slate-700 dark:bg-slate-900" @click="switchTab('estudiantes')">
+          <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-[#0070BB]">
+            <span class="material-symbols-outlined text-[22px] leading-none">groups</span>
+          </div>
+          <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Participantes</p>
+          <h4 class="mt-1 text-3xl font-black text-[#012248] dark:text-white">{{ curso.estudiantesInscritos }}</h4>
+          <p class="mt-2 text-xs font-bold text-[#028191]">Ver nómina →</p>
+        </button>
 
-       <div v-if="tienePermisos" class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2.5rem] p-8 shadow-lg flex flex-col justify-between text-white group cursor-pointer" @click="switchTab('qr')">
-            <p class="text-[10px] font-black uppercase tracking-widest text-umsa-gold mb-1">Módulo Docente</p>
-            <h4 class="text-lg font-black leading-tight italic">Registrar Asistencia Hoy</h4>
-            <div class="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
-                Lanzar <VIcon class="material-symbols-outlined text-sm">qr_code</VIcon>
+        <button
+          v-if="tienePermisos"
+          type="button"
+          class="btn-hint-pulse rounded-2xl border border-[#028191]/30 bg-gradient-to-br from-[#028191] to-[#1A4756] p-5 text-left text-white shadow-md"
+          @click="switchTab('qr')"
+        >
+          <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-white/15">
+            <span class="material-symbols-outlined text-[22px] leading-none">qr_code_2</span>
+          </div>
+          <p class="text-[11px] font-bold tracking-widest text-sky-100 uppercase">Asistencia de hoy</p>
+          <h4 class="mt-1 text-base font-black">Registrar sesión</h4>
+          <p class="mt-2 text-xs font-semibold text-sky-100">Abrir QR / PIN →</p>
+        </button>
+
+        <button
+          v-if="tienePermisos"
+          type="button"
+          class="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-[#028191] hover:shadow-md dark:border-slate-700 dark:bg-slate-900"
+          @click="abrirAula('material')"
+        >
+          <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[#E4F1DD] text-[#1A4756]">
+            <span class="material-symbols-outlined text-[22px] leading-none">auto_stories</span>
+          </div>
+          <p class="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Aula virtual</p>
+          <h4 class="mt-1 text-base font-black text-[#012248] dark:text-white">Secciones y material</h4>
+          <p class="mt-2 text-xs font-bold text-[#028191]">Gestionar contenidos →</p>
+        </button>
+      </div>
+
+      <section v-if="tienePermisos" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div class="flex flex-wrap items-center gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#012248] text-white">
+            <span class="material-symbols-outlined text-[20px] leading-none">pie_chart</span>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-[10px] font-black tracking-[0.16em] text-[#028191] uppercase">Distribución de la nota</p>
+            <div class="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-sm font-black text-[#012248] dark:text-white">
+              <span>Asistencia {{ repartoNota.asistencia }}%</span>
+              <span>Parciales {{ repartoNota.parciales }}%</span>
+              <span>Prácticas {{ repartoNota.practicas }}%</span>
             </div>
-       </div>
-       <div v-else class="bg-slate-50 dark:bg-gray-800/20 rounded-[2.5rem] p-8 border border-dashed border-slate-200 flex items-center justify-center flex-col text-center opacity-60">
-            <VIcon class="material-symbols-outlined text-3xl text-slate-300">lock</VIcon>
-            <p class="text-[10px] font-black text-slate-400 uppercase mt-2">Funciones restringidas</p>
-       </div>
+          </div>
+          <button
+            type="button"
+            class="btn-hint-pulse inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-[11px] font-black tracking-widest text-[#003B71] uppercase hover:bg-slate-50 dark:border-slate-600 dark:text-sky-200"
+            :aria-label="editandoNotas ? 'Cerrar edición de notas' : 'Editar distribución de notas'"
+            @click="editandoNotas = !editandoNotas"
+          >
+            <span class="material-symbols-outlined text-[16px] leading-none">{{ editandoNotas ? 'close' : 'edit' }}</span>
+            {{ editandoNotas ? 'Cerrar' : 'Editar' }}
+          </button>
+        </div>
+        <div v-if="editandoNotas" class="px-5 py-4">
+          <NotasRubricaGrid :actividad-id="String(actividadId)" seccion-inicial="ponderacion" @guardado="fetchDetalleActividad(true)" />
+        </div>
+        <div v-else class="grid grid-cols-3 divide-x divide-slate-100 dark:divide-slate-800">
+          <div class="px-4 py-4 text-center">
+            <p class="text-2xl font-black text-[#028191]">{{ repartoNota.asistencia }}%</p>
+            <p class="mt-1 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Asistencia</p>
+          </div>
+          <div class="px-4 py-4 text-center">
+            <p class="text-2xl font-black text-[#012248] dark:text-white">{{ repartoNota.parciales }}%</p>
+            <p class="mt-1 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Parciales</p>
+          </div>
+          <div class="px-4 py-4 text-center">
+            <p class="text-2xl font-black text-[#1A4756] dark:text-sky-200">{{ repartoNota.practicas }}%</p>
+            <p class="mt-1 text-[10px] font-bold tracking-widest text-slate-400 uppercase">Prácticas</p>
+          </div>
+        </div>
+      </section>
     </div>
+
+    <CursoVirtualView v-if="activeTab === 'aula' && tienePermisos" :activity-id="Number(actividadId)" embedded :initial-type="aulaTipo" />
+
+    <section v-if="activeTab === 'notas' && tienePermisos" class="space-y-4">
+      <div class="rounded-2xl border border-sky-100 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <h3 class="text-lg font-semibold text-[#003B71] dark:text-white">Distribución de notas</h3>
+        <p class="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+          Aquí solo se reparte el 100% entre asistencia, parciales y prácticas. El material y las entregas se gestionan en la pestaña Secciones.
+        </p>
+        <button type="button" class="btn-hint-pulse mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-[#028191]" @click="abrirAula('material')">
+          Ir a Secciones <span class="material-symbols-outlined text-[16px] leading-none">arrow_forward</span>
+        </button>
+      </div>
+      <NotasRubricaGrid :actividad-id="String(actividadId)" @guardado="fetchDetalleActividad(true)" />
+    </section>
 
     <!-- Tabla de Estudiantes (Disponible para todos) -->
     <VCard v-if="activeTab === 'estudiantes'" class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[1.5rem] md:rounded-[2.5rem] shadow-sm overflow-hidden p-2">
@@ -577,20 +792,20 @@ const openMaterial = (mat: any) => {
                 <p class="text-slate-500 text-sm leading-relaxed mb-6">Selecciona la sesión activa y el método de registro de asistencia.</p>
                 
                 <div class="mb-8 bg-slate-50 dark:bg-gray-800 p-4 rounded-xl border border-slate-200 dark:border-gray-700">
-                    <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Sesión Académica Activa</label>
-                    <UiSelect v-if="sesiones.length > 0" v-model="activeSessionId" class="w-full bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-600 rounded-lg p-2 text-sm font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-umsa-blue/20 outline-none transition-all">
+                    <label for="sesion-activa" class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Sesión Académica Activa</label>
+                    <select v-if="sesiones.length > 0" id="sesion-activa" v-model="activeSessionId" class="w-full max-w-full rounded-lg border border-slate-300 bg-white p-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-umsa-blue/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white">
                         <option v-for="s in sesiones" :key="s.id" :value="s.id">
-                            {{ s.modalidad_nombre }} - {{ s.fecha ? new Date(s.fecha).toLocaleDateString() : 'Sin Fecha' }}
+                            {{ s.modalidad_nombre || 'Presencial' }} · {{ s.fecha ? new Date(s.fecha).toLocaleDateString() : (s.dia || 'Sin fecha') }}<template v-if="s.hora_inicio"> · {{ String(s.hora_inicio).slice(0, 5) }}–{{ String(s.hora_fin || '').slice(0, 5) }}</template>
                         </option>
-                    </UiSelect>
+                    </select>
                     <div v-else class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                        <p class="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-tight">No hay sesiones configuradas para esta actividad.</p>
+                        <p class="text-xs font-semibold text-amber-800 dark:text-amber-300">{{ avisoAsistencia }}</p>
                     </div>
                     
                     <!-- Registros Requeridos -->
                     <div v-if="sesiones.length > 0" class="mt-4 pt-4 border-t border-slate-200 dark:border-gray-700">
-                        <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Registros para el día de hoy</label>
-                        <UiInput type="number" v-model="registrosRequeridos" min="1" class="w-full bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-600 rounded-lg p-2 text-sm font-bold text-slate-700 dark:text-white focus:ring-2 focus:ring-umsa-blue/20 outline-none transition-all" />
+                        <label for="registros-hoy" class="text-[10px] font-black text-slate-400 uppercase mb-2 block">Registros para el día de hoy</label>
+                        <input id="registros-hoy" v-model.number="registrosRequeridos" type="number" min="1" class="w-full max-w-full rounded-lg border border-slate-300 bg-white p-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-umsa-blue/20 dark:border-gray-600 dark:bg-gray-900 dark:text-white" />
                     </div>
                 </div>
 
@@ -645,88 +860,6 @@ const openMaterial = (mat: any) => {
         </div>
     </VCard>
 
-    <!-- Tab: Materiales (Ponente) -->
-    <VCard v-if="activeTab === 'materiales' && tienePermisos" class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[1.5rem] md:rounded-[2.5rem] p-6 md:p-10 shadow-xl space-y-8 animate-in slide-in-from-bottom-4 duration-500 fade-in">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 dark:border-gray-800 pb-6">
-            <div>
-                <h3 class="text-2xl font-black text-slate-800 dark:text-white uppercase italic tracking-tight flex items-center gap-2">
-                    <VIcon class="material-symbols-outlined text-umsa-blue text-3xl">auto_stories</VIcon>
-                    Material Didáctico y Enlaces
-                </h3>
-                <p class="text-slate-500 dark:text-gray-400 text-xs font-bold uppercase tracking-widest mt-1">Sube archivos o comparte enlaces a clases virtuales, libros o diapositivas.</p>
-            </div>
-            <VBtn v-if="puedeSubirMaterial" @click="mostrarFormMaterial = !mostrarFormMaterial" class="bg-umsa-blue hover:bg-blue-600 text-white font-black text-xs uppercase tracking-widest px-6 py-3 rounded-xl transition-all shadow-md flex items-center gap-2">
-                <VIcon class="material-symbols-outlined text-[18px]">{{ mostrarFormMaterial ? 'close' : 'add' }}</VIcon>
-                {{ mostrarFormMaterial ? 'Cancelar' : 'Agregar Material' }}
-            </VBtn>
-        </div>
-
-        <!-- Formulario para agregar material -->
-        <div v-if="mostrarFormMaterial && puedeSubirMaterial" class="bg-slate-50 dark:bg-gray-950 p-6 md:p-8 rounded-[1.5rem] border border-slate-200 dark:border-gray-800 space-y-6">
-            <h4 class="text-sm font-black text-slate-700 dark:text-gray-300 uppercase tracking-widest">Nuevo Recurso</h4>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Título -->
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Título del Material</label>
-                    <UiInput v-model="nuevoMaterial.titulo" type="text" placeholder="Ej. Diapositivas - Sesión 1 o Enlace a Zoom" class="w-full bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-umsa-blue/20 outline-none text-slate-700 dark:text-white" />
-                </div>
-
-                <!-- Tipo -->
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tipo de Recurso</label>
-                    <UiSelect v-model="nuevoMaterial.tipo" class="w-full bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-umsa-blue/20 outline-none text-slate-700 dark:text-white">
-                        <option value="Enlace">Enlace Web (Meet, Zoom, Drive, etc.)</option>
-                        <option value="Archivo">Archivo (PDF, Documento, Diapositivas, etc.)</option>
-                    </UiSelect>
-                </div>
-            </div>
-
-            <!-- Entrada de Enlace -->
-            <div v-if="nuevoMaterial.tipo === 'Enlace'">
-                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Dirección URL (Link)</label>
-                <UiInput v-model="nuevoMaterial.url" type="url" placeholder="https://meet.google.com/... o https://zoom.us/..." class="w-full bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-umsa-blue/20 outline-none text-slate-700 dark:text-white" />
-            </div>
-
-            <!-- Entrada de Archivo -->
-            <div v-if="nuevoMaterial.tipo === 'Archivo'">
-                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Subir Archivo</label>
-                <UiFileInput @change="handleFileChange" class="w-full" />
-            </div>
-
-            <!-- Guardar button -->
-            <div class="flex justify-end">
-                <VBtn @click="guardarMaterial" :disabled="subiendoMaterial" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest px-8 py-4 rounded-xl transition-all shadow-lg shadow-emerald-600/10 flex items-center gap-2">
-                    <VIcon v-if="subiendoMaterial" class="material-symbols-outlined animate-spin text-[18px]">sync</VIcon>
-                    <VIcon v-else class="material-symbols-outlined text-[18px]">save</VIcon>
-                    {{ subiendoMaterial ? 'Guardando...' : 'Guardar Recurso' }}
-                </VBtn>
-            </div>
-        </div>
-
-        <!-- Lista de materiales -->
-        <div v-if="materiales.length === 0" class="text-sm font-bold text-slate-500 bg-slate-50 dark:bg-gray-800 p-8 rounded-2xl border border-slate-200 dark:border-gray-700 text-center">
-            Aún no has agregado material didáctico para esta actividad.
-        </div>
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div v-for="mat in materiales" :key="mat.id" class="border border-slate-200 dark:border-gray-800 rounded-2xl p-5 hover:border-umsa-blue transition-colors group relative flex flex-col justify-between dark:bg-gray-950">
-                <div>
-                    <div class="flex justify-between items-start mb-4">
-                        <VIcon class="material-symbols-outlined text-3xl" :class="mat.tipo === 'PDF' ? 'text-red-500' : 'text-blue-500'">{{ mat.tipo === 'PDF' ? 'picture_as_pdf' : 'link' }}</VIcon>
-                        <span class="text-[10px] bg-slate-100 dark:bg-gray-800 px-2 py-1 rounded font-bold uppercase tracking-widest text-slate-500 dark:text-gray-400">{{ mat.tamaño || mat.tipo }}</span>
-                    </div>
-                    <h4 @click="openMaterial(mat)" class="font-bold text-slate-800 dark:text-white mb-1 line-clamp-2 cursor-pointer hover:text-umsa-blue transition-colors">{{ mat.titulo }}</h4>
-                    <p class="text-xs text-slate-500 font-medium">{{ mat.fecha }}</p>
-                </div>
-                <div class="flex justify-end border-t border-slate-100 dark:border-gray-800 mt-4 pt-3">
-                    <VBtn @click="eliminarMaterial(mat.id)" class="text-red-500 hover:text-red-700 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest transition-colors">
-                        <VIcon class="material-symbols-outlined text-[16px]">delete</VIcon>
-                        Eliminar
-                    </VBtn>
-                </div>
-            </div>
-        </div>
-    </VCard>
 
   </div>
 </template>

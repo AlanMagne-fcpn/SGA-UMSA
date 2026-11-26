@@ -13,6 +13,13 @@ import { Roles } from '../../Seguridad/auth/roles.decorator';
 export class SesionesAcademicasPonenteController {
   constructor(private readonly service: SesionesAcademicasService) {}
 
+  @Post('actividad/:actividadId/abierta')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Abrir la asistencia del día si la actividad está vigente' })
+  abrirSesionDelDia(@Param('actividadId', ParseIntPipe) actividadId: number) {
+    return this.service.abrirSesionDelDia(actividadId);
+  }
+
   @Post(':id/generar-pin')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Generar PIN de asistencia (Ponente)' })

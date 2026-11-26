@@ -27,16 +27,18 @@ const fetchData = async () => {
           nombre: ev.nombre || 'Evento Principal',
           logo: ev.logo,
           imagenFondo: ev.imagen_fondo,
-          fechaInicio: ev.fecha_inicio ? new Date(ev.fecha_inicio).toLocaleDateString() : '',
-          fechaFin: ev.fecha_fin ? new Date(ev.fecha_fin).toLocaleDateString() : '',
+          fechaInicio: fechaCorta(ev.fecha_inicio),
+          fechaFin: fechaCorta(ev.fecha_fin),
           image: imagenEvento(ev),
-          gestion: ev.fecha_inicio ? new Date(ev.fecha_inicio).getFullYear().toString() : '2026',
+          gestion: ev.gestion ? String(ev.gestion) : (fechaCorta(ev.fecha_inicio).slice(6) || ''),
           descripcion: ev.descripcion || '',
           actividades: actividades.map((act: any) => ({
             id: act.id,
             title: act.nombre || 'Actividad',
             status: act.estado === 1 ? 'En Progreso' : (act.estado === 0 ? 'Finalizado' : 'Próximamente'),
-            date: act.fecha_inicio ? `${new Date(act.fecha_inicio).toLocaleDateString()} - ${new Date(act.fecha_fin).toLocaleDateString()}` : 'Fechas por definir',
+            date: fechaCorta(act.fecha_inicio)
+              ? [fechaCorta(act.fecha_inicio), fechaCorta(act.fecha_fin)].filter(Boolean).join(' – ')
+              : 'Fechas por definir',
             students: act.inscripciones?.length || 0,
             type: act.tipo || 'Actividad',
             image: imagenActividad({ ...act, evento: ev }),
@@ -55,6 +57,31 @@ onMounted(() => {
   fetchData();
 });
 
+const actividadesAsignadas = computed(() =>
+  eventosAsignados.value.flatMap((evento: any) => evento.actividades || []),
+);
+
+const resumenPonente = computed(() => {
+  const actividades = actividadesAsignadas.value;
+  return [
+    { label: 'Eventos', value: eventosAsignados.value.length, icon: 'corporate_fare', color: 'from-[#003B71] to-[#0070BB]' },
+    { label: 'Actividades', value: actividades.length, icon: 'school', color: 'from-[#0070BB] to-sky-500' },
+    { label: 'Estudiantes', value: actividades.reduce((total: number, actividad: any) => total + Number(actividad.students || 0), 0), icon: 'groups', color: 'from-emerald-700 to-emerald-500' },
+    { label: 'En curso', value: actividades.filter((actividad: any) => actividad.status === 'En Progreso').length, icon: 'pending_actions', color: 'from-teal-700 to-teal-500' },
+  ];
+});
+
+const participacionPonente = computed(() =>
+  [...actividadesAsignadas.value]
+    .sort((a: any, b: any) => Number(b.students || 0) - Number(a.students || 0))
+    .slice(0, 6),
+);
+
+const anchoParticipacion = (valor: number) => {
+  const max = Math.max(...participacionPonente.value.map((actividad: any) => Number(actividad.students || 0)), 1);
+  return valor > 0 ? Math.max((valor / max) * 100, 8) : 0;
+};
+
 const filteredEventos = computed(() => {
   const q = searchQuery.value.toLowerCase().trim();
   if (!q) return eventosAsignados.value;
@@ -71,6 +98,15 @@ const getStatusColor = (status: any) => {
   return 'text-white bg-umsa-gold shadow-yellow-500/30';
 };
 
+const fechaCorta = (valor?: string | null) => {
+  if (!valor) return '';
+  const iso = String(valor).slice(0, 10);
+  const partes = iso.split('-');
+  if (partes.length !== 3 || partes.some((parte) => !parte)) return '';
+  const [anio, mes, dia] = partes;
+  return `${dia}/${mes}/${anio}`;
+};
+
 const openActividadDetalle = (actividadId: any) => {
   router.push({ name: 'ponente-curso-detalle', params: { id: actividadId } });
 };
@@ -79,15 +115,57 @@ const openActividadDetalle = (actividadId: any) => {
 
 <template>
   <div class="animate-in fade-in duration-500 max-w-7xl mx-auto space-y-8">
-    
+    <div class="flex items-center gap-3">
+      <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#003B71] to-[#0070BB] shadow-lg shadow-[#003B71]/30">
+        <VIcon class="material-symbols-outlined text-[22px] text-white">monitoring</VIcon>
+      </div>
+      <div>
+        <p class="text-[10px] font-black uppercase leading-none tracking-widest text-umsa-blue">Panel del ponente</p>
+        <h2 class="text-2xl font-black uppercase tracking-tight text-slate-800 dark:text-white">Mis asignaciones</h2>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div v-for="tarjeta in resumenPonente" :key="tarjeta.label" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#13131f]">
+        <div :class="`mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${tarjeta.color} shadow-lg`">
+          <VIcon class="material-symbols-outlined text-[20px] text-white">{{ tarjeta.icon }}</VIcon>
+        </div>
+        <p class="mb-1 text-3xl font-black leading-none text-slate-800 dark:text-white">{{ tarjeta.value }}</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500">{{ tarjeta.label }}</p>
+      </div>
+    </div>
+
+    <div class="rounded-[2.5rem] border border-slate-200 bg-white p-8 shadow-sm dark:border-white/5 dark:bg-[#13131f]">
+      <div class="mb-6 flex items-center gap-2">
+        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-900/25">
+          <VIcon class="material-symbols-outlined text-lg text-umsa-blue">leaderboard</VIcon>
+        </div>
+        <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-800 dark:text-slate-300">Participación por actividad</h3>
+      </div>
+      <div v-if="participacionPonente.length === 0" class="rounded-[2rem] border border-slate-100 bg-slate-50 px-5 py-10 text-center text-xs font-bold uppercase tracking-widest text-slate-400">
+        Aún no hay actividades asignadas
+      </div>
+      <div v-else class="space-y-4 rounded-[2rem] border border-slate-100 bg-slate-50 p-5 dark:border-white/5 dark:bg-black/20">
+        <div v-for="actividad in participacionPonente" :key="actividad.id" class="space-y-1.5">
+          <div class="flex items-center justify-between gap-3 text-xs">
+            <span class="truncate font-semibold text-slate-700 dark:text-slate-200">{{ actividad.title }}</span>
+            <span class="shrink-0 font-black text-slate-800 dark:text-white">{{ actividad.students }}</span>
+          </div>
+          <div class="h-3 overflow-hidden rounded-full bg-white dark:bg-gray-800">
+            <div class="h-full rounded-full bg-[#0070BB]" :style="{ width: `${anchoParticipacion(Number(actividad.students || 0))}%` }"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Buscador -->
     <div class="flex justify-center mb-8 mt-2">
       <div class="relative w-full max-w-2xl group">
-        <label class="absolute -top-3 left-6 px-2 bg-[#f8f9fc] dark:bg-black z-10 text-[9px] font-black text-slate-400 uppercase tracking-widest italic transition-colors">Buscador de mis eventos y actividades</label>
-        <span class="absolute inset-y-0 left-5 flex items-center text-slate-400">
+        <label class="absolute -top-3 left-6 z-10 bg-slate-50 px-2 text-[9px] font-black uppercase tracking-widest text-slate-400 dark:bg-black">Buscador de mis eventos y actividades</label>
+        <span class="pointer-events-none absolute inset-y-0 left-5 z-10 flex items-center text-slate-400">
           <VIcon class="material-symbols-outlined text-xl group-focus-within:text-umsa-blue transition-colors">search</VIcon>
         </span>
-        <UiInput v-model="searchQuery" class="w-full pl-14 pr-6 py-4 bg-white dark:bg-gray-900 border-2 border-slate-200 dark:border-gray-800 rounded-full shadow-sm text-sm focus:ring-4 focus:ring-umsa-blue/10 focus:border-umsa-blue outline-none transition-all font-bold text-primary-dark dark:text-gray-200 placeholder-slate-400" placeholder="Buscar por evento o actividad..." type="text" />
+        <input v-model="searchQuery" type="text" placeholder="Buscar por evento o actividad..." class="w-full rounded-full border-2 border-slate-200 bg-white py-4 pl-14 pr-6 text-sm font-bold text-[#012248] outline-none transition-all placeholder:font-semibold placeholder:text-slate-400 focus:border-[#0070BB] focus:ring-4 focus:ring-[#0070BB]/10 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200" />
       </div>
     </div>
     
@@ -107,16 +185,12 @@ const openActividadDetalle = (actividadId: any) => {
       <p class="text-xs font-black uppercase tracking-widest">Cargando eventos...</p>
     </div>
 
-    <div v-else-if="loadError" class="p-10 text-center text-rose-600">
-      <p>{{ loadError }}</p>
-      <VBtn @click="fetchData" class="mt-4 font-bold">Reintentar</VBtn>
+    <div v-else-if="loadError" class="rounded-[2rem] border border-rose-100 bg-rose-50 p-10 text-center text-rose-700">
+      <p class="text-sm font-semibold">{{ loadError }}</p>
+      <button type="button" class="mt-4 rounded-xl bg-[#003B71] px-6 py-2.5 text-xs font-black uppercase tracking-widest text-white" @click="fetchData">Reintentar</button>
     </div>
 
     <!-- Lista vacía -->
-    <div v-else-if="loadError" class="p-10 text-center text-rose-600">
-      <p>{{ loadError }}</p>
-      <VBtn @click="fetchData" class="mt-4 font-bold">Reintentar</VBtn>
-    </div>
     <VCard v-else-if="filteredEventos.length === 0" class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-[2.5rem] p-20 text-center shadow-sm">
       <div class="w-20 h-20 bg-slate-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
         <VIcon class="material-symbols-outlined text-4xl text-slate-300">event_busy</VIcon>
@@ -131,23 +205,24 @@ const openActividadDetalle = (actividadId: any) => {
         class="bg-white dark:bg-gray-900 rounded-[2.5rem] overflow-hidden shadow-lg border border-slate-100 dark:border-gray-800 flex flex-col group/card">
         
         <!-- Banner del Evento -->
-        <div class="relative h-48 md:h-64 w-full overflow-hidden shrink-0">
-          <img :src="evento.image" class="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-[1.5s] ease-out">   
-          <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
-          
-          <div class="absolute bottom-4 left-6 right-6 z-20 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-            <div>
-              <p class="text-[10px] font-bold text-umsa-gold uppercase tracking-[0.2em] mb-1 drop-shadow-md">
-                Gestión {{ evento.gestion }}
-              </p>
-              <h3 class="text-xl md:text-3xl font-black text-white leading-tight uppercase italic drop-shadow-lg">
-                {{ evento.nombre }}
-              </h3>
-            </div>
-            
-            <div class="flex items-center gap-2 text-white/90 bg-black/40 border border-white/10 px-4 py-2 rounded-xl backdrop-blur-md text-[10px] font-bold uppercase tracking-wider shadow-inner w-fit">
-              <VIcon class="material-symbols-outlined text-sm text-umsa-gold">calendar_month</VIcon>
-              <span>{{ evento.fechaInicio }} - {{ evento.fechaFin }}</span>
+        <div class="relative min-h-64 w-full shrink-0 overflow-hidden sm:min-h-72">
+          <img :src="evento.image" alt="" class="absolute inset-0 h-full w-full object-cover">
+          <div class="absolute inset-0 bg-gradient-to-t from-[#012248] via-[#012248]/55 to-[#012248]/10"></div>
+
+          <div class="relative z-10 flex min-h-64 flex-col justify-end gap-4 p-6 sm:min-h-72 sm:p-8">
+            <div class="flex flex-wrap items-end justify-between gap-4">
+              <div class="min-w-0 flex-1">
+                <p v-if="evento.gestion" class="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#BC9C31]">
+                  Gestión {{ evento.gestion }}
+                </p>
+                <h3 class="text-2xl font-black uppercase leading-tight text-white sm:text-3xl">
+                  {{ evento.nombre }}
+                </h3>
+              </div>
+              <div v-if="evento.fechaInicio || evento.fechaFin" class="flex w-fit items-center gap-2 rounded-xl border border-white/15 bg-black/35 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
+                <VIcon class="material-symbols-outlined text-sm text-[#BC9C31]">calendar_month</VIcon>
+                <span>{{ [evento.fechaInicio, evento.fechaFin].filter(Boolean).join(' – ') }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -182,11 +257,11 @@ const openActividadDetalle = (actividadId: any) => {
                   {{ actividad.status }}
                 </span>
 
-                <div class="absolute bottom-4 left-6 right-6 z-20">
-                  <p class="text-[10px] font-bold text-umsa-gold uppercase tracking-[0.2em] mb-1 drop-shadow-md">
+                <div class="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/80 to-transparent px-5 pb-5 pt-12">
+                  <p class="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#BC9C31]">
                     {{ actividad.type }}
                   </p>
-                  <h3 class="text-xl md:text-2xl font-black text-white leading-tight uppercase italic group-hover:text-umsa-gold transition-colors drop-shadow-lg line-clamp-2">
+                  <h3 class="line-clamp-2 text-xl font-black uppercase leading-tight text-white">
                     {{ actividad.title }}
                   </h3>
                 </div>
@@ -194,7 +269,7 @@ const openActividadDetalle = (actividadId: any) => {
 
               <!-- Información Inferior -->
               <div class="p-6 flex flex-col flex-1 bg-white dark:bg-gray-900">
-                <div class="flex items-center justify-between text-slate-500 dark:text-gray-400 mb-6">
+                <div class="mb-6 flex flex-wrap items-center justify-between gap-3 text-slate-500 dark:text-gray-400">
                   <div class="flex items-center gap-2">
                     <VIcon class="material-symbols-outlined text-sm text-umsa-blue">calendar_month</VIcon>
                     <span class="text-[10px] font-bold uppercase tracking-wider">{{ actividad.date }}</span>

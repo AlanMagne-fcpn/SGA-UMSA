@@ -10,21 +10,9 @@ const nombreUsuario = computed(() => authStore.user?.persona?.nombres || 'Estudi
 const loading = ref(true);
   // Estadísticas del dashboard
   const userStats = ref({
-    inscritos: 0,
-    finalizados: 0,
-    certificados: 0,
-  });
-const eventoData = ref({
-  id: 1,
-  nombreCorto: 'Mis Cursos',
-  nombreLargo: 'Mis Cursos y Actividades Inscritas',
-  version: 'Edición General',
-  descripcion: 'Gestiona tu progreso, material y certificados de participación de manera sencilla y eficiente.',
-  estado: 'En Progreso',
-  colorEstado: 'bg-emerald-500 text-white border border-emerald-400',
-  imagen: '/bienvenida.png',
-  mostrarActividades: true,
-  actividadesInscritas: [] as any[]
+  inscritos: 0,
+  finalizados: 0,
+  certificados: 0,
 });
 
 const eventosInscritos = ref<any[]>([]);
@@ -53,8 +41,22 @@ const datosEvento = (evento: any) => {
   };
 };
 
-const cursoFinalizado = (ins: any) =>
-  Number(ins.estado) === 3 || Number(ins.actividadAcademica?.estado) === 0;
+/** Cerrado por inscripción, actividad o evento — no por solo tener certificado. */
+const cursoFinalizado = (ins: any) => {
+  const act = ins?.actividadAcademica;
+  const evento = act?.evento;
+  if (Number(ins?.estado) === 3) return true;
+  if (Number(act?.estado) === 0) return true;
+  if (Number(evento?.estado) === 0 || Number(evento?.fase) >= 4) return true;
+  return false;
+};
+
+const comoLista = (payload: any): any[] => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
+};
 
 const fetchInscripciones = async () => {
   try {
@@ -63,38 +65,37 @@ const fetchInscripciones = async () => {
       api.get('/me/certificados').catch(() => ({ data: [] })),
     ]);
 
-    const inscripcionesReales = Array.isArray(response.data) ? response.data : [];
-    const listaCerts = (Array.isArray(certs.data) ? certs.data : []).filter((c: any) => Number(c.tipo) === 1 || Number(c.tipo) === 4 || !c.tipo);
-    const actividadesConCertificado = new Set(
-      listaCerts.map((c: any) => c.actividadAcademica?.id).filter((id: number) => id != null),
+    const inscripcionesReales = comoLista(response.data).filter(
+      (ins: any) => ins?.actividadAcademica && Number(ins.actividadAcademica.estado) !== -1,
     );
-    const estaFinalizado = (ins: any) =>
-      cursoFinalizado(ins) || actividadesConCertificado.has(ins.actividadAcademica?.id);
+    const listaCerts = comoLista(certs.data).filter(
+      (c: any) => Number(c.tipo) === 1 || Number(c.tipo) === 4 || !c.tipo,
+    );
 
-    userStats.value.inscritos = inscripcionesReales.filter((i: any) => Number(i.estado) === 1 && !estaFinalizado(i)).length;
+    userStats.value.inscritos = inscripcionesReales.filter(
+      (i: any) => Number(i.estado) === 1 && !cursoFinalizado(i),
+    ).length;
     userStats.value.certificados = listaCerts.length;
 
-    const cursos = inscripcionesReales
-      .filter((ins: any) => Number(ins.actividadAcademica?.estado) !== -1)
-      .map((ins: any) => {
-        const act = ins.actividadAcademica;
-        const finalizado = estaFinalizado(ins);
-        let statusText = 'Inscrito';
-        if (finalizado) statusText = 'Finalizado';
-        else if (ins.estado === 0) statusText = 'Pre-Inscrito';
-        else if (ins.estado === 2) statusText = 'Rechazado';
+    const cursos = inscripcionesReales.map((ins: any) => {
+      const act = ins.actividadAcademica;
+      const finalizado = cursoFinalizado(ins);
+      let statusText = 'Inscrito';
+      if (finalizado) statusText = 'Finalizado';
+      else if (Number(ins.estado) === 0) statusText = 'Pre-Inscrito';
+      else if (Number(ins.estado) === 2) statusText = 'Rechazado';
 
-        return {
-          id: act.id,
-          title: act.nombre,
-          status: statusText,
-          statusCode: ins.estado,
-          ...datosEvento(act.evento),
-          date: act.fecha_inicio ? new Date(act.fecha_inicio).toLocaleDateString() : 'Por definir',
-          progress: finalizado ? 100 : (ins.estado === 1 ? 50 : 0),
-          image: imagenActividad(act),
-        };
-      });
+      return {
+        id: act.id,
+        title: act.nombre,
+        status: statusText,
+        statusCode: ins.estado,
+        ...datosEvento(act.evento),
+        date: act.fecha_inicio ? new Date(act.fecha_inicio).toLocaleDateString() : 'Por definir',
+        progress: finalizado ? 100 : (Number(ins.estado) === 1 ? 50 : 0),
+        image: imagenActividad(act),
+      };
+    });
 
     const idsYaListados = new Set(cursos.map((c) => c.id));
     for (const cert of listaCerts) {
@@ -131,10 +132,11 @@ const fetchInscripciones = async () => {
       porEvento.get(curso.eventoId).cursos.push(curso);
     }
     eventosInscritos.value = Array.from(porEvento.values());
-    eventoData.value.actividadesInscritas = cursos;
     userStats.value.finalizados = cursos.filter((c) => c.status === 'Finalizado').length;
   } catch (error) {
     console.error('Error cargando inscripciones:', error);
+    eventosInscritos.value = [];
+    userStats.value = { inscritos: 0, finalizados: 0, certificados: 0 };
   } finally {
     loading.value = false;
   }
@@ -143,6 +145,23 @@ const fetchInscripciones = async () => {
 onMounted(() => {
   fetchInscripciones();
 });
+
+const seriesAcademicas = computed(() => [
+  { label: 'En progreso', value: userStats.value.inscritos, color: 'bg-[#0070BB]' },
+  { label: 'Finalizados', value: userStats.value.finalizados, color: 'bg-emerald-600' },
+  { label: 'Certificados', value: userStats.value.certificados, color: 'bg-[#BC9C31]' },
+]);
+
+const tarjetasResumen = computed(() => [
+  { label: 'En progreso', value: userStats.value.inscritos, icon: 'auto_stories', color: 'from-[#003B71] to-[#0070BB]' },
+  { label: 'Finalizados', value: userStats.value.finalizados, icon: 'check_circle', color: 'from-emerald-700 to-emerald-500' },
+  { label: 'Certificados', value: userStats.value.certificados, icon: 'workspace_premium', color: 'from-[#8A7020] to-[#BC9C31]' },
+]);
+
+const anchoSerie = (valor: number) => {
+  const max = Math.max(...seriesAcademicas.value.map((item) => item.value), 1);
+  return valor > 0 ? Math.max((valor / max) * 100, 8) : 0;
+};
 
 const getStatusColor = (status: string) => {
   if (status === 'Finalizado') return 'text-white bg-red-500 border border-red-400 shadow-md';
@@ -154,89 +173,79 @@ const getStatusColor = (status: string) => {
 </script>
 
 <template>
-  <div class="animate-in fade-in duration-500 max-w-7xl mx-auto space-y-8">
-    <div class="border-b border-slate-200 dark:border-gray-800 pb-6 mb-8 mt-2 flex justify-between items-end">
-      <div>
-        <h2 class="text-3xl font-black text-primary-dark dark:text-white uppercase italic">Hola, {{ nombreUsuario }}</h2>
-        <p class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mt-1">Gestiona tu progreso, material y certificados desde tu plataforma académica</p>
+  <div class="mx-auto w-full min-w-0 space-y-6 animate-in fade-in duration-500 sm:space-y-8">
+    <div class="mb-2 flex flex-col gap-4 border-b border-slate-200 pb-5 dark:border-gray-800 sm:mb-6 sm:flex-row sm:items-end sm:justify-between sm:pb-6">
+      <div class="flex min-w-0 items-start gap-3">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#003B71] to-[#0070BB] shadow-lg shadow-[#003B71]/30">
+          <VIcon class="material-symbols-outlined text-[22px] text-white">monitoring</VIcon>
+        </div>
+        <div class="min-w-0">
+          <p class="text-[10px] font-black uppercase leading-none tracking-widest text-umsa-blue">Panel del estudiante</p>
+          <h2 class="truncate text-xl font-black uppercase tracking-tight text-slate-800 dark:text-white sm:text-2xl">Hola, {{ nombreUsuario }}</h2>
+          <p class="mt-1 text-sm text-slate-500">Progreso, materiales y certificados de tus actividades</p>
+        </div>
       </div>
-      <div>
-        <VBtn @click="$router.push({ name: 'estudiante-catalogo' })" class="bg-umsa-blue hover:bg-blue-800 text-white px-5 py-2 rounded-xl font-bold shadow-lg shadow-umsa-blue/30 transition-all flex items-center space-x-2 text-sm uppercase tracking-widest">
-          <VIcon class="material-symbols-outlined text-[18px]">travel_explore</VIcon>
-          <span>Explorar Más Cursos</span>
-        </VBtn>
+      <VBtn
+        @click="$router.push({ name: 'estudiante-catalogo' })"
+        class="flex w-full items-center justify-center gap-2 rounded-xl bg-umsa-blue px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-umsa-blue/30 transition-all hover:bg-blue-800 sm:w-auto sm:text-sm"
+      >
+        <VIcon class="material-symbols-outlined text-[18px]">travel_explore</VIcon>
+        <span>Eventos disponibles</span>
+      </VBtn>
+    </div>
+
+    <div class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div
+        v-for="tarjeta in tarjetasResumen"
+        :key="tarjeta.label"
+        class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#13131f]"
+      >
+        <div :class="`mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${tarjeta.color} shadow-lg`">
+          <VIcon class="material-symbols-outlined text-[20px] text-white">{{ tarjeta.icon }}</VIcon>
+        </div>
+        <p class="mb-1 text-3xl font-black leading-none text-slate-800 dark:text-white">{{ tarjeta.value }}</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-slate-500">{{ tarjeta.label }}</p>
       </div>
     </div>
 
-    <!-- Mini Dashboard Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-        <VCard class="bg-white dark:bg-gray-900 rounded-[1.5rem] p-6 shadow-sm border border-slate-100 dark:border-gray-800 flex items-center justify-between">
-            <div>
-                <p class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mb-1">Cursos en Progreso</p>
-                <h3 class="text-3xl font-black text-umsa-blue dark:text-blue-400">{{ userStats.inscritos }}</h3>
-            </div>
-            <div class="w-14 h-14 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-500">
-                <VIcon class="material-symbols-outlined text-2xl">auto_stories</VIcon>
-            </div>
-        </VCard>
-        <VCard class="bg-white dark:bg-gray-900 rounded-[1.5rem] p-6 shadow-sm border border-slate-100 dark:border-gray-800 flex items-center justify-between">
-            <div>
-                <p class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mb-1">Cursos Finalizados</p>
-                <h3 class="text-3xl font-black text-emerald-500">{{ userStats.finalizados }}</h3>
-            </div>
-            <div class="w-14 h-14 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500">
-                <VIcon class="material-symbols-outlined text-2xl">check_circle</VIcon>
-            </div>
-        </VCard>
-        <VCard class="bg-white dark:bg-gray-900 rounded-[1.5rem] p-6 shadow-sm border border-slate-100 dark:border-gray-800 flex items-center justify-between">
-            <div>
-                <p class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mb-1">Certificados Disponibles</p>
-                <h3 class="text-3xl font-black text-umsa-gold">{{ userStats.certificados }}</h3>
-            </div>
-            <div class="w-14 h-14 rounded-full bg-yellow-50 dark:bg-yellow-900/20 flex items-center justify-center text-yellow-500">
-                <VIcon class="material-symbols-outlined text-2xl">workspace_premium</VIcon>
-            </div>
-        </VCard>
-    </div>
-
-    <VCard class="w-full bg-white dark:bg-gray-900 rounded-[2rem] overflow-hidden shadow-sm border border-slate-100 dark:border-gray-800 flex flex-col group/card mb-12">
-        
-        <!-- Header Evento Banner (Estilo Netflix) -->
-        <div class="relative w-full h-[320px] overflow-hidden">
-          <img :src="eventoData.imagen" alt="Banner" class="w-full h-full object-cover object-center group-hover/card:scale-105 transition-transform duration-[1.5s] ease-out">
-          <div class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/60 to-transparent"></div>
-          
-          <!-- Etiqueta de Estado en la parte superior izquierda, destacada -->
-          <span class="absolute top-6 left-6 z-30" :class="[eventoData.colorEstado, 'text-[12px] font-black uppercase px-4 py-2 rounded-full tracking-widest w-fit shadow-2xl backdrop-blur-md border-2 border-white/20']">
-            ● {{ eventoData.estado }}
-          </span>
-
-          <div class="absolute bottom-0 left-0 right-0 p-8 pt-24 z-20 flex flex-col">
-            <div class="flex items-end justify-between">
-              <div>
-                <p class="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-2">{{ eventoData.version }}</p>
-                <h1 class="text-4xl md:text-5xl font-black text-white tracking-tighter leading-none mb-4">{{ eventoData.nombreLargo }}</h1>
-                <p class="text-sm font-medium text-gray-300 max-w-2xl line-clamp-2 leading-relaxed">{{ eventoData.descripcion }}</p>
-              </div>
-            </div>
+    <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-white/5 dark:bg-[#13131f] sm:rounded-[2.5rem] sm:p-8">
+      <div class="mb-6 flex items-center gap-2">
+        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-900/25">
+          <VIcon class="material-symbols-outlined text-lg text-umsa-blue">leaderboard</VIcon>
+        </div>
+        <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-800 dark:text-slate-300">Estado académico</h3>
+      </div>
+      <div class="space-y-4 rounded-[2rem] border border-slate-100 bg-slate-50 p-5 dark:border-white/5 dark:bg-black/20">
+        <div v-for="item in seriesAcademicas" :key="item.label" class="space-y-1.5">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-semibold text-slate-700 dark:text-slate-200">{{ item.label }}</span>
+            <span class="font-black text-slate-800 dark:text-white">{{ item.value }}</span>
+          </div>
+          <div class="h-3 overflow-hidden rounded-full bg-white dark:bg-gray-800">
+            <div class="h-full rounded-full" :class="item.color" :style="{ width: `${anchoSerie(item.value)}%` }"></div>
           </div>
         </div>
+      </div>
+    </div>
 
-      </VCard>
-
-      <VCard v-if="eventosInscritos.length === 0" class="rounded-[2rem] border border-slate-100 bg-white px-8 py-12 text-center dark:border-gray-800 dark:bg-gray-900">
-        <p class="text-sm font-bold uppercase tracking-widest text-gray-500">No tienes actividades inscritas.</p>
-      </VCard>
+    <VCard
+      v-if="!loading && eventosInscritos.length === 0"
+      class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white px-4 py-10 text-center dark:border-gray-700 dark:bg-gray-900 sm:rounded-[2rem] sm:px-8 sm:py-12"
+    >
+      <VIcon class="material-symbols-outlined mb-3 text-4xl text-slate-300">school</VIcon>
+      <p class="text-sm font-bold uppercase tracking-widest text-gray-500">No tienes actividades inscritas.</p>
+      <p class="mt-2 text-xs text-slate-400">Cuando te inscribas a una actividad, aparecerá aquí. Usa Eventos disponibles para ver la oferta abierta.</p>
+    </VCard>
 
       <article
         v-for="(evento, indice) in eventosInscritos"
         :key="evento.id"
         class="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900"
       >
-        <div class="relative h-64 md:h-72">
-          <img :src="evento.imagen" :alt="evento.nombre" class="h-full w-full object-cover">
+        <div class="relative h-52 sm:h-64 md:h-72">
+          <img :src="evento.imagen" data-event-image :alt="evento.nombre" class="h-full w-full object-cover">
           <div class="absolute inset-0 bg-gradient-to-r from-[#003B71]/95 via-[#003B71]/45 to-transparent"></div>
-          <div class="absolute inset-0 flex flex-col justify-end p-6 md:p-8">
+          <div class="absolute inset-0 flex flex-col justify-end p-4 sm:p-6 md:p-8">
             <div class="mb-3 flex flex-wrap items-center gap-2">
               <span class="rounded-full border border-white/30 bg-white/15 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white">
                 Evento {{ indice + 1 }} de {{ eventosInscritos.length }}
@@ -251,9 +260,9 @@ const getStatusColor = (status: string) => {
                 Gestión {{ evento.gestion }}
               </span>
             </div>
-            <h3 class="text-3xl font-black uppercase tracking-tight text-white md:text-4xl">{{ evento.nombre }}</h3>
+            <h3 class="text-xl font-black uppercase tracking-tight text-white sm:text-3xl md:text-4xl">{{ evento.nombre }}</h3>
             <p v-if="evento.descripcion" class="mt-2 max-w-3xl text-sm leading-relaxed text-white/85 line-clamp-2">{{ evento.descripcion }}</p>
-            <div class="mt-3 flex flex-wrap gap-4 text-[11px] font-bold uppercase tracking-widest text-white/80">
+            <div class="mt-3 flex flex-wrap gap-3 text-[10px] font-bold uppercase tracking-widest text-white/80 sm:gap-4 sm:text-[11px]">
               <span v-if="evento.ubicacion" class="inline-flex items-center gap-1">
                 <VIcon class="material-symbols-outlined text-[16px]">location_on</VIcon>{{ evento.ubicacion }}
               </span>
@@ -267,7 +276,7 @@ const getStatusColor = (status: string) => {
           </div>
         </div>
 
-        <div class="grid gap-6 bg-slate-50 p-6 dark:bg-gray-950/40 md:grid-cols-2 xl:grid-cols-3">
+        <div class="grid gap-4 bg-slate-50 p-4 dark:bg-gray-950/40 sm:gap-6 sm:p-6 md:grid-cols-2 xl:grid-cols-3">
           <VCard
             v-for="act in evento.cursos"
             :key="act.id"
@@ -279,7 +288,7 @@ const getStatusColor = (status: string) => {
               <span class="absolute right-3 top-3 z-20 rounded-md px-2 py-1 text-[8px] font-black uppercase tracking-widest shadow-sm" :class="getStatusColor(act.status)">
                 {{ act.status }}
               </span>
-              <div class="absolute inset-0 z-20 flex items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
+              <div class="absolute inset-0 z-20 hidden items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100 md:flex">
                 <VBtn
                   class="flex items-center gap-2 rounded-xl bg-umsa-gold px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white"
                   @click.stop="router.push({ name: 'estudiante-actividades-detalle', params: { id: act.id }, query: { tab: 'certificados' } })"
@@ -288,17 +297,24 @@ const getStatusColor = (status: string) => {
                 </VBtn>
               </div>
             </div>
-            <div class="flex flex-1 flex-col bg-white p-5 dark:bg-gray-900">
-              <h3 class="mb-3 line-clamp-2 h-[2.5rem] text-sm font-black leading-tight text-slate-800 dark:text-white">{{ act.title }}</h3>
+            <div class="flex flex-1 flex-col bg-white p-4 dark:bg-gray-900 sm:p-5">
+              <h3 class="mb-3 line-clamp-2 min-h-[2.5rem] text-sm font-black leading-tight text-slate-800 dark:text-white">{{ act.title }}</h3>
               <div class="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-gray-800">
                 <div class="h-1.5 rounded-full bg-emerald-500" :style="{ width: `${act.progress}%` }"></div>
               </div>
               <div class="mt-auto flex flex-col gap-3 border-t border-slate-100 pt-3 dark:border-gray-800">
                 <span class="w-fit rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-slate-500">{{ act.date }}</span>
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between gap-2">
                   <span class="text-[10px] font-bold uppercase text-emerald-600">Ingresar</span>
                   <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">{{ act.progress }}%</span>
                 </div>
+                <VBtn
+                  class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-umsa-gold/10 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-amber-700 md:hidden dark:text-amber-300"
+                  @click.stop="router.push({ name: 'estudiante-actividades-detalle', params: { id: act.id }, query: { tab: 'certificados' } })"
+                >
+                  <VIcon class="material-symbols-outlined text-[14px]">workspace_premium</VIcon>
+                  Certificado
+                </VBtn>
               </div>
             </div>
           </VCard>

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('un banner pequeño se rechaza y uno grande se optimiza sin perder proporción', async ({ page }) => {
+test('cualquier banner se ajusta a 1920 × 1080', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   const result = await page.evaluate(async () => {
     const { prepararBanner } = await import('/src/utils/bannerImage.ts');
@@ -14,16 +14,18 @@ test('un banner pequeño se rechaza y uno grande se optimiza sin perder proporci
       const blob = await new Promise<Blob>(resolve => canvas.toBlob(value => resolve(value!), 'image/png'));
       return new File([blob], 'banner.png', { type: 'image/png' });
     };
-    let mensaje = '';
-    try { await prepararBanner(await crearArchivo(640, 360)); }
-    catch (error) { mensaje = (error as Error).message; }
-    const optimizado = await prepararBanner(await crearArchivo(3000, 1688));
-    return { mensaje, tipo: optimizado.file.type, nombre: optimizado.file.name,
-      anchoOriginal: optimizado.width, altoOriginal: optimizado.height };
+    const pequeno = await prepararBanner(await crearArchivo(447, 447));
+    const grande = await prepararBanner(await crearArchivo(3000, 1688));
+    return {
+      pequeno: { tipo: pequeno.file.type, nombre: pequeno.file.name, ancho: pequeno.width, alto: pequeno.height },
+      grande: { tipo: grande.file.type, ancho: grande.width, alto: grande.height },
+    };
   });
-  expect(result.mensaje).toContain('1280 × 720');
-  expect(result.tipo).toBe('image/webp');
-  expect(result.nombre).toBe('banner.webp');
-  expect(result.anchoOriginal).toBe(3000);
-  expect(result.altoOriginal).toBe(1688);
+  expect(result.pequeno.tipo).toBe('image/webp');
+  expect(result.pequeno.nombre).toBe('banner.webp');
+  expect(result.pequeno.ancho).toBe(1920);
+  expect(result.pequeno.alto).toBe(1080);
+  expect(result.grande.tipo).toBe('image/webp');
+  expect(result.grande.ancho).toBe(1920);
+  expect(result.grande.alto).toBe(1080);
 });

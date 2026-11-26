@@ -80,14 +80,16 @@ export class UsuariosService {
     const camposPersonaValidos = [
       'nombres', 'primer_apellido', 'segundo_apellido', 'documento_identidad',
       'genero', 'pais_origen', 'pais_residencia', 'fecha_nacimiento', 'celular',
-      'grado_academico'
+      'grado_academico', 'curriculum',
     ];
+    const camposEditablesSiempre = new Set(['curriculum']);
 
     const datosPersona: any = {};
     camposPersonaValidos.forEach(key => {
       if (data[key] !== undefined) {
         // Bloqueo: si ya está completado y el campo ya tiene valor, no dejamos editar
-        if (isCompleted && (usuario.persona as any)[key]) return;
+        // El currículo público del ponente sí se puede actualizar después.
+        if (isCompleted && (usuario.persona as any)[key] && !camposEditablesSiempre.has(key)) return;
 
         // Manejo especial para género si viene como string
         if (key === 'genero' && typeof data[key] === 'string') {

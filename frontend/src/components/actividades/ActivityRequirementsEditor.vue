@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import ActivityAudienceSelect from '@/components/actividades/ActivityAudienceSelect.vue';
 
 const requisitos = defineModel<any>({ required: true });
 const camposBase: Record<string, string> = {
@@ -44,8 +45,9 @@ const agregar = () => requisitos.value.custom.push({ label: '', type: 'text', op
     <label class="block text-sm font-bold">Objetivos de aprendizaje
       <textarea v-model="requisitos.presentacion.objetivos" aria-label="Objetivos de aprendizaje" rows="3" placeholder="Un objetivo por línea"></textarea>
     </label>
-    <label class="block text-sm font-bold">¿A quién está dirigida la actividad?
-      <textarea v-model="requisitos.presentacion.publico_objetivo" aria-label="Público de la actividad" rows="2"></textarea>
-    </label>
+    <div class="space-y-2">
+      <label class="block text-sm font-bold">A quién está dirigido</label>
+      <ActivityAudienceSelect v-model="requisitos.presentacion.publico_objetivo" />
+    </div>
   </section>
 </template>

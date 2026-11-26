@@ -730,43 +730,58 @@ onMounted(() => {
 
       <!-- FILTROS DE BÚSQUEDA LIBRE -->
       <VCard class="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl p-5 shadow-sm">
-        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div class="flex-1 relative">
-            <VIcon class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-[20px]">search</VIcon>
-            <UiInput v-model="filterEvent" type="text" placeholder="Buscar por usuario, email, evento, actividad o código..."
-                   class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-gray-800/50 border border-slate-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-slate-400 transition-all" />
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div class="relative min-w-0 flex-1">
+            <span class="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 material-symbols-outlined text-[20px] text-slate-400">search</span>
+            <input
+              v-model="filterEvent"
+              type="text"
+              placeholder="Buscar por usuario, email, evento, actividad o código..."
+              class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition-all focus:border-slate-400 dark:border-gray-700 dark:bg-gray-800/50 dark:text-white"
+            >
           </div>
-          <UiSelect v-model="filterStatus"
-                  class="px-4 py-2.5 bg-slate-50 dark:bg-gray-800/50 border border-slate-200 dark:border-gray-700 rounded-xl text-xs font-bold uppercase outline-none cursor-pointer w-full sm:w-auto">
+          <select
+            v-model="filterStatus"
+            class="w-full shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold uppercase text-slate-700 outline-none dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-200 sm:w-52"
+          >
             <option value="">Todos los estados</option>
             <option value="pendiente">Pendiente</option>
             <option value="enviado">Enviado</option>
             <option value="error">Con Error</option>
             <option value="procesando">Procesando</option>
-          </UiSelect>
+          </select>
         </div>
 
         <!-- SELECTOR DE PLANTILLA DE CORREO -->
-        <div class="flex flex-col sm:flex-row sm:items-center gap-3 px-1 py-4 border-t border-slate-100 dark:border-gray-800/60">
-          <div class="flex items-center gap-2 shrink-0">
-            <VIcon class="material-symbols-outlined text-[18px] text-amber-500">mail_outline</VIcon>
-            <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Plantilla del Mensaje de Correo:</span>
+        <div class="mt-4 flex flex-col gap-3 border-t border-slate-100 px-1 pt-4 dark:border-gray-800/60 sm:flex-row sm:items-center">
+          <div class="flex shrink-0 items-center gap-2">
+            <span class="material-symbols-outlined text-[18px] text-amber-500">mail_outline</span>
+            <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Plantilla del mensaje de correo</span>
           </div>
-          <div class="flex items-center gap-2 w-full sm:w-auto">
-            <UiSelect v-model="selectedTemplateId"
-                    class="px-4 py-2 bg-slate-50 dark:bg-gray-800/50 border border-slate-200 dark:border-gray-700 rounded-xl text-xs font-bold outline-none cursor-pointer focus:border-amber-400 transition-all w-full sm:min-w-[280px]">
-              <option :value="null">⚙ Plantilla predeterminada del sistema (.hbs)</option>
+          <div class="flex w-full items-center gap-2 sm:w-auto">
+            <select
+              class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700 outline-none focus:border-amber-400 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-200 sm:min-w-[280px]"
+              :value="selectedTemplateId ?? ''"
+              @change="selectedTemplateId = ($event.target as HTMLSelectElement).value === '' ? null : Number(($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">Plantilla predeterminada del sistema (.hbs)</option>
               <option v-for="tpl in certTemplates" :key="tpl.id" :value="tpl.id">
-                📧 {{ tpl.nombre }} — {{ tpl.asunto }}
+                {{ tpl.nombre }} — {{ tpl.asunto }}
               </option>
-            </UiSelect>
-            <VBtn @click="abrirPreviewCorreo" class="w-8 h-8 shrink-0 flex items-center justify-center text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all border border-blue-200 dark:border-blue-900/50" title="Previsualizar mensaje de correo">
-              <VIcon class="material-symbols-outlined text-[18px]">visibility</VIcon>
-            </VBtn>
+            </select>
+            <button
+              type="button"
+              class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-blue-200 text-blue-500 transition-all hover:bg-blue-50 dark:border-blue-900/50"
+              title="Previsualizar mensaje de correo"
+              @click="abrirPreviewCorreo"
+            >
+              <span class="material-symbols-outlined text-[18px] leading-none">visibility</span>
+            </button>
           </div>
-          <div v-if="isFetchingTemplates" class="animate-spin w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full"></div>
-          <div v-else-if="certTemplates.length === 0" class="text-[10px] text-slate-400 italic">
-            (Sin plantillas personalizadas. <router-link to="/admin/correos" class="text-amber-500 underline hover:text-amber-600">Crear una</router-link>)
+          <div v-if="isFetchingTemplates" class="h-4 w-4 animate-spin rounded-full border-2 border-amber-400 border-t-transparent"></div>
+          <div v-else-if="certTemplates.length === 0" class="text-[10px] italic text-slate-400">
+            Sin plantillas personalizadas.
+            <router-link to="/admin/correos" class="font-bold text-amber-500 underline hover:text-amber-600">Crear una</router-link>
           </div>
         </div>
       </VCard>
@@ -820,94 +835,90 @@ onMounted(() => {
 
                 <!-- Evento -->
                 <td class="px-6 py-4">
-                  <p class="text-[10px] font-black text-slate-400 uppercase tracking-tighter flex items-center gap-1">
-                    {{ cert.actividadAcademica?.evento?.nombre }}
-                    <span v-if="(cert.actividadAcademica?.evento?.fase || 0) < 4 && cert.actividadAcademica?.evento?.estado !== 0"
-                          class="text-[8px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-black">
-                      No Finalizado
-                    </span>
-                  </p>
-                  <p class="text-xs font-bold text-slate-700 dark:text-gray-300 mt-0.5">{{ cert.actividadAcademica?.nombre }}</p>
+                  <div class="flex max-w-[240px] flex-col gap-1.5">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <p class="text-[10px] font-black uppercase tracking-tight text-slate-400">
+                        {{ cert.actividadAcademica?.evento?.nombre }}
+                      </p>
+                      <span
+                        v-if="(cert.actividadAcademica?.evento?.fase || 0) < 4 && cert.actividadAcademica?.evento?.estado !== 0"
+                        class="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-amber-700"
+                      >
+                        No finalizado
+                      </span>
+                    </div>
+                    <p class="text-xs font-bold text-slate-700 dark:text-gray-300">{{ cert.actividadAcademica?.nombre }}</p>
+                  </div>
                 </td>
 
                 <!-- Estado -->
                 <td class="px-6 py-4 text-center">
-                  <div class="flex flex-col items-center gap-1">
+                  <div class="inline-flex flex-col items-center gap-1.5">
                     <span :class="{
                       'bg-amber-50 text-amber-600 border-amber-200': cert.estado_envio === 'pendiente',
                       'bg-emerald-50 text-emerald-600 border-emerald-200': cert.estado_envio === 'enviado',
                       'bg-rose-50 text-rose-600 border-rose-200': cert.estado_envio === 'error',
                       'bg-slate-100 text-slate-500 border-slate-200 animate-pulse': cert.estado_envio === 'procesando',
-                    }" class="px-2.5 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-widest">
+                    }" class="rounded-full border px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest">
                       {{ cert.estado_envio }}
                     </span>
-                    <span v-if="(cert.reintentos || 0) > 0" class="text-[8px] text-rose-400">
+                    <span v-if="(cert.reintentos || 0) > 0" class="text-[9px] font-bold leading-none text-rose-500">
                       {{ cert.reintentos }} fallo{{ cert.reintentos !== 1 ? 's' : '' }}
                     </span>
                   </div>
                 </td>
 
                 <td class="px-6 py-4 text-center">
-                  <span class="inline-flex items-center justify-center min-w-8 px-2 py-1 rounded-full bg-sky-50 text-[#003B71] text-xs font-black">
+                  <span class="inline-flex min-w-8 items-center justify-center rounded-full bg-sky-50 px-2 py-1 text-xs font-black text-[#003B71]">
                     {{ vecesEnviado(cert) }}
                   </span>
                 </td>
 
                 <!-- Último intento -->
-                <td class="px-6 py-4">
-                  <span class="text-[10px] font-mono text-slate-500">
-                    {{ cert.fecha_ultimo_envio ? new Date(cert.fecha_ultimo_envio).toLocaleString('es-BO') : '—' }}
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span class="text-[11px] font-mono text-slate-500">
+                    {{ cert.fecha_ultimo_envio ? new Date(cert.fecha_ultimo_envio).toLocaleString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—' }}
                   </span>
                 </td>
 
               <!-- Acciones -->
               <td class="px-6 py-4">
-                <div class="flex items-center justify-end gap-1">
-                  <!-- Validar envío / Trazabilidad -->
-                  <VBtn @click="verPdfCertificado(cert)"
-                          title="Ver PDF del certificado"
-                          class="p-2 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-900/20 text-sky-500 hover:text-[#003B71] transition-all">
-                    <VIcon class="material-symbols-outlined text-[18px]">picture_as_pdf</VIcon>
-                  </VBtn>
+                <div class="flex flex-wrap items-center justify-end gap-1.5">
+                  <button type="button" title="Ver PDF del certificado" class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-sky-500 transition-all hover:bg-sky-50 hover:text-[#003B71]" @click="verPdfCertificado(cert)">
+                    <span class="material-symbols-outlined text-[18px] leading-none">picture_as_pdf</span>
+                  </button>
+                  <button type="button" title="Verificar autenticidad" class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-emerald-500 transition-all hover:bg-emerald-50 hover:text-emerald-700" @click="verVerificacion(cert)">
+                    <span class="material-symbols-outlined text-[18px] leading-none">verified</span>
+                  </button>
+                  <button type="button" title="Ver traza de envío" class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-600" @click="abrirMailTrace(cert.id)">
+                    <span class="material-symbols-outlined text-[18px] leading-none">history</span>
+                  </button>
+                  <button
+                    v-if="cert.estado_envio === 'error'"
+                    type="button"
+                    title="Ver detalle del error"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-rose-400 transition-all hover:bg-rose-50"
+                    @click="verError(cert.log_error_envio || '')"
+                  >
+                    <span class="material-symbols-outlined text-[18px] leading-none">bug_report</span>
+                  </button>
+                  <button type="button" title="Editar email del usuario" class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-blue-400 transition-all hover:bg-blue-50 hover:text-blue-600" @click="abrirEditarEmail(cert)">
+                    <span class="material-symbols-outlined text-[18px] leading-none">edit</span>
+                  </button>
 
-                  <VBtn @click="verVerificacion(cert)"
-                          title="Verificar autenticidad"
-                          class="p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-emerald-500 hover:text-emerald-700 transition-all">
-                    <VIcon class="material-symbols-outlined text-[18px]">verified</VIcon>
-                  </VBtn>
-
-                  <VBtn @click="abrirMailTrace(cert.id)"
-                          title="Ver traza de envío"
-                          class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-all">
-                    <VIcon class="material-symbols-outlined text-[18px]">history</VIcon>
-                  </VBtn>
-
-                  <!-- Ver error -->
-                  <VBtn v-if="cert.estado_envio === 'error'"
-                          @click="verError(cert.log_error_envio || '')"
-                          title="Ver detalle del error"
-                          class="p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-400 transition-all">
-                    <VIcon class="material-symbols-outlined text-[18px]">bug_report</VIcon>
-                  </VBtn>
-
-                  <!-- Editar email -->
-                  <VBtn @click="abrirEditarEmail(cert)"
-                          title="Editar email del usuario"
-                          class="p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-400 hover:text-blue-600 transition-all">
-                    <VIcon class="material-symbols-outlined text-[18px]">edit</VIcon>
-                  </VBtn>
-
-                  <!-- Reintentar individual -->
-                  <VBtn @click="reintentarUno(cert)"
-                          :title="cert.estado_envio === 'enviado' ? 'Ya enviado' : 'Reintentar envío'"
-                          :class="cert.estado_envio === 'enviado'
-                            ? 'text-slate-300 dark:text-slate-600 cursor-default'
-                            : 'hover:bg-slate-100 dark:hover:bg-gray-700 text-slate-400 hover:text-slate-800'"
-                          class="p-2 rounded-lg transition-all">
-                    <VIcon class="material-symbols-outlined text-[18px]">
+                  <button
+                    type="button"
+                    :title="cert.estado_envio === 'enviado' ? 'Ya enviado' : 'Reintentar envío'"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all"
+                    :class="cert.estado_envio === 'enviado'
+                      ? 'cursor-default text-slate-300 dark:text-slate-600'
+                      : 'text-slate-400 hover:bg-slate-100 hover:text-slate-800'"
+                    @click="reintentarUno(cert)"
+                  >
+                    <span class="material-symbols-outlined text-[18px] leading-none">
                       {{ cert.estado_envio === 'enviado' ? 'done_all' : 'send' }}
-                    </VIcon>
-                  </VBtn>
+                    </span>
+                  </button>
                 </div>
               </td>
             </tr>

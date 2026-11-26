@@ -30,13 +30,13 @@ const getTipoNombre = (tipo: number) => {
 </script>
 
 <template>
-  <div class="animate-in fade-in duration-500 max-w-7xl mx-auto space-y-8">
-    <div class="border-b border-slate-200 dark:border-gray-800 pb-6 mb-8 mt-2 flex justify-between items-end">
-      <div>
-        <h2 class="text-3xl font-black text-primary-dark dark:text-white uppercase italic">Mi Billetera de Certificados</h2>
-        <p class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-widest mt-1">Certificados validados por la Universidad Mayor de San Andrés</p>
+  <div class="mx-auto w-full min-w-0 space-y-6 animate-in fade-in duration-500 sm:space-y-8">
+    <div class="mb-2 mt-1 flex items-end justify-between gap-3 border-b border-slate-200 pb-5 dark:border-gray-800 sm:mb-6 sm:pb-6">
+      <div class="min-w-0">
+        <h2 class="text-2xl font-black uppercase italic text-primary-dark dark:text-white sm:text-3xl">Mi Billetera de Certificados</h2>
+        <p class="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-gray-500">Certificados validados por la Universidad Mayor de San Andrés</p>
       </div>
-      <VIcon class="material-symbols-outlined text-[3rem] text-umsa-gold drop-shadow-sm">workspace_premium</VIcon>
+      <VIcon class="material-symbols-outlined hidden text-[3rem] text-umsa-gold drop-shadow-sm sm:block">workspace_premium</VIcon>
     </div>
 
     <!-- Cargando -->

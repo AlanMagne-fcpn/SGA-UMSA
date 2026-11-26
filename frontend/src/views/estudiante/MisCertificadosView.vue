@@ -10,11 +10,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-6 md:p-10 space-y-8 animate-in fade-in duration-500">
-    <div class="flex items-end justify-between border-b border-slate-200 dark:border-gray-800 pb-6">
-      <div>
-        <h2 class="text-3xl md:text-4xl font-black text-umsa-blue dark:text-blue-400 tracking-tighter uppercase italic">Mis Certificados</h2>
-        <p class="text-slate-400 dark:text-gray-400 font-medium mt-2">Explora y descarga los certificados emitidos a tu nombre por la UMSA.</p>
+  <div class="mx-auto w-full min-w-0 space-y-6 animate-in fade-in duration-500 sm:space-y-8">
+    <div class="flex items-end justify-between border-b border-slate-200 pb-5 dark:border-gray-800 sm:pb-6">
+      <div class="min-w-0">
+        <h2 class="text-2xl font-black uppercase italic tracking-tighter text-umsa-blue dark:text-blue-400 sm:text-3xl md:text-4xl">Mis Certificados</h2>
+        <p class="mt-2 font-medium text-slate-400 dark:text-gray-400">Explora y descarga los certificados emitidos a tu nombre por la UMSA.</p>
       </div>
     </div>
 

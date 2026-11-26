@@ -1,16 +1,60 @@
 <script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useUIStore } from '@/stores/ui';
+import api from '@/services/api';
 import Swal from '@/services/dialogs';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const uiStore = useUIStore();
+const profilePhotoUrl = ref('');
+
+const nombreCompleto = computed(() => {
+  const p = authStore.user?.persona as any;
+  const nombre = `${p?.nombres || ''} ${p?.primer_apellido || ''}`.trim();
+  return nombre || authStore.user?.email?.split('@')[0] || 'Ponente';
+});
+
+const iniciales = computed(() =>
+  String(nombreCompleto.value)
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() || '')
+    .join('') || 'P',
+);
+
+const email = computed(() => authStore.user?.email || '');
+
+const loadPhoto = async () => {
+  try {
+    const photoRes = await api.get('/usuarios/perfil/foto', { responseType: 'arraybuffer' });
+    if (photoRes.status === 200 && photoRes.data && photoRes.data.byteLength > 0) {
+      const text = new TextDecoder().decode(photoRes.data);
+      if (text !== 'NONE') {
+        const blob = new Blob([photoRes.data], { type: (photoRes.headers['content-type'] as any) || 'image/jpeg' });
+        if (profilePhotoUrl.value) URL.revokeObjectURL(profilePhotoUrl.value);
+        profilePhotoUrl.value = URL.createObjectURL(blob);
+      }
+    }
+  } catch {
+    /* sin foto: se usan iniciales */
+  }
+};
+
+onMounted(loadPhoto);
+onUnmounted(() => {
+  if (profilePhotoUrl.value) URL.revokeObjectURL(profilePhotoUrl.value);
+});
 
 const navigate = (routeName: string) => {
   router.push({ name: routeName });
+  uiStore.closeSidebar();
 };
+
+const irPerfil = () => navigate('ponente-datos');
 
 const cambiarRol = async () => {
   const roles = authStore.userRoles;
@@ -25,7 +69,7 @@ const cambiarRol = async () => {
   else if (path.startsWith('/admin')) rolActual = 'Super Usuario';
 
   if (roles.length === 2) {
-    const otroRol = roles.find(r => r !== rolActual) || roles[0];
+    const otroRol = roles.find((r) => r !== rolActual) || roles[0];
     let targetPath = '/estudiante';
     if (otroRol === 'Coordinador') targetPath = '/coordinador';
     else if (otroRol === 'Ponente') targetPath = '/ponente';
@@ -38,21 +82,22 @@ const cambiarRol = async () => {
     return;
   }
 
-  const rolConfig: Record<string, { label: string, path: string, icon: string, color: string }> = {
-    'Coordinador': { label: 'Coordinador', path: '/coordinador', icon: 'manage_accounts', color: '#0ea5e9' },
-    'Estudiante': { label: 'Estudiante', path: '/estudiante', icon: 'school', color: '#10b981' },
-    'Ponente': { label: 'Expositor / Ponente', path: '/ponente', icon: 'co_present', color: '#3b82f6' },
-    'Logística': { label: 'Personal de Apoyo', path: '/logistica', icon: 'support_agent', color: '#14b8a6' },
-    'Super Usuario': { label: 'Administrador', path: '/admin', icon: 'shield_person', color: '#ef4444' }
+  const rolConfig: Record<string, { label: string; path: string; icon: string; color: string }> = {
+    Coordinador: { label: 'Coordinador', path: '/coordinador', icon: 'manage_accounts', color: '#0ea5e9' },
+    Estudiante: { label: 'Estudiante', path: '/estudiante', icon: 'school', color: '#10b981' },
+    Ponente: { label: 'Expositor / Ponente', path: '/ponente', icon: 'co_present', color: '#3b82f6' },
+    Logística: { label: 'Personal de Apoyo', path: '/logistica', icon: 'support_agent', color: '#14b8a6' },
+    'Super Usuario': { label: 'Administrador', path: '/admin', icon: 'shield_person', color: '#ef4444' },
   };
 
-  const htmlButtons = roles.map(r => {
-    const config = rolConfig[r] || { label: r, path: '/', icon: 'account_circle', color: '#64748b' };
-    const isCurrent = r === rolActual;
-    return `
+  const htmlButtons = roles
+    .map((r) => {
+      const config = rolConfig[r] || { label: r, path: '/', icon: 'account_circle', color: '#64748b' };
+      const isCurrent = r === rolActual;
+      return `
       <button data-role="${r}" data-path="${config.path}" class="swal-role-btn w-full flex items-center justify-between p-4 mb-2.5 rounded-2xl border-2 transition-all ${
-        isCurrent 
-          ? 'border-slate-300 bg-slate-50 dark:bg-gray-800 opacity-60 cursor-default' 
+        isCurrent
+          ? 'border-slate-300 bg-slate-50 dark:bg-gray-800 opacity-60 cursor-default'
           : 'border-slate-100 hover:border-blue-400 bg-white dark:bg-gray-900 cursor-pointer shadow-sm hover:shadow'
       }">
         <div class="flex items-center gap-3 text-left">
@@ -64,7 +109,8 @@ const cambiarRol = async () => {
         ${isCurrent ? '<span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-gray-800 px-2 py-1 rounded">Activo</span>' : '<span class="material-symbols-outlined text-slate-300 text-sm">chevron_right</span>'}
       </button>
     `;
-  }).join('');
+    })
+    .join('');
 
   Swal.fire({
     title: '<span class="text-[#003a70] dark:text-white uppercase font-black tracking-tight text-lg">Cambiar Portal de Acceso</span>',
@@ -82,7 +128,7 @@ const cambiarRol = async () => {
       const container = Swal.getHtmlContainer();
       if (container) {
         const buttons = container.querySelectorAll('.swal-role-btn');
-        buttons.forEach(btn => {
+        buttons.forEach((btn) => {
           btn.addEventListener('click', () => {
             const role = btn.getAttribute('data-role');
             const targetPath = btn.getAttribute('data-path');
@@ -95,66 +141,102 @@ const cambiarRol = async () => {
           });
         });
       }
-    }
+    },
   });
 };
 </script>
 
 <template>
-  <VSheet tag="aside" :class="[
+  <VSheet
+    tag="aside"
+    :class="[
       uiStore.isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-      'w-64 lg:w-72 bg-white dark:bg-gray-950 text-slate-600 dark:text-gray-300 flex flex-col px-4 py-8 fixed left-0 bottom-0 top-[75px] z-[110] border-r border-slate-200 dark:border-gray-800 overflow-y-auto transition-transform duration-300'
-    ]">
-    <div class="mb-8 p-5 bg-slate-50 dark:bg-gray-900 rounded-2xl border border-slate-100 dark:border-gray-800 shadow-sm relative overflow-hidden group">       
-      <!-- Decorative color (UMSA Blue) -->
-      <div class="absolute left-0 top-0 bottom-0 w-1 bg-umsa-blue dark:bg-blue-500"></div>
-
-      <div class="flex items-center gap-3 mb-2">
-        <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-gray-800 text-umsa-blue font-black flex items-center justify-center text-lg border border-blue-200 dark:border-gray-700 shadow-inner">
-          {{ authStore.user?.persona?.nombres?.charAt(0) || 'P' }}
+      'fixed top-[75px] bottom-0 left-0 z-[110] flex w-64 flex-col overflow-y-auto border-r border-slate-200 bg-white px-4 py-6 text-slate-600 transition-transform duration-300 lg:w-72 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300',
+    ]"
+  >
+    <!-- Perfil → va a datos / configuración -->
+    <button
+      type="button"
+      class="mb-6 w-full rounded-2xl border border-[#028191]/20 bg-gradient-to-br from-[#E4F1DD] via-white to-sky-50 p-4 text-left shadow-sm transition hover:border-[#028191]/45 hover:shadow-md dark:border-sky-800 dark:from-slate-900 dark:via-slate-900 dark:to-sky-950"
+      :class="$route.name === 'ponente-datos' ? 'ring-2 ring-[#028191]/40' : ''"
+      @click="irPerfil"
+    >
+      <div class="flex items-center gap-3">
+        <div class="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-[#012248] to-[#028191] text-white shadow-md">
+          <img v-if="profilePhotoUrl" :src="profilePhotoUrl" alt="Foto de perfil" class="h-full w-full object-cover">
+          <span v-else class="flex h-full w-full items-center justify-center text-base font-black">{{ iniciales }}</span>
         </div>
-        <div>
-          <p class="text-[9px] uppercase tracking-widest text-slate-400 font-bold mb-0.5">Bienvenido</p>
-          <h3 class="text-sm font-black text-slate-800 dark:text-white leading-tight uppercase">{{ authStore.user?.persona?.nombres || 'Ponente' }}</h3>
+        <div class="min-w-0 flex-1">
+          <p class="text-[10px] font-black tracking-[0.18em] text-[#028191] uppercase">Ponente</p>
+          <h3 class="mt-0.5 truncate text-sm font-black leading-snug text-[#012248] dark:text-white">
+            {{ nombreCompleto }}
+          </h3>
+          <p v-if="email" class="mt-0.5 truncate text-[11px] font-semibold text-slate-500">{{ email }}</p>
         </div>
       </div>
-      <p class="text-[10px] text-umsa-blue dark:text-blue-400 mt-2 uppercase tracking-widest font-black bg-blue-50 w-max px-2 py-1 rounded-md dark:bg-gray-800 border border-blue-100 dark:border-gray-700">Expositor</p>
-    </div>
+      <div class="mt-3 flex items-center justify-between gap-2 border-t border-[#028191]/15 pt-3 dark:border-sky-900">
+        <span class="inline-flex items-center gap-1.5 text-[11px] font-black tracking-wide text-[#1A4756] uppercase dark:text-sky-200">
+          <span class="material-symbols-outlined text-[16px] leading-none">manage_accounts</span>
+          Mi perfil
+        </span>
+        <span class="material-symbols-outlined text-[18px] text-[#028191]">chevron_right</span>
+      </div>
+    </button>
 
-    <VSheet tag="nav" class="space-y-1 flex-1">
-      <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 mt-2 pl-2 border-b border-slate-100 dark:border-gray-800 pb-2">Mi área de Trabajo</p>
+    <VSheet tag="nav" class="flex-1 space-y-1">
+      <p class="mb-2 pl-1 text-[10px] font-black tracking-widest text-slate-400 uppercase">Mi área de trabajo</p>
 
-      <VBtn @click="navigate('ponente-eventos'); uiStore.closeSidebar()"
-        :class="[ $route.name === 'ponente-eventos' || $route.name === 'ponente-evento-detalle' ? 'nav-active bg-umsa-blue text-white shadow-lg shadow-umsa-blue/30' : 'hover:bg-slate-50 dark:hover:bg-gray-900 text-slate-500 hover:text-umsa-blue hover:translate-x-1' ]"
-        class="w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all group mt-1">
-        <span class="text-xs uppercase tracking-widest font-bold">Mis Eventos Asignados</span>
-        <VIcon class="material-symbols-outlined text-[18px] transition-colors" :class="[ $route.name === 'ponente-eventos' || $route.name === 'ponente-evento-detalle' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">event</VIcon>
+      <VBtn
+        @click="navigate('ponente-eventos')"
+        :class="[
+          $route.name === 'ponente-eventos' || $route.name === 'ponente-curso' || $route.name === 'ponente-curso-detalle'
+            ? 'bg-umsa-blue text-white shadow-md'
+            : 'text-slate-600 hover:bg-sky-50 dark:text-slate-400 dark:hover:bg-sky-900/20',
+        ]"
+        class="mt-1 flex w-full items-center gap-3 rounded-xl px-4 py-3 font-bold transition-all"
+      >
+        <VIcon class="material-symbols-outlined text-[20px]">monitoring</VIcon>
+        <span class="text-[11px] tracking-wider uppercase">Mis eventos</span>
       </VBtn>
 
-      <VBtn @click="navigate('ponente-historial-notas'); uiStore.closeSidebar()"
-        :class="[ $route.name === 'ponente-historial-notas' ? 'nav-active bg-umsa-blue text-white shadow-lg shadow-umsa-blue/30' : 'hover:bg-slate-50 dark:hover:bg-gray-900 text-slate-500 hover:text-umsa-blue hover:translate-x-1' ]"
-        class="w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all group mt-1">
-        <span class="text-xs uppercase tracking-widest font-bold">Historial de Notas</span>
-        <VIcon class="material-symbols-outlined text-[18px] transition-colors" :class="[ $route.name === 'ponente-historial-notas' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">history_edu</VIcon>
+      <VBtn
+        @click="navigate('ponente-historial-notas')"
+        :class="[$route.name === 'ponente-historial-notas' ? 'bg-umsa-blue text-white shadow-md' : 'text-slate-600 hover:bg-sky-50 dark:text-slate-400 dark:hover:bg-sky-900/20']"
+        class="mt-1.5 flex w-full items-center gap-3 rounded-xl px-4 py-3 font-bold transition-all"
+      >
+        <VIcon class="material-symbols-outlined text-[20px]">history_edu</VIcon>
+        <span class="text-[11px] tracking-wider uppercase">Historial de notas</span>
       </VBtn>
 
+      <VBtn
+        @click="navigate('ponente-certificados')"
+        :class="[$route.name === 'ponente-certificados' ? 'bg-umsa-blue text-white shadow-md' : 'text-slate-600 hover:bg-sky-50 dark:text-slate-400 dark:hover:bg-sky-900/20']"
+        class="mt-1.5 flex w-full items-center gap-3 rounded-xl px-4 py-3 font-bold transition-all"
+      >
+        <VIcon class="material-symbols-outlined text-[20px]">workspace_premium</VIcon>
+        <span class="text-[11px] tracking-wider uppercase">Certificados</span>
+      </VBtn>
 
-      <VBtn @click="navigate('ponente-certificados'); uiStore.closeSidebar()"
-        :class="[ $route.name === 'ponente-certificados' ? 'nav-active bg-umsa-blue text-white shadow-lg shadow-umsa-blue/30' : 'hover:bg-slate-50 dark:hover:bg-gray-900 text-slate-500 hover:text-umsa-blue hover:translate-x-1' ]"
-        class="w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all group mt-1">
-        <span class="text-xs uppercase tracking-widest font-bold">Mis Certificados</span>
-        <VIcon class="material-symbols-outlined text-[18px] transition-colors" :class="[ $route.name === 'ponente-certificados' ? 'text-white' : 'text-slate-400 group-hover:text-umsa-blue' ]">workspace_premium</VIcon>
+      <p class="mt-6 mb-2 pl-1 text-[10px] font-black tracking-widest text-slate-400 uppercase">Cuenta</p>
+
+      <VBtn
+        @click="irPerfil"
+        :class="[$route.name === 'ponente-datos' ? 'bg-[#1A4756] text-white shadow-md' : 'text-slate-600 hover:bg-[#E4F1DD]/70 dark:text-slate-400 dark:hover:bg-slate-800']"
+        class="mt-1 flex w-full items-center gap-3 rounded-xl px-4 py-3 font-bold transition-all"
+      >
+        <VIcon class="material-symbols-outlined text-[20px]">settings</VIcon>
+        <span class="text-[11px] tracking-wider uppercase">Configuración</span>
       </VBtn>
     </VSheet>
 
-    <!-- CAMBIO DE CONTEXTO DE ROL -->
-    <div v-if="authStore.tieneMultiplesRoles" class="mt-6 pt-4 border-t border-slate-100 dark:border-gray-800">
-      <VBtn @click="cambiarRol"
-        class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-bold text-slate-500 hover:bg-slate-50 dark:hover:bg-gray-900 border border-transparent">
-        <span class="text-[10px] uppercase tracking-widest">Cambiar Rol</span>
+    <div v-if="authStore.tieneMultiplesRoles" class="mt-4 border-t border-slate-100 pt-4 dark:border-gray-800">
+      <VBtn
+        @click="cambiarRol"
+        class="flex w-full items-center justify-between rounded-xl border border-transparent px-4 py-3 font-bold text-slate-500 transition-all hover:bg-slate-50 dark:hover:bg-gray-900"
+      >
+        <span class="text-[10px] tracking-widest uppercase">Cambiar rol</span>
         <VIcon class="material-symbols-outlined text-[18px]">cached</VIcon>
       </VBtn>
     </div>
-
   </VSheet>
 </template>

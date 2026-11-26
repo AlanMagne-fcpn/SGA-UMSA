@@ -85,6 +85,10 @@ export class Persona {
   @Column({ name: 'grado_academico', length: 100, nullable: true })
   grado_academico: string;
 
+  /** Resumen curricular público para fichas de actividades (ponente / docente). */
+  @Column({ type: 'text', nullable: true })
+  curriculum: string;
+
   // ── Relación ─────────────────────────────────────────────────────────────
 
   /**

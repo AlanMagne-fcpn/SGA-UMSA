@@ -1,6 +1,6 @@
 <template>
-  <VCard class="p-6 max-w-2xl mx-auto mt-6 bg-white rounded-lg shadow-md">
-    <h1 class="text-2xl font-bold mb-6 text-gray-800 text-center">Marcar Asistencia</h1>
+  <VCard class="mx-auto mt-4 w-full max-w-2xl rounded-2xl bg-white p-4 shadow-md sm:mt-6 sm:p-6">
+    <h1 class="mb-6 text-center text-xl font-bold text-gray-800 sm:text-2xl">Marcar Asistencia</h1>
 
     <!-- Pestañas de opción -->
     <div class="flex border-b mb-6">
